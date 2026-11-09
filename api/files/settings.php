@@ -8,6 +8,9 @@
  *   POST {tab: storage, driver, storage_root, max_upload_mb, s3: {...}}
  *   POST {tab: storage_test, s3: {...}}        write/read/delete a test file
  *   POST {tab: storage_migration, action: retry_failed|remove_old}
+ *   GET  ?tab=recycle   Cap::FILES_RECYCLE  how long deleted things stay in the
+ *        recycle bin, and how much is in it now
+ *   POST {tab: recycle, days}                  0 = keep for ever
  *   GET  ?tab=folders   Cap::FILES_FOLDERS  EVERY folder that exists, including
  *        ones the caller cannot open - names, paths and how many entries each has,
  *        never their files. This is "admins can see a folder exists" (Ed's
@@ -21,6 +24,7 @@
  */
 require_once __DIR__ . '/../../includes/files/api_bootstrap.php';
 require_once __DIR__ . '/../../includes/services/files_storage.php';
+require_once __DIR__ . '/../../includes/services/files_recycle.php';
 
 filesApiRun(function () use ($conn, $analystId) {
     $isGet = $_SERVER['REQUEST_METHOD'] === 'GET';
@@ -47,6 +51,17 @@ filesApiRun(function () use ($conn, $analystId) {
         } catch (InvalidArgumentException $e) {
             filesApiFail($e->getMessage());
         }
+    }
+
+    if ($tab === 'recycle') {
+        requireCapabilityJson(Cap::FILES_RECYCLE, $conn);
+        if ($isGet) filesApiOk(FilesRecycleService::describe($conn));
+        try {
+            FilesRecycleService::saveRetention($conn, $analystId, (int)($in['days'] ?? -1));
+        } catch (InvalidArgumentException $e) {
+            filesApiFail($e->getMessage());
+        }
+        filesApiOk(FilesRecycleService::describe($conn));
     }
 
     if ($tab === 'folders' && $isGet) {
