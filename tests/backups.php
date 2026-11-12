@@ -19,6 +19,7 @@ require_once "$root/includes/storage_persistence.php";
 require_once "$root/includes/storage/driver.php";
 require_once "$root/includes/storage/s3_driver.php";
 require_once "$root/includes/backup/crypto.php";
+require_once "$root/includes/backup/dump.php";
 
 $pass = 0; $fail = 0;
 function ok(string $label, bool $cond, string $detail = ''): void {
@@ -118,6 +119,96 @@ try {
 } finally {
     foreach (glob("$tmpd/*") as $f) @unlink($f);
     @rmdir($tmpd);
+}
+
+// ── Database checks ──
+$conn = connectToDatabase();
+$dbName = (string)$conn->query('SELECT DATABASE()')->fetchColumn();
+if (getenv('FREEITSM_TEST_DATABASE') !== $dbName) {
+    echo "\nSKIPPED database checks: set FREEITSM_TEST_DATABASE to the database this may write to (this one is $dbName).\n";
+    echo "\n$pass passed, $fail failed\n";
+    exit($fail ? 1 : 0);
+}
+$restoreDb = $dbName . '_zzrestore';
+/** A connection to the scratch restore database, created empty; null when this login may not create databases. */
+function zzRestoreConn(PDO $conn, string $name): ?PDO {
+    try {
+        $conn->exec("DROP DATABASE IF EXISTS `$name`");
+        $conn->exec("CREATE DATABASE `$name` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+    } catch (PDOException $e) {
+        return null;
+    }
+    $c = new PDO('mysql:host=' . DB_SERVER . ";dbname=$name;charset=utf8mb4", DB_USERNAME, DB_PASSWORD, dbConnectionOptions());
+    $c->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    return $c;
+}
+function zzTableCounts(PDO $c): array {
+    $out = [];
+    foreach ($c->query("SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'")->fetchAll(PDO::FETCH_NUM) as $r) {
+        $out[$r[0]] = (int)$c->query('SELECT COUNT(*) FROM `' . $r[0] . '`')->fetchColumn();
+    }
+    ksort($out);
+    return $out;
+}
+$work = sys_get_temp_dir() . '/zz-bk-' . bin2hex(random_bytes(4));
+mkdir($work);
+$cleanup = [];   // closures run at the end, newest first
+
+try {
+    section('Database dump and replay');
+    $conn->exec('DROP TABLE IF EXISTS zz_backup_t');
+    $conn->exec('CREATE TABLE zz_backup_t (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, s VARCHAR(50) NULL, b LONGBLOB NULL,
+                 n DECIMAL(10,2) NOT NULL DEFAULT 0, g DECIMAL(12,2) AS (n * 2) STORED, t DATETIME NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4');
+    $cleanup[] = fn() => $conn->exec('DROP TABLE IF EXISTS zz_backup_t');
+    $big = random_bytes(3 * 1024 * 1024);
+    $ins = $conn->prepare('INSERT INTO zz_backup_t (s, b, n, t) VALUES (?, ?, ?, ?)');
+    $ins->execute([null, null, '0.00', null]);
+    $ins->execute(["O'Brien \\ \n \"q\"", '', '12.34', '2026-11-12 08:30:00']);
+    $ins->bindValue(1, 'big'); $ins->bindValue(2, $big, PDO::PARAM_LOB); $ins->bindValue(3, '-5.50'); $ins->bindValue(4, null);
+    $ins->execute();
+    $ins->execute(['Žluťoučký 🚀', "\x00\x01\xff", '1.00', '1999-12-31 23:59:59']);
+
+    $dump = "$work/db.dump";
+    $conn->beginTransaction();
+    $info = backupDumpDatabase($conn, $dump, 1024 * 1024);
+    $conn->commit();
+    ok('the dump counts every table', ($info['tables']['zz_backup_t'] ?? null) === 4 && count($info['tables']) === count(zzTableCounts($conn)),
+       json_encode($info['tables']['zz_backup_t'] ?? null));
+    ok('the dump is compressed (smaller than the big row)', filesize($dump) > 3 * 1024 * 1024 && filesize($dump) < 4 * 1024 * 1024, (string)filesize($dump));
+    $threw = null;
+    try { backupDumpDatabase($conn, "$work/x.dump"); } catch (Throwable $e) { $threw = $e; }
+    ok('dumping outside a transaction is refused (no consistent snapshot)', $threw instanceof LogicException, $threw ? get_class($threw) : 'dumped');
+
+    $rc = zzRestoreConn($conn, $restoreDb);
+    if (!$rc) {
+        echo "  SKIP replay (this login may not create the scratch database $restoreDb)\n";
+    } else {
+        $cleanup[] = fn() => $conn->exec("DROP DATABASE IF EXISTS `$restoreDb`");
+        $n = backupReplayDump($rc, $dump);
+        ok('the dump replays', $n > 10, (string)$n);
+        ok('every table comes back with the same row count', zzTableCounts($rc) === zzTableCounts($conn));
+        $sum = "SELECT GROUP_CONCAT(SHA2(CONCAT_WS('|', id, IFNULL(s,'<null>'), IFNULL(HEX(b),'<null>'), n, g, IFNULL(t,'<null>')), 256) ORDER BY id) FROM zz_backup_t";
+        ok('every value comes back the same (NULLs, quotes, binary, unicode, dates)', $rc->query($sum)->fetchColumn() === $conn->query($sum)->fetchColumn());
+        ok('the 3 MiB row comes back whole', hash('sha256', (string)$rc->query("SELECT b FROM zz_backup_t WHERE s = 'big'")->fetchColumn()) === hash('sha256', $big));
+        ok('auto increment continues after the restored rows',
+           (int)$rc->query("SELECT AUTO_INCREMENT FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'zz_backup_t'")->fetchColumn() >= 5);
+        file_put_contents("$work/cut.dump", substr(file_get_contents($dump), 0, 2000));
+        $threw = null;
+        try { backupReplayDump($rc, "$work/cut.dump"); } catch (Throwable $e) { $threw = $e; }
+        ok('a truncated dump fails rather than restoring part of the data silently', $threw instanceof RuntimeException, $threw ? get_class($threw) : 'replayed');
+    }
+} catch (Throwable $e) {
+    ok('no unexpected error', false, get_class($e) . ': ' . $e->getMessage() . ' @' . basename($e->getFile()) . ':' . $e->getLine());
+} finally {
+    foreach (array_reverse($cleanup) as $c) { try { $c(); } catch (Throwable $ignored) {} }
+    $rm = function (string $d) use (&$rm) {
+        foreach (glob("$d/{,.}*", GLOB_BRACE) ?: [] as $f) {
+            if (in_array(basename($f), ['.', '..'], true)) continue;
+            is_dir($f) && !is_link($f) ? $rm($f) : @unlink($f);
+        }
+        @rmdir($d);
+    };
+    $rm($work);
 }
 
 echo "\n$pass passed, $fail failed\n";
