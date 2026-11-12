@@ -11,7 +11,7 @@ require_once __DIR__ . '/../../includes/files/offline.php';
 filesApiRun(function () use ($conn, $analystId) {
     $type = ($_GET['type'] ?? '') === 'folder' ? 'folder' : 'item';
     $id   = (int)($_GET['id'] ?? 0);
-    $offMarks   = filesOfflineMarks($conn);
+    $offMarks   = filesOfflineDisplayMarks($conn);
     $offFolders = filesOfflineCoveredFolders($conn, $offMarks);
 
     if ($type === 'folder') {

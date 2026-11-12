@@ -43,7 +43,8 @@ try {
     $r = FilesOfflineService::sync($conn, time() + 8 * 60);
     $summary = sprintf('%d copied, %d removed, %d failed%s%s.', $r['copied'], $r['removed'], $r['failed'],
                        $r['marks_dropped'] ? ', ' . $r['marks_dropped'] . ' marks on deleted items dropped' : '',
-                       $r['done'] ? '' : ' (more to do, or storage could not be reached: the next run carries on)');
+                       $r['disk_full'] ? ' (stopped: not enough free disk on this server)'
+                       : ($r['done'] ? '' : ' (more to do, or storage could not be reached: the next run carries on)'));
     $did = $r['copied'] + $r['removed'] + $r['marks_dropped'];
     JobRun::finish($conn, $runId, $r['failed'] ? ($did > 0 ? 'partial' : 'failed') : 'ok', $r, $summary);
     echo "Files offline copies: $summary\n";
