@@ -344,6 +344,8 @@ function analystReferenceRegistry(): array {
         ['status_planned', 'created_by_id', 'history'],
         ['leases', 'created_by', 'history'],
         ['lease_assets', 'created_by', 'history'],
+        ['backup_runs', 'started_by', 'history'],
+        ['backup_runs', 'verified_by', 'history'],
         ['files_folders', 'created_by', 'history'],
         ['files_folders', 'updated_by', 'history'],
         ['files_folders', 'deleted_by', 'history'],

@@ -222,6 +222,8 @@ return [
         'affects_files_recycle_purge' => 'Deleting files for good once they have been in the recycle bin longer than the retention period',
         'name_files_offline_sync'    => 'Files offline copies',
         'affects_files_offline_sync' => 'Keeping server copies of files marked "Make available offline" up to date',
+        'name_backup'                => 'Backups',
+        'affects_backup'             => 'Scheduled backups of the database, stored files and the encryption key (System -> Backups)',
         'name_lms_reminders'         => 'Training reminders',
         'affects_lms_reminders'      => 'LMS reminder emails',
         // GH #199: a pushed source - healthy when its collector's reports arrive on time.

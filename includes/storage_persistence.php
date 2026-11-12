@@ -163,6 +163,8 @@ function storagePersistenceDirectories(): array
         ['rel' => 'contracts/rfp-builder/uploads',    'label' => 'Files uploaded to an RFP'],
         ['rel' => 'system/uploads/branding',          'label' => 'Your logo and other branding images'],
         ['rel' => 'war-room/attachments',             'label' => 'Files shared in a war room'],
+        ['rel' => 'system/uploads/label-fonts',       'label' => 'Fonts uploaded for asset labels'],
+        ['rel' => 'forms/images',                     'label' => 'Images placed on a form (a logo, a diagram)'],
     ];
 
     $out = [];

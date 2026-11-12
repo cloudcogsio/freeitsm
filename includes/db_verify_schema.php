@@ -7021,6 +7021,26 @@ return [
         'marked_by'           => 'INT NULL',
         'marked_datetime'     => 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP',
     ],
+    // Backups (System -> Backups) - see freeitsm.sql.
+    'backup_runs' => [
+        'id'                  => 'INT NOT NULL AUTO_INCREMENT',
+        'kind'                => 'VARCHAR(10) NOT NULL',
+        'status'              => "VARCHAR(10) NOT NULL DEFAULT 'running'",
+        'set_name'            => 'VARCHAR(20) NULL',
+        'started_at'          => 'DATETIME NOT NULL',
+        'finished_at'         => 'DATETIME NULL',
+        'started_by'          => 'INT NULL',
+        'size_bytes'          => 'BIGINT NULL',
+        'files_total'         => 'INT NULL',
+        'files_new'           => 'INT NULL',
+        'db_bytes'            => 'BIGINT NULL',
+        'error_text'          => 'TEXT NULL',
+        'warning_text'        => 'TEXT NULL',
+        'verify_status'       => 'VARCHAR(10) NULL',
+        'verified_at'         => 'DATETIME NULL',
+        'verified_by'         => 'INT NULL',
+        'verify_detail'       => 'TEXT NULL',
+    ],
     // Starters & leavers (4.6.0) - see freeitsm.sql.
     'jml_templates' => [
         'id'                => 'INT NOT NULL AUTO_INCREMENT',

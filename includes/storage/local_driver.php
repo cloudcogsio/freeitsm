@@ -6,7 +6,7 @@
 
 require_once __DIR__ . '/../uploads.php';
 
-final class LocalDriver implements StorageDriver
+final class LocalDriver implements StorageDriver, StorageLister
 {
     private string $root;
     private bool $prepared = false;
@@ -35,7 +35,13 @@ final class LocalDriver implements StorageDriver
         }
         // rename() fails across devices (a volume, another disk): fall back to copy.
         if ($move && @rename($localPath, $dest)) return;
-        if (!@copy($localPath, $dest)) throw new StorageUnavailable('The server could not write to the storage folder.');
+        // Copy under a temporary name, then rename: a crash part way never leaves a
+        // short file under the real name for a later reader to trust.
+        $part = $dest . '.part-' . bin2hex(random_bytes(4));
+        if (!@copy($localPath, $part) || !@rename($part, $dest)) {
+            @unlink($part);
+            throw new StorageUnavailable('The server could not write to the storage folder.');
+        }
         if ($move) @unlink($localPath);
     }
 
@@ -81,6 +87,37 @@ final class LocalDriver implements StorageDriver
         // Windows refuses to delete a file something still has open (a download in
         // progress): say so, so the caller does not record it as gone.
         if (is_file($p)) throw new RuntimeException('The stored file could not be deleted (is it still open?).');
+    }
+
+    public function listKeys(string $prefix): array
+    {
+        return array_keys($this->listObjects($prefix));
+    }
+
+    public function listObjects(string $prefix): array
+    {
+        if (!is_dir($this->root)) return [];
+        $keys = [];
+        try {
+            // Only folders on the way to the prefix are walked, not the whole store.
+            $rootLen = strlen($this->root) + 1;
+            $it = new RecursiveIteratorIterator(new RecursiveCallbackFilterIterator(
+                new RecursiveDirectoryIterator($this->root, FilesystemIterator::SKIP_DOTS),
+                function (SplFileInfo $f) use ($prefix, $rootLen): bool {
+                    if ($prefix === '') return true;
+                    $key = substr(str_replace(DIRECTORY_SEPARATOR, '/', $f->getPathname()), $rootLen);
+                    return str_starts_with($key, $prefix) || ($f->isDir() && str_starts_with($prefix, $key . '/'));
+                }));
+            foreach ($it as $f) {
+                if (!$f->isFile()) continue;
+                $key = substr(str_replace(DIRECTORY_SEPARATOR, '/', $f->getPathname()), strlen($this->root) + 1);
+                if ($prefix === '' || str_starts_with($key, $prefix)) $keys[$key] = ['size' => (int)$f->getSize(), 'mtime' => (int)$f->getMTime()];
+            }
+        } catch (UnexpectedValueException $e) {
+            throw new StorageUnavailable('The storage folder could not be read.');
+        }
+        ksort($keys, SORT_STRING);
+        return $keys;
     }
 
     public function label(): string

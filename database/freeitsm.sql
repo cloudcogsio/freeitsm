@@ -10675,6 +10675,31 @@ CREATE TABLE IF NOT EXISTS `files_offline` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_files_offline_target` (`target_type`, `target_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Backups (System -> Backups): one row per backup run, and the last on-demand
+-- verification of it. The backups themselves live on the backup target.
+-- See includes/backup/runner.php.
+CREATE TABLE IF NOT EXISTS `backup_runs` (
+    `id`                    INT NOT NULL AUTO_INCREMENT,
+    `kind`                  VARCHAR(10) NOT NULL,                   -- scheduled | manual
+    `status`                VARCHAR(10) NOT NULL DEFAULT 'running', -- running | ok | failed
+    `set_name`              VARCHAR(20) NULL,                       -- sets/<set_name>/ on the target
+    `started_at`            DATETIME NOT NULL,
+    `finished_at`           DATETIME NULL,
+    `started_by`            INT NULL,                               -- analyst (Back up now); NULL = scheduled
+    `size_bytes`            BIGINT NULL,
+    `files_total`           INT NULL,
+    `files_new`             INT NULL,
+    `db_bytes`              BIGINT NULL,
+    `error_text`            TEXT NULL,
+    `warning_text`          TEXT NULL,
+    `verify_status`         VARCHAR(10) NULL,                       -- running | ok | failed
+    `verified_at`           DATETIME NULL,
+    `verified_by`           INT NULL,
+    `verify_detail`         TEXT NULL,
+    PRIMARY KEY (`id`),
+    KEY `ix_backup_runs_started` (`started_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- Seed: the project roles a fresh install starts with (PRINCE2-style, in our

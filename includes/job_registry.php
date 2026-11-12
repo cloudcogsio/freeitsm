@@ -81,6 +81,15 @@ function jobSourceKeys(PDO $conn, string $prefix, string $sql): array
     }
 }
 
+/** A scheduled backup is due today: target, passphrase and a schedule set (weekly: only on its day). */
+function jobBackupScheduledToday(PDO $conn): bool
+{
+    $mode = jobSettingStrict($conn, 'backup_schedule');
+    if ($mode !== 'daily' && $mode !== 'weekly') return false;
+    if (jobSettingStrict($conn, 'backup_target') === '' || jobSettingStrict($conn, 'backup_keyring') === '') return false;
+    return $mode === 'daily' || (int)jobSettingStrict($conn, 'backup_weekday') === (int)date('N');
+}
+
 /** A system_settings value, or '' when unset. Throws when it cannot be read - for the health check. */
 function jobSettingStrict(PDO $conn, string $key): string
 {
@@ -205,6 +214,14 @@ function jobRegistry(): array
             'command' => 'php cron/files_offline_sync.php', 'web' => false,
             'interval' => 5, 'grace' => 15, 'max_runtime' => 15,
             'needed'  => fn(PDO $c) => jobNeedOne($c, "SELECT 1 FROM files_offline LIMIT 1") || jobOfflineCopiesLeft($c),
+        ],
+        // Backups (System -> Backups). Off until an administrator sets a target, a passphrase
+        // and a schedule. Weekly runs as a daily schedule that is only needed on its day.
+        // A first backup of a large install can take hours: it runs to completion.
+        'backup' => [
+            'command' => 'php cron/backup.php', 'web' => false,
+            'interval' => 1440, 'grace' => 360, 'max_runtime' => 1440,
+            'needed'  => fn(PDO $c) => jobBackupScheduledToday($c),
         ],
         'lms_reminders' => [
             'command' => 'php cron/lms_reminders.php', 'web' => true,
