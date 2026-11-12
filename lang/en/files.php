@@ -35,6 +35,13 @@ return [
         'storage_unavailable' => 'File storage can\'t be reached right now. Try again in a few minutes, or tell your administrator.',
     ],
     'ex' => [
+        // "Make available offline" (S3-compatible storage only)
+        'offline_on' => 'Make available offline',
+        'offline_off' => 'Remove offline copy',
+        'offline_self' => 'Available offline',
+        'offline_folder' => 'Available offline (from a folder)',
+        'offline_pending' => 'Being made available offline',
+        'offline_bg' => 'Copies are being made in the background.',
         'back' => 'Back',
         'copy' => 'Copy',
         'count' => '{n} items',
@@ -126,6 +133,7 @@ return [
         'note' => 'These choices are yours alone. The logo on the desktop is set by an administrator.',
     ],
     'props' => [
+        'offline' => 'Offline',
         'bytes' => 'bytes',
         'contains' => 'Contains',
         'contains_n' => '{files} files, {folders} folders',
@@ -198,6 +206,7 @@ return [
         'storage_now' => 'Files are stored in',
         'storage_usage' => '{n} stored files, {size} in all.',
         'storage_in_bin' => 'In the recycle bin (freed when it is emptied): {n}, {size}.',
+        'storage_offline' => 'Offline copies on this server: {n}, {size}.',
         'recycle_title' => 'Recycle bin',
         'recycle_days' => 'Keep deleted items for',
         'recycle_days_desc' => 'Deleted files and folders stay in the recycle bin this long, then they are deleted permanently, with their stored files. 0 keeps them until someone deletes them.',
@@ -451,6 +460,15 @@ return [
             'p2' => '**Restore** puts it back where it was. If something with the same name is there now, it comes back as "Name (2)". If the folder it was in is in the bin too, you are asked to restore that folder first. Double-click a deleted folder to look inside before restoring it.',
             'p3' => '**Delete permanently** (or **Empty recycle bin**) removes it for good, including the stored file - this cannot be undone. Restoring needs Modify on the folder, the same as deleting. Deleting a folder permanently also needs Modify on every folder inside it, so nobody can destroy files they could not see; Look inside lists only the folders you can see. A copy shares its stored file with the original, so that file is only removed once nothing uses it.',
             'p4' => 'Files -> Settings -> Recycle bin sets how long deleted items are kept before the Files recycle bin background job deletes them permanently (0 keeps them until someone does). Nothing is deleted automatically until that setting has been saved, and saving says first how many items are already older than the period. When a folder is restored, anything deleted inside it earlier starts its time in the bin again. Restores and permanent deletes are recorded in the audit trail.',
+        ],
+        'offline' => [
+            'nav' => 'Offline copies',
+            'title' => 'Make available offline',
+            'intro' => 'Keep a copy of chosen files on the server, for when S3 cannot be reached.',
+            'p1' => 'When files are stored in S3-compatible storage, right-click a file or folder and choose **Make available offline**. A copy is kept on the FreeITSM server as well, and opening or downloading it uses that copy first - so it opens faster, and still opens while the storage provider cannot be reached. The copy in S3 stays the master.',
+            'p2' => 'Anyone who can see the folder can do this, and **Remove offline copy** undoes it. Both are recorded in the audit trail. The option is not shown when files are stored in a folder on the server, because everything is local already.',
+            'p3' => 'Marking a **folder** covers everything in it, including subfolders and files added later. A file is copied straight away; the files in a folder are copied by the Files offline copies background job, every few minutes. A green tick on the icon shows a file or folder is available offline (a hollow one: still being copied). Only the current version of each file is kept offline.',
+            'p4' => 'Removing it deletes the copy unless something else still keeps it offline - a folder above it, or another file sharing the same stored file. Files in the recycle bin are not kept offline (they are again if restored). Files -> Settings -> Storage shows how much disk the offline copies use.',
         ],
         'audit' => [
             'nav' => 'Audit trail',

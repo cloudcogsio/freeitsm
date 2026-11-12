@@ -7013,6 +7013,14 @@ return [
         'created_datetime'    => 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP',
         'updated_datetime'    => 'DATETIME NULL',
     ],
+    // Files offline copies: what is kept on the server as well as in S3 - see freeitsm.sql.
+    'files_offline' => [
+        'id'                  => 'INT NOT NULL AUTO_INCREMENT',
+        'target_type'         => 'VARCHAR(10) NOT NULL',
+        'target_id'           => 'INT NOT NULL',
+        'marked_by'           => 'INT NULL',
+        'marked_datetime'     => 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP',
+    ],
     // Starters & leavers (4.6.0) - see freeitsm.sql.
     'jml_templates' => [
         'id'                => 'INT NOT NULL AUTO_INCREMENT',

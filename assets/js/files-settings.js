@@ -131,6 +131,7 @@
             $('stoState').innerHTML = where +
                 esc(L('settings.storage_usage', '{n} stored files, {size} in all.', { n: r.stored_files, size: fmtSize(r.stored_bytes) })) +
                 (r.recycle && r.recycle.files ? ' ' + esc(L('settings.storage_in_bin', 'In the recycle bin (freed when it is emptied): {n}, {size}.', { n: r.recycle.files, size: fmtSize(r.recycle.bytes) })) : '') +
+                (r.offline && r.offline.files ? ' ' + esc(L('settings.storage_offline', 'Offline copies on this server: {n}, {size}.', { n: r.offline.files, size: fmtSize(r.offline.bytes) })) : '') +
                 (r.free_bytes ? ' ' + esc(L('settings.storage_free', '{size} free on that disk.', { size: fmtSize(r.free_bytes) })) : '') +
                 (r.writable ? '' : ' <strong>' + esc(L('settings.not_writable', 'The web server cannot write there - uploads will fail.')) + '</strong>');
 

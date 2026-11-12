@@ -10662,6 +10662,19 @@ CREATE TABLE IF NOT EXISTS `files_purge_pending` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_files_purge_pending_path` (`storage_path`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Files kept on the server as well as in S3-compatible storage ("Make available offline").
+-- A mark on a folder covers everything in it, now and later; only the current version
+-- of each file is copied, to <storage root>/offline/<key>. See includes/files/offline.php.
+CREATE TABLE IF NOT EXISTS `files_offline` (
+    `id`                    INT NOT NULL AUTO_INCREMENT,
+    `target_type`           VARCHAR(10) NOT NULL,                   -- folder | item
+    `target_id`             INT NOT NULL,
+    `marked_by`             INT NULL,
+    `marked_datetime`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_files_offline_target` (`target_type`, `target_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- Seed: the project roles a fresh install starts with (PRINCE2-style, in our

@@ -512,6 +512,7 @@ final class FilesRecycleService
                 $conn->prepare("DELETE FROM files_uploads WHERE item_id IN ($in)")->execute($items);
                 $conn->prepare("DELETE FROM files_versions WHERE item_id IN ($in)")->execute($items);
                 $conn->prepare("DELETE FROM files_items WHERE id IN ($in)")->execute($items);
+                self::dropOfflineMarks($conn, 'item', $items);
             }
             if ($folders) {
                 $in = implode(',', array_fill(0, count($folders), '?'));
@@ -519,6 +520,7 @@ final class FilesRecycleService
                      ->execute(array_merge($folders, $folders));
                 $conn->prepare("DELETE FROM files_uploads WHERE folder_id IN ($in)")->execute($folders);
                 $conn->prepare("DELETE FROM files_permissions WHERE folder_id IN ($in)")->execute($folders);
+                self::dropOfflineMarks($conn, 'folder', $folders);
                 // Deepest first, so a parent is never deleted before its children.
                 $depth = function (int $fid) use ($all): int {
                     $d = 0; $f = $all[$fid] ?? null;
@@ -561,6 +563,25 @@ final class FilesRecycleService
     }
 
     /**
+     * Forgets "Make available offline" marks on things being deleted for good, so a new
+     * row that reuses an id never inherits one. files_offline may not exist yet (before
+     * Database Verification): then there is nothing to forget.
+     *
+     * @param string $type 'item' | 'folder'
+     * @param int[]  $ids
+     */
+    private static function dropOfflineMarks(PDO $conn, string $type, array $ids): void
+    {
+        require_once __DIR__ . '/../files/offline.php';
+        try {
+            $in = implode(',', array_map('intval', $ids));
+            $conn->prepare("DELETE FROM files_offline WHERE target_type = ? AND target_id IN ($in)")->execute([$type]);
+        } catch (PDOException $e) {
+            if (!filesOfflineMissingTable($e)) throw $e;
+        }
+    }
+
+    /**
      * Deletes one stored object everywhere it may be: the active location and, during a
      * move, the previous one. During a move its move row goes too, so the move does not
      * copy it (storageMigrateBatch() removes a copy that was already in flight).
@@ -571,6 +592,11 @@ final class FilesRecycleService
     private static function deleteBytes(PDO $conn, string $key): string
     {
         if (!filesStorageKeyIsValid($key)) return 'ok';   // never a path we wrote: nothing to do
+        // Its offline copy ("Make available offline") goes at once: nothing uses the key
+        // any more. A leftover would be removed by the files_offline_sync job anyway.
+        require_once __DIR__ . '/../files/offline.php';
+        $copy = filesOfflinePath($conn, $key);
+        if ($copy !== null && is_file($copy) && !@unlink($copy)) error_log("files: could not delete the offline copy of {$key}");
         $error = null;
         $result = 'ok';
         try {
