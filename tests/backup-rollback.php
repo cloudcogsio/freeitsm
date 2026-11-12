@@ -145,6 +145,31 @@ try {
     ok('no job run was recorded', (int)$conn->query("SELECT COUNT(*) FROM job_runs")->fetchColumn() === $before);
     $out = $cli('scripts/db_verify_cli.php', '--quiet');
     ok('scripts/ still run (an administrator at the console)', !str_contains($out, 'maintenance'), $out);
+    $out = $cli('scripts/documents_maintenance.php', '--quiet');
+    ok('a scheduled job kept in scripts/ is stopped too', str_contains($out, 'maintenance') && str_ends_with($out, 'EXIT=0'), $out);
+    $outside = [];
+    foreach (jobRegistry() as $job => $def) {
+        if (preg_match('#^php\s+(\S+\.php)#', (string)($def['command'] ?? ''), $cm) && !str_starts_with($cm[1], 'cron/')
+            && !in_array($cm[1], BACKUP_MAINTENANCE_CLI_JOBS, true)) $outside[] = "$job: {$cm[1]}";
+    }
+    ok('every scheduled job is one maintenance mode stops', $outside === [], implode(', ', $outside));
+
+    // Entry points that do not load functions.php still meet the gate: it runs from includes/db.php,
+    // which every database connection loads (dbConnectionOptions()).
+    foreach (['api/auth/request_password_reset.php', 'api/auth/reset_password.php', 'auth/oauth_callback.php', 'auth/google_oauth_callback.php'] as $p) {
+        [$code] = $http($p, null, str_starts_with($p, 'api/') ? ['email' => 'zz@example.invalid'] : null);
+        ok("$p: 503", $code === 503, (string)$code);
+    }
+    $unguarded = [];
+    $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
+    foreach ($it as $f) {
+        $p = str_replace('\\', '/', substr($f->getPathname(), strlen($root) + 1));
+        if ($f->getExtension() !== 'php' || preg_match('#^(tests|vendor|node_modules)/#', $p)) continue;
+        $src = (string)file_get_contents($f->getPathname());
+        if (str_contains($src, 'new PDO(') && !str_contains($src, 'dbConnectionOptions(')) $unguarded[] = $p;
+    }
+    ok('every database connection goes through includes/db.php (so through the gate)', $unguarded === [], implode(', ', $unguarded));
+    ok('includes/db.php runs the gate', str_contains((string)file_get_contents("$root/includes/db.php"), 'maintenance_gate.php'));
     backupMaintenanceEnd(['state' => 'abandoned']);
 
     section('Maintenance mode: a job that is still working is never cut off');
