@@ -60,7 +60,7 @@ function stored(string $dir, string $bytes): string {
 }
 /** A file with one version; $key reuses a stored file (a copy), else a new one is written. */
 function item(PDO $conn, string $dir, int $folder, string $name, ?string $key = null): array {
-    $bytes = "bytes of $name";
+    $bytes = $key === null ? "bytes of $name" : file_get_contents("$dir/$key");   // a copy shares its source's bytes
     if ($key === null) $key = stored($dir, $bytes);
     $size = strlen($bytes);
     $conn->prepare("INSERT INTO files_items (folder_id, name, size_bytes) VALUES (?, ?, ?)")->execute([$folder, $name, $size]);

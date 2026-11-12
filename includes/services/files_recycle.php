@@ -847,6 +847,7 @@ final class FilesRecycleService
                 // Left recorded for the job - storage is down, or this request is out of time.
                 $inUse->execute([$key]);
                 if ($inUse->fetchColumn()) { self::unqueueKey($conn, $key); continue; }   // a copy still uses it
+                self::dropOfflineCopy($conn, $key);   // local: needs no storage
                 $bytes += (int)$size;
                 $pending++;
                 continue;
@@ -878,6 +879,18 @@ final class FilesRecycleService
         if (!$items || !DocumentsService::filesLinkReady($conn)) return;
         $in = implode(',', array_fill(0, count($items), '?'));
         $conn->prepare("UPDATE documents SET files_item_id = NULL WHERE files_item_id IN ($in)")->execute($items);
+    }
+
+    /**
+     * Deletes the offline copy ("Make available offline") of bytes nothing uses any more.
+     * A leftover would be removed by the files_offline_sync job anyway.
+     */
+    private static function dropOfflineCopy(PDO $conn, string $key): void
+    {
+        if (!filesStorageKeyIsValid($key)) return;
+        require_once __DIR__ . '/../files/offline.php';
+        $copy = filesOfflinePath($conn, $key);
+        if ($copy !== null && is_file($copy) && !@unlink($copy)) error_log("files: could not delete the offline copy of {$key}");
     }
 
     /**
@@ -927,6 +940,7 @@ final class FilesRecycleService
             error_log("files: could not delete stored bytes {$key}: " . $e->getMessage());
             $res = 'failed';
         }
+        if ($res !== 'in_use') self::dropOfflineCopy($conn, $key);
         try {
             if ($res === 'deleted' || $res === 'in_use') {
                 $conn->prepare("DELETE FROM files_purge_pending WHERE storage_path = ?")->execute([$key]);
