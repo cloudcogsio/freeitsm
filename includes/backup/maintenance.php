@@ -27,6 +27,12 @@ const BACKUP_MAINTENANCE_COOKIE = 'freeitsm_rollback';
 const BACKUP_MAINTENANCE_STALE = 900;
 /** Log lines kept in the file. */
 const BACKUP_MAINTENANCE_LOG_MAX = 200;
+/**
+ * Scheduled jobs that live outside cron/ (their jobRegistry() command): maintenance mode stops
+ * them as it stops every cron/ script. tests/backup-rollback.php fails if a job is missing here.
+ */
+const BACKUP_MAINTENANCE_CLI_JOBS = ['scripts/documents_maintenance.php'];
+
 /** States in which the rollback process is still working. */
 const BACKUP_MAINTENANCE_WORKING = ['starting', 'waiting', 'safety', 'restoring', 'files', 'verifying', 'recovering'];
 
