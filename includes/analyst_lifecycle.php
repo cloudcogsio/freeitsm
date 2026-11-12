@@ -354,6 +354,7 @@ function analystReferenceRegistry(): array {
         ['files_permissions', 'granted_by', 'history'],
         ['files_audit', 'analyst_id', 'history'],
         ['files_shortcuts', 'created_by', 'history'],
+        ['files_offline', 'marked_by', 'history'],
     ];
 }
 
