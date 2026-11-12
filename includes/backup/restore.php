@@ -48,28 +48,50 @@ function backupOpenSet(StorageDriver&StorageLister $t, string $set, string $pass
 {
     if (!preg_match('/^\d{8}T\d{6}Z$/', $set)) throw new InvalidArgumentException('That is not a backup name.');
     if ($t->size("sets/$set/done.json") === null) throw new RuntimeException("Backup $set is not complete (or does not exist).");
-    $keyring = null;
-    try {
-        $keyring = backupReadJson($t, 'keyring.json');
-    } catch (StorageNotFound $e) {
-        // fall back to the set's own copy below
+    $datakeyBin  = backupReadString($t, "sets/$set/datakey.bin");
+    $manifestBin = backupReadString($t, "sets/$set/manifest.bin");
+    $auth        = trim(backupReadString($t, "sets/$set/auth.txt"));
+
+    // The keyring at the target (current passphrase), the set's own copy (the keyring it
+    // was made with), then any older keyrings kept beside a newer one.
+    $candidates = ['keyring.json', "sets/$set/keyring.json"];
+    foreach ($t->listKeys('keyring-') as $k) if (preg_match('/^keyring-[0-9a-f]{16}\.json$/', $k)) $candidates[] = $k;
+    $unlocked = false;
+    foreach ($candidates as $c) {
+        try {
+            $kr = backupReadJson($t, $c);
+            if (!is_array($kr)) continue;
+            $keys = backupUnlockKeyring($kr, $passphrase);
+        } catch (BackupWrongPassphrase $e) {
+            continue;
+        } catch (Throwable $e) {
+            continue;   // missing or unreadable: try the next
+        }
+        $unlocked = true;
+        try {
+            $dataKey = backupOpenKey($datakeyBin, $keys['public'], $keys['secret']);
+        } catch (BackupCorrupt $e) {
+            sodium_memzero($keys['secret']);
+            continue;   // this passphrase opens a keyring, but not the one this set was made with
+        }
+        if (!hash_equals(backupSetAuth($keys['pool_name_key'], $set, $datakeyBin, $manifestBin), $auth)) {
+            throw new BackupCorrupt("Backup $set is not authentic: it was not made by an install holding this backup's keys.");
+        }
+        $manifest = json_decode(backupDecryptString($manifestBin, $dataKey), true);
+        if (!is_array($manifest) || (int)($manifest['format'] ?? 0) !== 1) throw new BackupCorrupt('The backup manifest is not readable.');
+        return ['keys' => $keys, 'datakey' => $dataKey, 'manifest' => $manifest];
     }
-    $keyring ??= backupReadJson($t, "sets/$set/keyring.json");
-    if (!is_array($keyring)) throw new BackupCorrupt('The backup keyring could not be read.');
-    $keys = backupUnlockKeyring($keyring, $passphrase);
-    try {
-        $dataKey = backupOpenKey(backupReadString($t, "sets/$set/datakey.bin"), $keys['public'], $keys['secret']);
-    } catch (BackupCorrupt $e) {
-        // The target keyring may be a newer keypair's (a target reused after a fresh start):
-        // the set's own copy is the one it was made with.
-        $own = backupReadJson($t, "sets/$set/keyring.json");
-        if (!is_array($own)) throw $e;
-        $keys = backupUnlockKeyring($own, $passphrase);
-        $dataKey = backupOpenKey(backupReadString($t, "sets/$set/datakey.bin"), $keys['public'], $keys['secret']);
+    if ($unlocked) throw new BackupCorrupt("Backup $set could not be opened with any keyring this passphrase unlocks.");
+    throw new BackupWrongPassphrase('The backup passphrase is not correct.');
+}
+
+/** Restore writes upload files only into the folders FreeITSM keeps them in. */
+function backupRestoreDirAllowed(string $rel): bool
+{
+    foreach (storagePersistenceDirectories() as $d) {
+        if (empty($d['critical']) && (string)$d['rel'] === $rel) return true;
     }
-    $manifest = json_decode(backupDecryptString(backupReadString($t, "sets/$set/manifest.bin"), $dataKey), true);
-    if (!is_array($manifest) || (int)($manifest['format'] ?? 0) !== 1) throw new BackupCorrupt('The backup manifest is not readable.');
-    return ['keys' => $keys, 'datakey' => $dataKey, 'manifest' => $manifest];
+    return false;
 }
 
 /** The whole object as a string (small objects only). */
@@ -334,7 +356,7 @@ final class BackupRestore
                     $files->putFile($f['path'], $this->fetch($f, $keys), true);
                 } elseif (str_starts_with($f['store'], 'dir:')) {
                     $rel = substr($f['store'], 4);
-                    if ($rel === '' || str_contains($rel, '..') || str_contains($f['path'], '..') || $f['path'] === '' || $f['path'][0] === '/') {
+                    if (!backupRestoreDirAllowed($rel) || str_contains($f['path'], '..') || $f['path'] === '' || $f['path'][0] === '/' || str_contains($f['path'], "\0")) {
                         throw new RuntimeException('an unsafe path in the manifest');
                     }
                     $dest = $this->appRoot . '/' . $rel . '/' . $f['path'];

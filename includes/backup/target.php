@@ -99,11 +99,25 @@ function backupPoolNameKey(PDO $conn): string
     return $raw;
 }
 
-/** Writes the keyring to the target, where a rebuild finds it with nothing but the passphrase. */
+/**
+ * Writes the keyring to the target, where a rebuild finds it with nothing but the
+ * passphrase. A different keyring already there (another install's, or one from before
+ * a rebuild) is kept beside it as keyring-<id>.json, never overwritten: the sets it
+ * made still need it.
+ */
 function backupWriteKeyring(StorageDriver $target, array $keyring): void
 {
     $tmp = tempnam(sys_get_temp_dir(), 'bkr');
     try {
+        try {
+            $target->readTo('keyring.json', $tmp);
+            $old = json_decode((string)file_get_contents($tmp), true);
+            if (is_array($old) && ($old['public'] ?? '') !== ($keyring['public'] ?? '') && ($old['public'] ?? '') !== '') {
+                $target->putFile('keyring-' . substr(hash('sha256', (string)$old['public']), 0, 16) . '.json', $tmp);
+            }
+        } catch (StorageNotFound $e) {
+            // first keyring on this target
+        }
         file_put_contents($tmp, json_encode($keyring, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         $target->putFile('keyring.json', $tmp);
     } finally {

@@ -125,6 +125,12 @@ function backupRestoreCli(array $argv, $in = STDIN, $out = STDOUT): int
         $say("The database $dbName could not be opened. Create it (empty) and check the database settings first.");
         return 2;
     }
+    if ($dbName !== DB_NAME && (!isset($opt['app-root']) || $opt['app-root'] === true || !isset($opt['key-path']) || $opt['key-path'] === true)) {
+        // The in-use and key checks look at the database restored into: aimed at a scratch
+        // database, they would let this install's own key and upload folders be overwritten.
+        $say('Restoring into another database (--database) also needs --app-root and --key-path, so this install\'s files and key are not touched.');
+        return 2;
+    }
     $appRoot = isset($opt['app-root']) && $opt['app-root'] !== true ? (string)$opt['app-root'] : dirname(__DIR__, 2);
     $keyPath = isset($opt['key-path']) && $opt['key-path'] !== true ? (string)$opt['key-path']
              : (defined('ENCRYPTION_KEY_PATH') ? (string)ENCRYPTION_KEY_PATH : '');

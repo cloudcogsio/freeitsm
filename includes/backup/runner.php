@@ -37,6 +37,12 @@ final class BackupRunner
     /** Test hook: runs after the inventory is taken, before any file is copied. */
     public ?Closure $afterInventory = null;
 
+    /** Unreferenced pool objects younger than this are kept: another run may be about to use them. */
+    public int $gcGraceSeconds = 172800;
+
+    /** This install's incomplete sets older than this are abandoned (a run that died) and removed. */
+    public int $incompleteMaxAge = 86400;
+
     private PDO $conn;
     private StorageDriver&StorageLister $target;
     private string $appRoot;
@@ -101,7 +107,8 @@ final class BackupRunner
             $this->conn->beginTransaction();
             try {
                 $info = backupDumpDatabase($this->conn, $dump);
-                $filesKeys = $this->conn->query('SELECT DISTINCT storage_path FROM files_versions ORDER BY storage_path')->fetchAll(PDO::FETCH_COLUMN);
+                $filesKeys = $this->conn->query('SELECT storage_path, MAX(sha256) AS sha256, MAX(size_bytes) AS size_bytes
+                                                   FROM files_versions GROUP BY storage_path ORDER BY storage_path')->fetchAll(PDO::FETCH_ASSOC);
                 $this->conn->commit();
             } catch (Throwable $e) {
                 if ($this->conn->inTransaction()) $this->conn->rollBack();
@@ -110,7 +117,11 @@ final class BackupRunner
 
             // 2. Every other stored file.
             $inventory = [];
-            foreach ($filesKeys as $k) $inventory[] = ['store' => 'files', 'path' => (string)$k];
+            foreach ($filesKeys as $k) {
+                $inventory[] = ['store' => 'files', 'path' => (string)$k['storage_path'],
+                                'known_sha' => preg_match('/^[0-9a-f]{64}$/', (string)$k['sha256']) ? (string)$k['sha256'] : null,
+                                'known_size' => (int)$k['size_bytes']];
+            }
             foreach ($this->directoryFiles() as $f) $inventory[] = $f;
             if ($this->afterInventory) ($this->afterInventory)();
 
@@ -147,19 +158,22 @@ final class BackupRunner
                 'key'         => ['size' => strlen($keyBytes), 'sha256' => hash('sha256', $keyBytes)],
                 'files'       => $files,
             ];
-            $this->putEncryptedString("sets/$set/manifest.bin", json_encode($manifest, JSON_UNESCAPED_SLASHES), $dataKey);
-            $this->putString("sets/$set/datakey.bin", backupSealKey($dataKey, $public));
+            $manifestBin = backupEncryptString(json_encode($manifest, JSON_UNESCAPED_SLASHES), $dataKey);
+            $datakeyBin  = backupSealKey($dataKey, $public);
+            $this->putString("sets/$set/manifest.bin", $manifestBin);
+            $this->putString("sets/$set/datakey.bin", $datakeyBin);
+            $this->putString("sets/$set/auth.txt", backupSetAuth($poolKey, $set, $datakeyBin, $manifestBin));
             ksort($refs);
             $this->putString("sets/$set/refs.txt", implode("\n", array_keys($refs)) . ($refs ? "\n" : ''));
             $this->putString("sets/$set/keyring.json", json_encode($keyring, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
             sodium_memzero($dataKey);
 
             // 5. Automatic verification: everything it refers to is there at the expected size.
-            foreach (['db.bin', 'key.bin', 'manifest.bin', 'datakey.bin', 'refs.txt', 'keyring.json'] as $o) {
+            foreach (['db.bin', 'key.bin', 'manifest.bin', 'datakey.bin', 'auth.txt', 'refs.txt', 'keyring.json'] as $o) {
                 if ($this->target->size("sets/$set/$o") === null) throw new RuntimeException("The backup's $o is missing from the target after it was written.");
             }
             foreach ($refs as $name => $size) {
-                if ($this->target->size("pool/$name") !== backupEncryptedSize($size) || $this->target->size("pool/$name.key") === null) {
+                if ($this->target->size("pool/$name") !== backupEncryptedSize($size) || $this->target->size("pool/$name.key") !== BACKUP_SEALED_KEY_SIZE) {
                     throw new RuntimeException('A stored file is missing from the backup target, or has the wrong size, after it was written.');
                 }
             }
@@ -208,38 +222,40 @@ final class BackupRunner
     }
 
     /**
-     * Removes sets beyond the newest $keep complete ones of this install, this install's
-     * incomplete sets (a run holding the lock means none of them is still being written),
-     * then every pool object no remaining set references.
+     * Removes sets beyond the newest $keep complete ones of this install and this
+     * install's incomplete sets older than $incompleteMaxAge (runs that died), then every
+     * pool object that no remaining set references and that is older than $gcGraceSeconds.
      *
-     * The pool clean-up reads every remaining set's refs.txt FROM THE TARGET, so it is
-     * right after a restore or with two installs on one target. Any doubt skips it.
+     * Another install's sets are never touched. The pool clean-up reads every remaining
+     * set's refs.txt FROM THE TARGET (right after a restore, or with two installs on one
+     * target), and the grace period protects objects a run - ours, a clone's or another
+     * install's - has just uploaded or is about to reuse. Any doubt about a complete
+     * set's references skips the clean-up.
      *
      * @return array{sets_removed: int, pool_removed: int, gc_skipped: bool, gc_reason: ?string}
      */
     public function prune(int $keep, string $installId): array
     {
         $sets = [];
-        foreach ($this->target->listKeys('sets/') as $k) {
+        foreach ($this->target->listObjects('sets/') as $k => $o) {
             $parts = explode('/', $k, 3);
-            if (count($parts) === 3) $sets[$parts[1]][$parts[2]] = true;
+            if (count($parts) === 3) $sets[$parts[1]][$parts[2]] = $o;
         }
         $mine = [];
         $removed = 0;
         $gcSkip = null;
         foreach ($sets as $name => $objs) {
-            $owner = isset($objs['done.json']) ? $this->readJson("sets/$name/done.json")
+            $complete = isset($objs['done.json']);
+            $owner = $complete ? $this->readJson("sets/$name/done.json")
                    : (isset($objs['owner.json']) ? $this->readJson("sets/$name/owner.json") : null);
-            $ownerId = is_array($owner) ? (string)($owner['install_id'] ?? '') : '';
-            if ($ownerId !== $installId) {
-                // Another install's set: leave it. One still being written may hold pool
-                // objects it has not listed yet, so the pool is left alone too.
-                if (!isset($objs['done.json']) && !isset($objs['refs.txt'])) $gcSkip = 'another install is writing a backup to this target.';
+            if ((is_array($owner) ? (string)($owner['install_id'] ?? '') : '') !== $installId) continue;   // not ours
+            if ($complete) {
+                $mine[] = $name;
                 continue;
             }
-            if (isset($objs['done.json'])) {
-                $mine[] = $name;
-            } else {
+            $started = is_array($owner) && isset($owner['started_at']) ? strtotime((string)$owner['started_at']) : false;
+            if ($started === false) $started = max(array_map(fn($o) => (int)$o['mtime'], $objs));
+            if (time() - $started > $this->incompleteMaxAge) {
                 $this->removeSet($name, array_keys($objs));
                 $removed++;
                 unset($sets[$name]);
@@ -253,30 +269,29 @@ final class BackupRunner
         }
 
         $poolRemoved = 0;
-        if ($gcSkip === null) {
-            $used = [];
-            try {
-                foreach ($sets as $name => $objs) {
-                    if (!isset($objs['refs.txt'])) {
-                        // A complete set always has one: without it, what it uses is unknown.
-                        if (isset($objs['done.json'])) throw new RuntimeException('missing refs.txt');
-                        continue;
-                    }
-                    foreach (explode("\n", $this->readString("sets/$name/refs.txt")) as $n) {
-                        $n = trim($n);
-                        if ($n !== '') $used[$n] = true;
-                    }
+        $used = [];
+        try {
+            foreach ($sets as $name => $objs) {
+                if (!isset($objs['refs.txt'])) {
+                    // A complete set always has one: without it, what it uses is unknown.
+                    if (isset($objs['done.json'])) throw new RuntimeException('missing refs.txt');
+                    continue;
                 }
-            } catch (Throwable $e) {
-                $gcSkip = 'a backup\'s list of stored files could not be read.';
+                foreach (explode("\n", $this->readString("sets/$name/refs.txt")) as $n) {
+                    $n = trim($n);
+                    if ($n !== '') $used[$n] = true;
+                }
             }
-            if ($gcSkip === null) {
-                foreach ($this->target->listKeys('pool/') as $k) {
-                    $name = preg_replace('/\.key$/', '', substr($k, 5));
-                    if (isset($used[$name])) continue;
-                    $this->target->delete($k);
-                    if (!str_ends_with($k, '.key')) $poolRemoved++;
-                }
+        } catch (Throwable $e) {
+            $gcSkip = 'a backup\'s list of stored files could not be read.';
+        }
+        if ($gcSkip === null) {
+            $cutoff = time() - $this->gcGraceSeconds;
+            foreach ($this->target->listObjects('pool/') as $k => $o) {
+                $name = preg_replace('/\.key$/', '', substr($k, 5));
+                if (isset($used[$name]) || (int)$o['mtime'] > $cutoff) continue;
+                $this->target->delete($k);
+                if (!str_ends_with($k, '.key')) $poolRemoved++;
             }
         }
         return ['sets_removed' => $removed, 'pool_removed' => $poolRemoved, 'gc_skipped' => $gcSkip !== null, 'gc_reason' => $gcSkip];
@@ -318,8 +333,18 @@ final class BackupRunner
     /** Puts one file in the pool (or finds it there) and returns its manifest entry. */
     private function poolFile(array $f, string $poolKey, string $public, array &$out, array &$warnings): array
     {
-        $local = null;
-        $copy  = null;
+        $entry = ['store' => $f['store'], 'path' => $f['path']];
+        // A Files object whose checksum Files recorded and that is already in the pool is
+        // not downloaded again: every run would otherwise read the whole Files bucket.
+        if ($f['store'] === 'files' && ($f['known_sha'] ?? null) !== null) {
+            $name = backupPoolName($poolKey, $f['known_sha']);
+            if (isset($this->seen[$name]) || $this->inPool($name, (int)$f['known_size'])) {
+                $this->seen[$name] = true;
+                $out['files_total']++;
+                return $entry + ['size' => (int)$f['known_size'], 'sha256' => $f['known_sha'], 'pool' => $name];
+            }
+        }
+        $copy = null;
         if ($f['store'] === 'files') {
             $copy = $this->tmp . '/file.bin';
             try {
@@ -329,7 +354,7 @@ final class BackupRunner
                 $st->execute([$f['path']]);
                 if ($st->fetchColumn()) throw new RuntimeException('A file in Files is missing from Files storage: ' . $f['path']);
                 $warnings[] = 'A file in Files was deleted while the backup ran and is not in it: ' . $f['path'];
-                return $f + ['missing' => 'deleted during backup'];
+                return $entry + ['missing' => 'deleted during backup'];
             } catch (StorageUnavailable $e) {
                 throw new RuntimeException('Files storage could not be read: ' . $e->getMessage());
             }
@@ -340,13 +365,18 @@ final class BackupRunner
         $sha = @hash_file('sha256', $local);
         $size = @filesize($local);
         if ($sha === false || $size === false) {
+            clearstatcache(true, $local);
+            if ($copy === null && !file_exists($local)) {
+                $warnings[] = 'A file was deleted while the backup ran and is not in it: ' . substr($f['store'], 4) . '/' . $f['path'];
+                return $entry + ['missing' => 'deleted during backup'];
+            }
             throw new RuntimeException('A stored file could not be read: ' . substr($f['store'], 4) . '/' . $f['path']);
         }
         $name = backupPoolName($poolKey, $sha);
         $out['files_total']++;
         if (!isset($this->seen[$name])) {
             $this->seen[$name] = true;
-            if ($this->target->size("pool/$name") !== backupEncryptedSize((int)$size) || $this->target->size("pool/$name.key") === null) {
+            if (!$this->inPool($name, (int)$size)) {
                 $fileKey = random_bytes(SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_KEYBYTES);
                 $this->putEncrypted("pool/$name", $local, $fileKey);
                 $this->putString("pool/$name.key", backupSealKey($fileKey, $public));
@@ -355,7 +385,14 @@ final class BackupRunner
             }
         }
         if ($copy !== null) @unlink($copy);
-        return $f + ['size' => (int)$size, 'sha256' => $sha, 'pool' => $name];
+        return $entry + ['size' => (int)$size, 'sha256' => $sha, 'pool' => $name];
+    }
+
+    /** The object and its sealed key are on the target, both at their exact sizes. */
+    private function inPool(string $name, int $plainSize): bool
+    {
+        return $this->target->size("pool/$name") === backupEncryptedSize($plainSize)
+            && $this->target->size("pool/$name.key") === BACKUP_SEALED_KEY_SIZE;
     }
 
     /** @var array<string,bool> pool names handled in this run */
