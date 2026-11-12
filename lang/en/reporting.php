@@ -218,6 +218,8 @@ return [
         'affects_domains'            => 'Domain lookups, checks and expiry alerts',
         'name_storage_migrate'       => 'Files storage move',
         'affects_storage_migrate'    => 'Copying files to a new storage location (files not copied yet are read from the old one)',
+        'name_backup'                => 'Backups',
+        'affects_backup'             => 'Scheduled backups of the database, stored files and the encryption key (System -> Backups)',
         'name_lms_reminders'         => 'Training reminders',
         'affects_lms_reminders'      => 'LMS reminder emails',
         // GH #199: a pushed source - healthy when its collector's reports arrive on time.

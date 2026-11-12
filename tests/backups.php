@@ -20,6 +20,10 @@ require_once "$root/includes/storage/driver.php";
 require_once "$root/includes/storage/s3_driver.php";
 require_once "$root/includes/backup/crypto.php";
 require_once "$root/includes/backup/dump.php";
+require_once "$root/includes/backup/target.php";
+require_once "$root/includes/services/backups.php";
+require_once "$root/includes/job_registry.php";
+require_once "$root/includes/encryption.php";
 
 $pass = 0; $fail = 0;
 function ok(string $label, bool $cond, string $detail = ''): void {
@@ -197,6 +201,105 @@ try {
         try { backupReplayDump($rc, "$work/cut.dump"); } catch (Throwable $e) { $threw = $e; }
         ok('a truncated dump fails rather than restoring part of the data silently', $threw instanceof RuntimeException, $threw ? get_class($threw) : 'replayed');
     }
+
+    section('Settings: target, passphrase, schedule');
+    // Every backup setting and the job's schedule row are put back at the end.
+    $snap = $conn->query("SELECT setting_key, setting_value FROM system_settings WHERE setting_key LIKE 'backup\\_%'")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $schedRow = $conn->query("SELECT * FROM job_schedules WHERE job_key = 'backup'")->fetch(PDO::FETCH_ASSOC) ?: null;
+    $cleanup[] = function () use ($conn, $snap, $schedRow) {
+        $conn->exec("DELETE FROM system_settings WHERE setting_key LIKE 'backup\\_%'");
+        $ins = $conn->prepare('INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?)');
+        foreach ($snap as $k => $v) $ins->execute([$k, $v]);
+        if ($schedRow) {
+            $conn->prepare('UPDATE job_schedules SET mode = ?, interval_minutes = ?, at_time = ?, next_due_at = ? WHERE job_key = ?')
+                 ->execute([$schedRow['mode'], $schedRow['interval_minutes'], $schedRow['at_time'], $schedRow['next_due_at'], 'backup']);
+        } else {
+            $conn->exec("DELETE FROM job_schedules WHERE job_key = 'backup'");
+        }
+    };
+    $conn->exec("DELETE FROM system_settings WHERE setting_key LIKE 'backup\\_%'");
+    BackupsService::$kdfOps = SODIUM_CRYPTO_PWHASH_OPSLIMIT_INTERACTIVE;
+    BackupsService::$kdfMem = SODIUM_CRYPTO_PWHASH_MEMLIMIT_INTERACTIVE;
+    $admin = (int)$conn->query('SELECT id FROM analysts ORDER BY id LIMIT 1')->fetchColumn();
+
+    ok('the backup_runs table exists', (bool)$conn->query("SHOW TABLES LIKE 'backup_runs'")->fetchColumn());
+    $d = BackupsService::describe($conn);
+    ok('a fresh install has no target, no passphrase, schedule off', $d['target'] === null && !$d['has_passphrase'] && $d['schedule']['mode'] === 'off' && $d['keep'] === 7);
+    ok('a fresh install does not need the backup job', jobRegistry()['backup']['needed']($conn) === false);
+
+    $folder = "$work/target";
+    mkdir($folder);
+    $t = BackupsService::test(['type' => 'folder', 'folder' => $folder]);
+    ok('test: a writable folder passes', $t['ok'] === true, json_encode($t));
+    $t = BackupsService::test(['type' => 'folder', 'folder' => "$work/does-not-exist"]);
+    ok('test: a missing folder fails', $t['ok'] === false && $t['step'] !== null);
+    ok('test: nothing is left behind', (new LocalDriver("$folder/backup"))->listKeys('_freeitsm_test/') === []);
+
+    $err = fn(callable $f) => (function () use ($f) { try { $f(); return null; } catch (BackupsInputError $e) { return $e->getMessage(); } })();
+    ok('save: a relative folder is refused', $err(fn() => BackupsService::saveTarget($conn, ['type' => 'folder', 'folder' => 'backups'], $admin)) === 'err_folder_absolute');
+    ok('save: a folder inside the application is refused',
+       $err(fn() => BackupsService::saveTarget($conn, ['type' => 'folder', 'folder' => dirname(__DIR__) . '/uploads'], $admin)) === 'err_folder_inside_app');
+    ok('save: a folder that fails the test is refused', $err(fn() => BackupsService::saveTarget($conn, ['type' => 'folder', 'folder' => "$work/nope"], $admin)) === 'err_target_test');
+    BackupsService::saveTarget($conn, ['type' => 'folder', 'folder' => $folder], $admin);
+    ok('save: a good folder is saved', (backupTargetConfig($conn)['folder'] ?? null) === $folder);
+
+    ok('passphrase: too short is refused', $err(fn() => BackupsService::setPassphrase($conn, 'short', 'short', $admin)) === 'err_passphrase_short');
+    ok('passphrase: a mismatch is refused', $err(fn() => BackupsService::setPassphrase($conn, 'long enough passphrase', 'long enough passphrasE', $admin)) === 'err_passphrase_mismatch');
+    BackupsService::setPassphrase($conn, 'long enough passphrase', 'long enough passphrase', $admin);
+    $kr = json_decode((string)backupSetting($conn, 'backup_keyring'), true);
+    ok('passphrase: the saved keyring opens with it', is_array($kr) && backupUnlockKeyring($kr, 'long enough passphrase')['public'] !== '');
+    ok('passphrase: the keyring is written to the target', json_decode((string)@file_get_contents("$folder/backup/keyring.json"), true) == $kr);
+    ok('passphrase: an install id is made', preg_match('/^[0-9a-f]{32}$/', backupSetting($conn, 'backup_install_id')) === 1);
+    $poolSecret = (string)$conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'backup_pool_name_secret'")->fetchColumn();
+    ok('passphrase: the pool name key is stored encrypted', str_starts_with($poolSecret, 'ENC:'));
+    ok('passphrase: it cannot be set twice', $err(fn() => BackupsService::setPassphrase($conn, 'another long passphrase', 'another long passphrase', $admin)) === 'err_passphrase_exists');
+    ok('passphrase change: a wrong current passphrase is refused',
+       $err(fn() => BackupsService::changePassphrase($conn, 'not the passphrase!', 'a new long passphrase', 'a new long passphrase', $admin)) === 'err_passphrase_wrong');
+    $pub = backupSetting($conn, 'backup_public_key');
+    BackupsService::changePassphrase($conn, 'long enough passphrase', 'a new long passphrase', 'a new long passphrase', $admin);
+    $kr2 = json_decode((string)backupSetting($conn, 'backup_keyring'), true);
+    ok('passphrase change: the new one opens the same keys', base64_encode(backupUnlockKeyring($kr2, 'a new long passphrase')['public']) === $pub);
+    ok('passphrase change: the target keyring is replaced', json_decode((string)file_get_contents("$folder/backup/keyring.json"), true) == $kr2);
+
+    ok('schedule: weekly needs a day', $err(fn() => BackupsService::saveSchedule($conn, 'weekly', 0, '02:00', 7, $admin)) === 'err_schedule_day');
+    ok('schedule: a bad time is refused', $err(fn() => BackupsService::saveSchedule($conn, 'daily', null, '25:00', 7, $admin)) === 'err_schedule_time');
+    ok('schedule: keep 0 is refused', $err(fn() => BackupsService::saveSchedule($conn, 'daily', null, '02:00', 0, $admin)) === 'err_keep');
+    ok('schedule: keep 366 is refused', $err(fn() => BackupsService::saveSchedule($conn, 'daily', null, '02:00', 366, $admin)) === 'err_keep');
+    BackupsService::saveSchedule($conn, 'daily', null, '02:30', 5, $admin);
+    $row = $conn->query("SELECT mode, at_time FROM job_schedules WHERE job_key = 'backup'")->fetch(PDO::FETCH_ASSOC);
+    ok('schedule: daily sets the job to run daily at that time', $row && $row['mode'] === 'daily' && substr((string)$row['at_time'], 0, 5) === '02:30', json_encode($row));
+    ok('schedule: daily with a target and passphrase needs the job', jobRegistry()['backup']['needed']($conn) === true);
+    $today = (int)date('N');
+    BackupsService::saveSchedule($conn, 'weekly', $today, '02:30', 5, $admin);
+    ok('schedule: weekly is needed on its day', jobRegistry()['backup']['needed']($conn) === true);
+    BackupsService::saveSchedule($conn, 'weekly', $today % 7 + 1, '02:30', 5, $admin);
+    ok('schedule: weekly is not needed on another day', jobRegistry()['backup']['needed']($conn) === false);
+    BackupsService::saveSchedule($conn, 'off', null, null, 5, $admin);
+    ok('schedule: off is not needed and the job is off',
+       jobRegistry()['backup']['needed']($conn) === false && $conn->query("SELECT mode FROM job_schedules WHERE job_key = 'backup'")->fetchColumn() === 'off');
+
+    $t = BackupsService::test(['type' => 's3', 's3' => ['endpoint' => 'http://169.254.169.254', 'bucket' => 'b', 'access_key_id' => 'k', 'secret' => 'x']]);
+    ok('test: a link-local (cloud metadata) endpoint is refused', $t['ok'] === false && $t['step'] === 'connect');
+    $s3ep = getenv('FREEITSM_TEST_S3_ENDPOINT') ?: '';
+    if ($s3ep !== '') {
+        $s3in = ['endpoint' => $s3ep, 'bucket' => getenv('FREEITSM_TEST_S3_BUCKET'), 'access_key_id' => getenv('FREEITSM_TEST_S3_KEY'),
+                 'secret' => getenv('FREEITSM_TEST_S3_SECRET'), 'prefix' => 'zz-bk-' . bin2hex(random_bytes(3)), 'path_style' => true];
+        BackupsService::saveTarget($conn, ['type' => 's3', 's3' => $s3in], $admin);
+        $d = BackupsService::describe($conn);
+        ok('S3 target: saved, and describe() masks the secret', $d['target']['type'] === 's3' && $d['target']['s3']['secret'] !== $s3in['secret']
+           && str_starts_with((string)$d['target']['s3']['secret'], '****'), json_encode($d['target']));
+        ok('S3 target: the secret is stored encrypted',
+           str_starts_with((string)$conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'backup_s3_secret'")->fetchColumn(), 'ENC:'));
+        ok('S3 target: the keyring is written there too', backupTargetDriver(backupTargetConfig($conn))->size('keyring.json') !== null);
+        BackupsService::saveTarget($conn, ['type' => 's3', 's3' => ['secret' => $d['target']['s3']['secret']] + $s3in], $admin);
+        ok('S3 target: saving the masked secret keeps the saved one', backupTargetConfig($conn)['secret'] === $s3in['secret']);
+        $sd = backupTargetDriver(backupTargetConfig($conn));
+        foreach ($sd->listKeys('') as $k) $sd->delete($k);
+    } else {
+        echo "  SKIP S3 target checks (no S3 test endpoint)\n";
+    }
+    BackupsService::saveTarget($conn, ['type' => 'folder', 'folder' => $folder], $admin);
+    ok('describe() never contains the pool name key', !str_contains(json_encode(BackupsService::describe($conn)), bin2hex(backupPoolNameKey($conn))));
 } catch (Throwable $e) {
     ok('no unexpected error', false, get_class($e) . ': ' . $e->getMessage() . ' @' . basename($e->getFile()) . ':' . $e->getLine());
 } finally {

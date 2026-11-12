@@ -44,7 +44,7 @@ final class FilesStorageService
      * service, which hands out the server's own credentials. Private-network
      * addresses (a MinIO on the LAN) stay allowed.
      */
-    private static function endpointRefusal(string $endpoint): ?string
+    public static function endpointRefusal(string $endpoint): ?string
     {
         $host = (string)parse_url($endpoint, PHP_URL_HOST);
         $host = trim($host, '[]');

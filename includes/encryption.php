@@ -87,6 +87,8 @@ define('MASKED_SETTING_KEYS', [
     'warroom_ai_api_key',
     'projects_ai_api_key',
     'files_s3_secret',
+    'backup_s3_secret',
+    'backup_pool_name_secret',
 ]);
 
 /**
