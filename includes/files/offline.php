@@ -103,17 +103,17 @@ function filesOfflineCoveredKeys(PDO $conn, ?array $marks = null): array
     $folders = array_keys(filesOfflineCoveredFolders($conn, $marks));
     $items   = array_keys($marks['item']);
 
+    // Ids are written in as integers rather than placeholders: a big tree can cover more
+    // folders than a prepared statement allows placeholders (65,535).
     $where = [];
-    $args  = [];
-    if ($folders) { $where[] = 'i.folder_id IN (' . implode(',', array_fill(0, count($folders), '?')) . ')'; $args = array_merge($args, $folders); }
-    if ($items)   { $where[] = 'i.id IN (' . implode(',', array_fill(0, count($items), '?')) . ')';         $args = array_merge($args, $items); }
+    if ($folders) $where[] = 'i.folder_id IN (' . implode(',', array_map('intval', $folders)) . ')';
+    if ($items)   $where[] = 'i.id IN (' . implode(',', array_map('intval', $items)) . ')';
     // Every marked folder is in the recycle bin and no file is marked: nothing is covered.
     if (!$where) return [];
-    $st = $conn->prepare("SELECT i.folder_id, v.storage_path, v.size_bytes, v.sha256
-                            FROM files_items i
-                            JOIN files_versions v ON v.id = i.current_version_id
-                           WHERE i.deleted_datetime IS NULL AND (" . implode(' OR ', $where) . ")");
-    $st->execute($args);
+    $st = $conn->query("SELECT i.folder_id, v.storage_path, v.size_bytes, v.sha256
+                          FROM files_items i
+                          JOIN files_versions v ON v.id = i.current_version_id
+                         WHERE i.deleted_datetime IS NULL AND (" . implode(' OR ', $where) . ")");
     $out = [];
     foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
         if (!isset($tree[(int)$r['folder_id']])) continue;   // its folder is in the recycle bin
@@ -148,6 +148,23 @@ function filesOfflineRoot(PDO $conn): string
 function filesOfflinePath(PDO $conn, string $key): ?string
 {
     return filesStorageKeyIsValid($key) ? filesOfflineRoot($conn) . '/' . $key : null;
+}
+
+/**
+ * True when at least one offline copy is on the server - so the job still has
+ * something to tidy after the last mark is removed. Stops at the first one found.
+ */
+function filesOfflineHasAnyCopy(PDO $conn): bool
+{
+    $root = filesOfflineRoot($conn);
+    if (!is_dir($root)) return false;
+    $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
+    foreach ($it as $f) {
+        if (!$f->isFile()) continue;
+        $rel = substr(str_replace('\\', '/', $f->getPathname()), strlen($root) + 1);
+        if (filesStorageKeyIsValid($rel)) return true;
+    }
+    return false;
 }
 
 /** True when a complete copy of the key is on the server (the size must match). */
