@@ -166,6 +166,8 @@ war-room/attachments/*
 forms/images/*
 !forms/images/.htaccess
 !forms/images/web.config
+# Fonts uploaded for asset labels (served only through api/assets/label_font.php).
+system/uploads/label-fonts/*
 
 # ============================================
 # NODE MODULES (if you use npm/Node.js)
