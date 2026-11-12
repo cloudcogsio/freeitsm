@@ -478,6 +478,113 @@ try {
     ok('an unreadable refs.txt skips the pool clean-up', $r['gc_skipped'] === true && $target->listKeys('pool/') === $before, json_encode($r));
     unlink("$rp/x"); rmdir($rp); rename("$rp.bak", $rp);
 
+
+    section('Verify a backup');
+    $latest = $sets();
+    $good = end($latest) === $other ? $latest[count($latest) - 2] : end($latest);
+    $v = backupVerifySet($target, $good, 'a new long passphrase');
+    ok('a good backup verifies', $v['ok'] === true && $v['checked'] >= 3 && !$v['errors'], json_encode($v));
+    $threw = null;
+    try { backupVerifySet($target, $good, 'not the passphrase'); } catch (Throwable $e) { $threw = $e; }
+    ok('verify with a wrong passphrase is refused', $threw instanceof BackupWrongPassphrase);
+    $pp = "$folder/backup/pool/$name";
+    $orig = file_get_contents($pp);
+    file_put_contents($pp, substr($orig, 0, 3000) . chr(ord($orig[3000]) ^ 1) . substr($orig, 3001));
+    $v = backupVerifySet($target, $good, 'a new long passphrase');
+    ok('a damaged stored file fails verification, and is named', $v['ok'] === false && $v['errors'] && str_contains(implode(' ', $v['errors']), $f2['key']), json_encode($v['errors']));
+    file_put_contents($pp, $orig);
+
+    $runRow = (int)$conn->query("SELECT id FROM backup_runs WHERE set_name = " . $conn->quote($good))->fetchColumn();
+    $err2 = fn(callable $f) => (function () use ($f) { try { $f(); return null; } catch (BackupsInputError $e) { return $e->getMessage(); } })();
+    ok('service verify: a wrong passphrase is an input error', $err2(fn() => BackupsService::verify($conn, $runRow, 'nope nope nope', $admin)) === 'err_passphrase_wrong');
+    $vr = BackupsService::verify($conn, $runRow, 'a new long passphrase', $admin);
+    $row = $conn->query("SELECT verify_status, verified_by, verified_at FROM backup_runs WHERE id = $runRow")->fetch(PDO::FETCH_ASSOC);
+    ok('service verify: the result is recorded on the run', $vr['ok'] && $row['verify_status'] === 'ok' && (int)$row['verified_by'] === $admin && $row['verified_at'] !== null, json_encode($row));
+
+    section('Restore');
+    $rc = zzRestoreConn($conn, $restoreDb);
+    if (!$rc) {
+        echo "  SKIP restore (this login may not create the scratch database $restoreDb)\n";
+    } else {
+        $cleanup[] = fn() => $conn->exec("DROP DATABASE IF EXISTS `$restoreDb`");
+        $newRoot = "$work/newapp";
+        $newKey  = "$work/keys/freeitsm.key";
+        $newFiles = "$work/newfiles";
+        mkdir($newRoot); mkdir($newFiles);
+        $log = [];
+        $logger = function (string $m) use (&$log) { $log[] = $m; };
+        $restore = new BackupRestore($target, $good, 'a new long passphrase', $rc, $newRoot, $newKey, false, $logger, new LocalDriver($newFiles));
+        $res = $restore->run();
+        ok('restore: ok', $res['ok'] === true && !$res['errors'], json_encode($res['errors'] ?? null));
+        ok('restore: the key file is the live one', is_file($newKey) && trim((string)file_get_contents($newKey)) === trim((string)file_get_contents(ENCRYPTION_KEY_PATH)));
+        ok('restore: the key file is private', DIRECTORY_SEPARATOR === '\\' || (fileperms($newKey) & 0077) === 0, decoct(fileperms($newKey) & 0777));
+        $liveCounts = zzTableCounts($conn);
+        $newCounts = zzTableCounts($rc);
+        // backup_runs and system_settings change after the backup (this test writes them); the rest must match.
+        unset($liveCounts['backup_runs'], $newCounts['backup_runs'], $liveCounts['system_settings'], $newCounts['system_settings'],
+              $liveCounts['job_runs'], $newCounts['job_runs'], $liveCounts['job_schedules'], $newCounts['job_schedules']);
+        ok('restore: every table comes back with its rows', $newCounts === $liveCounts,
+           json_encode(array_diff_assoc($newCounts, $liveCounts) + array_diff_assoc($liveCounts, $newCounts)));
+        ok('restore: the upload folder file is back', @file_get_contents("$newRoot/uploads/" . basename($upDir) . '/note.txt') === "$marker in a dir file");
+        $fs = new LocalDriver($newFiles);
+        $back = "$work/f2.back";
+        $fs->readTo($f2['key'], $back);
+        ok('restore: Files bytes are back in the Files store', hash_file('sha256', $back) === hash('sha256', $f2['bytes']));
+        ok('restore: scheduled backups are paused on the restored install',
+           $rc->query("SELECT setting_value FROM system_settings WHERE setting_key = 'backup_schedule'")->fetchColumn() === 'off');
+        ok('restore: the restored install gets a new install id',
+           (string)$rc->query("SELECT setting_value FROM system_settings WHERE setting_key = 'backup_install_id'")->fetchColumn() !== backupSetting($conn, 'backup_install_id'));
+
+        // Again, into what is now an install in use: refused without force, nothing touched.
+        $rc->exec("UPDATE analysts SET last_login_datetime = UTC_TIMESTAMP() ORDER BY id LIMIT 1");
+        $rc->exec("CREATE TABLE zz_marker (id INT)");
+        $threw = null;
+        try { (new BackupRestore($target, $good, 'a new long passphrase', $rc, $newRoot, $newKey, false, $logger, new LocalDriver($newFiles)))->run(); }
+        catch (Throwable $e) { $threw = $e; }
+        ok('restore into a database in use is refused without --force', $threw instanceof BackupRestoreRefused, $threw ? get_class($threw) . ': ' . $threw->getMessage() : 'ran');
+        ok('...and nothing was dropped', (bool)$rc->query("SHOW TABLES LIKE 'zz_marker'")->fetchColumn());
+
+        // A different key with a database in use: refused even when the database part is forced? No - force allows both.
+        file_put_contents($newKey, str_repeat('ab', 32));
+        $threw = null;
+        try { (new BackupRestore($target, $good, 'a new long passphrase', $rc, $newRoot, $newKey, false, $logger, new LocalDriver($newFiles)))->run(); }
+        catch (Throwable $e) { $threw = $e; }
+        ok('a different key on an install in use is refused without --force', $threw instanceof BackupRestoreRefused);
+        ok('...and the key is untouched', trim((string)file_get_contents($newKey)) === str_repeat('ab', 32));
+        $res = (new BackupRestore($target, $good, 'a new long passphrase', $rc, $newRoot, $newKey, true, $logger, new LocalDriver($newFiles)))->run();
+        ok('with --force it restores, replacing tables and key', $res['ok'] && !$rc->query("SHOW TABLES LIKE 'zz_marker'")->fetchColumn()
+           && trim((string)file_get_contents($newKey)) === trim((string)file_get_contents(ENCRYPTION_KEY_PATH)), json_encode($res['errors']));
+
+        // A fresh install (only the seed admin, never signed in, no encrypted settings) with its own new key: replaced without --force.
+        $rc2 = zzRestoreConn($conn, $restoreDb);
+        $rc2->exec("CREATE TABLE analysts (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(50), last_login_datetime DATETIME NULL)");
+        $rc2->exec("INSERT INTO analysts (username) VALUES ('admin')");
+        $rc2->exec("CREATE TABLE system_settings (setting_key VARCHAR(100) PRIMARY KEY, setting_value TEXT)");
+        file_put_contents($newKey, str_repeat('cd', 32));
+        $res = (new BackupRestore($target, $good, 'a new long passphrase', $rc2, $newRoot, $newKey, false, $logger, new LocalDriver($newFiles)))->run();
+        ok('a fresh install\'s new key is replaced without --force', $res['ok'] && trim((string)file_get_contents($newKey)) === trim((string)file_get_contents(ENCRYPTION_KEY_PATH)),
+           json_encode($res['errors']));
+
+        $threw = null;
+        try { (new BackupRestore($target, $good, 'wrong passphrase!!', $rc2, $newRoot, $newKey, true, $logger, new LocalDriver($newFiles)))->run(); }
+        catch (Throwable $e) { $threw = $e; }
+        ok('a wrong passphrase restores nothing', $threw instanceof BackupWrongPassphrase);
+
+        section('Command line');
+        $php = PHP_BINARY;
+        $cmd = fn(string $args, string $env = '') => trim((string)shell_exec("cd " . escapeshellarg($appRoot) . " && $env $php scripts/backup_restore.php $args 2>&1; echo \"EXIT=\$?\""));
+        $o = $cmd('--folder=' . escapeshellarg($folder) . ' --list');
+        ok('--list shows the backups', str_contains($o, $good) && str_ends_with($o, 'EXIT=0'), $o);
+        $o = $cmd('--folder=' . escapeshellarg($folder) . " --set=latest --database=$restoreDb --app-root=" . escapeshellarg($newRoot)
+                  . ' --key-path=' . escapeshellarg($newKey) . ' --yes --force --no-verify-schema', 'FREEITSM_BACKUP_PASSPHRASE=wrong-passphrase-here');
+        ok('a wrong passphrase exits non-zero without a stack trace', !str_ends_with($o, 'EXIT=0') && !str_contains($o, 'Stack trace') && !str_contains($o, '#0 '), $o);
+        $o = $cmd('--folder=' . escapeshellarg($folder) . " --set=$good --database=$restoreDb --app-root=" . escapeshellarg($newRoot)
+                  . ' --key-path=' . escapeshellarg($newKey) . ' --yes --force --no-verify-schema', "FREEITSM_BACKUP_PASSPHRASE='a new long passphrase'");
+        ok('a full restore from the command line exits 0', str_ends_with($o, 'EXIT=0'), $o);
+        ok('the passphrase never appears in the output', !str_contains($o, 'a new long passphrase'));
+        $o = $cmd('--bogus-flag');
+        ok('an unknown flag is a usage error (exit 2)', str_ends_with($o, 'EXIT=2'), $o);
+    }
     section('The backup job');
     ok('the job script exists', is_file("$appRoot/cron/backup.php"));
     BackupsService::saveSchedule($conn, 'daily', null, '03:00', 3, $admin);
