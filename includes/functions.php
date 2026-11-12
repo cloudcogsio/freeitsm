@@ -42,6 +42,11 @@ require_once __DIR__ . '/session_keepalive.php';
 // check. See the file for why the rule is deliberately this narrow.
 require_once __DIR__ . '/request_guard.php';
 
+// Maintenance mode: while a backup is being restored from System -> Backups, every page,
+// endpoint and background job stops here (503), except the restore's own progress. Before
+// the gates below, which read the database that the restore is replacing. See the file.
+require_once __DIR__ . '/maintenance_gate.php';
+
 // After signing in, back to the page that sent you to the sign-in screen. Installed
 // before the gates below, because the active-analyst gate redirects as it loads.
 require_once __DIR__ . '/login_return.php';
