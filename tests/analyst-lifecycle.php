@@ -80,6 +80,7 @@ foreach ($schema as $table => $cols) {
 // anything else - NOT analysts - and the reason each is not in the map.
 $notAnalysts = [
     'files_shortcuts.target_id' => 'the file, folder or article a shortcut opens',
+    'files_offline.target_id'   => 'the file or folder kept offline',
 ];
 $missing = [];
 foreach ($found as $k => $why) {
