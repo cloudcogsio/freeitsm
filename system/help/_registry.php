@@ -50,7 +50,7 @@ function getHelpTopics() {
         ],
         'backups' => [
             'hero' => 'Backups',
-            'sub'  => 'Encrypted, scheduled backups of the database, every stored file and the encryption key - and how to rebuild FreeITSM from them.',
+            'sub'  => 'Encrypted, scheduled backups of the database, every stored file and the encryption key - and how to put FreeITSM back to one, or rebuild it from them.',
             'sections' => [
                 ['id' => 'overview',   'label' => 'What is backed up'],
                 ['id' => 'target',     'label' => 'Where backups go'],
@@ -59,7 +59,7 @@ function getHelpTopics() {
                 ['id' => 'verify',     'label' => 'Verifying a backup'],
                 ['id' => 'restore',    'label' => 'Restoring'],
             ],
-            'terms' => 'backup restore recovery disaster rebuild offsite s3 bucket nas passphrase schedule retention verify encryption key',
+            'terms' => 'backup restore rollback roll back undo maintenance mode safety backup recovery disaster rebuild offsite s3 bucket nas passphrase schedule retention verify encryption key',
         ],
         'docker' => [
             'hero' => 'Docker',
