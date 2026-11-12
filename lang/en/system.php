@@ -1183,6 +1183,7 @@ return [
         'status_ok'      => 'OK',
         'status_failed'  => 'Failed',
         'status_running' => 'Running',
+        'status_interrupted' => 'Interrupted',
         'size_mb'        => '{n} MB',
         'files_line'     => 'Total: {total}, new: {n}',
         'runs_none'      => 'No backups yet.',

@@ -165,10 +165,14 @@ function backupOpenKey(string $sealed, string $publicRaw, string $secretRaw): st
 /**
  * Encrypts file $in into $out under $key.
  *
- * @return int  bytes written (always backupEncryptedSize(filesize($in)))
+ * @param string|null $plainSha256  set to the SHA-256 (hex) of the bytes actually encrypted
+ * @param int|null    $plainSize    set to how many bytes were encrypted
+ * @return int  bytes written (always backupEncryptedSize($plainSize))
  */
-function backupEncryptFile(string $in, string $out, string $key): int
+function backupEncryptFile(string $in, string $out, string $key, ?string &$plainSha256 = null, ?int &$plainSize = null): int
 {
+    $hash = hash_init('sha256');
+    $plainSize = 0;
     $src = @fopen($in, 'rb');
     if (!$src) throw new RuntimeException('A file to back up could not be read.');
     $dst = @fopen($out, 'wb');
@@ -183,11 +187,14 @@ function backupEncryptFile(string $in, string $out, string $key): int
             $last = $next === '';
             $tag  = $last ? SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_TAG_FINAL
                           : SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_TAG_MESSAGE;
+            hash_update($hash, $chunk);
+            $plainSize += strlen($chunk);
             $written += backupWriteAll($dst, sodium_crypto_secretstream_xchacha20poly1305_push($state, $chunk, '', $tag));
             if ($last) break;
             $chunk = $next;
         }
         sodium_memzero($state);
+        $plainSha256 = hash_final($hash);
         $ok = true;
     } finally {
         fclose($src);

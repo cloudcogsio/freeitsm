@@ -37,6 +37,9 @@ final class BackupRunner
     /** Test hook: runs after the inventory is taken, before any file is copied. */
     public ?Closure $afterInventory = null;
 
+    /** Test hook: fn(string $localPath) - runs after a file's checksum, just before it is encrypted. */
+    public ?Closure $beforeEncrypt = null;
+
     /** Unreferenced pool objects younger than this are kept: another run may be about to use them. */
     public int $gcGraceSeconds = 172800;
 
@@ -76,11 +79,24 @@ final class BackupRunner
         if ($this->conn->inTransaction()) {
             throw new LogicException('A backup cannot start inside a transaction: its snapshot would end the caller\'s work.');
         }
-        $this->conn->prepare("INSERT INTO backup_runs (kind, status, started_at, started_by) VALUES (?, 'running', UTC_TIMESTAMP(), ?)")
-                   ->execute([$kind === 'scheduled' ? 'scheduled' : 'manual', $by]);
-        $runId = (int)$this->conn->lastInsertId();
-        $out = ['status' => 'failed', 'run_id' => $runId, 'set' => null, 'files_total' => 0, 'files_new' => 0,
+        $out = ['status' => 'failed', 'run_id' => 0, 'set' => null, 'files_total' => 0, 'files_new' => 0,
                 'size' => 0, 'warning' => null, 'error' => null, 'prune' => null];
+        try {
+            // A first backup's file phase can take hours with this connection idle: keep it open.
+            if ((int)$this->conn->query('SELECT @@SESSION.wait_timeout')->fetchColumn() < 86400) $this->conn->exec('SET SESSION wait_timeout = 86400');
+            $this->conn->prepare("INSERT INTO backup_runs (kind, status, started_at, started_by) VALUES (?, 'running', UTC_TIMESTAMP(), ?)")
+                       ->execute([$kind === 'scheduled' ? 'scheduled' : 'manual', $by]);
+        } catch (PDOException $e) {
+            // Without its history table (Database Verification not run yet) a backup cannot be
+            // recorded: it does not run, and administrators are told rather than left guessing.
+            $out['error'] = $e->getCode() === '42S02'
+                ? 'The backup history table is missing: run Database Verification (System -> Database), then back up again.'
+                : 'A database error stopped the backup.';
+            $this->notify($out['error']);
+            return $out;
+        }
+        $runId = (int)$this->conn->lastInsertId();
+        $out['run_id'] = $runId;
         $warnings = [];
         $set = null;
         $complete = false;
@@ -89,7 +105,7 @@ final class BackupRunner
             if (!backupSodiumAvailable()) throw new RuntimeException('This server\'s PHP has no sodium extension, which backups need for encryption.');
             $keyring   = backupKeyring($this->conn);
             $public    = base64_decode(backupSetting($this->conn, 'backup_public_key'), true);
-            $installId = backupSetting($this->conn, 'backup_install_id');
+            $installId = $this->installId($warnings);
             if ($keyring === null || !$public || $installId === '') throw new RuntimeException('No backup passphrase has been set.');
             $poolKey = backupPoolNameKey($this->conn);
 
@@ -125,7 +141,10 @@ final class BackupRunner
             foreach ($this->directoryFiles() as $f) $inventory[] = $f;
             if ($this->afterInventory) ($this->afterInventory)();
 
-            // 3. Pool every file.
+            // 3. Pool every file. The pool is listed once: checking each object would be a
+            //    request per file (two on S3), every run.
+            $this->pool = [];
+            foreach ($this->target->listObjects('pool/') as $k => $o) $this->pool[substr($k, 5)] = (int)$o['size'];
             $dataKey = random_bytes(SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_KEYBYTES);
             $files = [];
             $refs = [];
@@ -168,12 +187,16 @@ final class BackupRunner
             $this->putString("sets/$set/keyring.json", json_encode($keyring, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
             sodium_memzero($dataKey);
 
-            // 5. Automatic verification: everything it refers to is there at the expected size.
+            // 5. Automatic verification: everything it refers to is there at the expected size
+            //    (read back by listing, as the target now holds it).
+            $written = $this->target->listObjects("sets/$set/");
             foreach (['db.bin', 'key.bin', 'manifest.bin', 'datakey.bin', 'auth.txt', 'refs.txt', 'keyring.json'] as $o) {
-                if ($this->target->size("sets/$set/$o") === null) throw new RuntimeException("The backup's $o is missing from the target after it was written.");
+                if (!isset($written["sets/$set/$o"])) throw new RuntimeException("The backup's $o is missing from the target after it was written.");
             }
+            $this->pool = [];
+            foreach ($this->target->listObjects('pool/') as $k => $o) $this->pool[substr($k, 5)] = (int)$o['size'];
             foreach ($refs as $name => $size) {
-                if ($this->target->size("pool/$name") !== backupEncryptedSize($size) || $this->target->size("pool/$name.key") !== BACKUP_SEALED_KEY_SIZE) {
+                if (!$this->inPool($name, $size)) {
                     throw new RuntimeException('A stored file is missing from the backup target, or has the wrong size, after it was written.');
                 }
             }
@@ -374,29 +397,68 @@ final class BackupRunner
         }
         $name = backupPoolName($poolKey, $sha);
         $out['files_total']++;
-        if (!isset($this->seen[$name])) {
-            $this->seen[$name] = true;
-            if (!$this->inPool($name, (int)$size)) {
-                $fileKey = random_bytes(SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_KEYBYTES);
-                $this->putEncrypted("pool/$name", $local, $fileKey);
-                $this->putString("pool/$name.key", backupSealKey($fileKey, $public));
+        if (!isset($this->seen[$name]) && !$this->inPool($name, (int)$size)) {
+            if ($this->beforeEncrypt) ($this->beforeEncrypt)($local);
+            $fileKey = random_bytes(SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_KEYBYTES);
+            $enc = $this->tmp . '/enc.bin';
+            try {
+                backupEncryptFile($local, $enc, $fileKey, $encSha, $encSize);
+                if ($encSha !== $sha) {
+                    // Changed since its checksum was taken: what was encrypted is what the backup holds.
+                    $sha  = $encSha;
+                    $size = $encSize;
+                    $name = backupPoolName($poolKey, $sha);
+                }
+                if (!isset($this->seen[$name]) && !$this->inPool($name, (int)$size)) {
+                    $this->target->putFile("pool/$name", $enc);
+                    $this->putString("pool/$name.key", backupSealKey($fileKey, $public));
+                    $this->pool[$name] = backupEncryptedSize((int)$size);
+                    $this->pool["$name.key"] = BACKUP_SEALED_KEY_SIZE;
+                    $out['files_new']++;
+                }
+            } finally {
                 sodium_memzero($fileKey);
-                $out['files_new']++;
+                @unlink($enc);
             }
         }
+        $this->seen[$name] = true;
         if ($copy !== null) @unlink($copy);
         return $entry + ['size' => (int)$size, 'sha256' => $sha, 'pool' => $name];
     }
 
-    /** The object and its sealed key are on the target, both at their exact sizes. */
+    /** The object and its sealed key are on the target (as last listed), both at their exact sizes. */
     private function inPool(string $name, int $plainSize): bool
     {
-        return $this->target->size("pool/$name") === backupEncryptedSize($plainSize)
-            && $this->target->size("pool/$name.key") === BACKUP_SEALED_KEY_SIZE;
+        return ($this->pool[$name] ?? null) === backupEncryptedSize($plainSize)
+            && ($this->pool["$name.key"] ?? null) === BACKUP_SEALED_KEY_SIZE;
+    }
+
+    /**
+     * This install's id. A database copied to another server or renamed (a clone, a test
+     * copy) is another install: it gets its own id, so its pruning never counts - or
+     * removes - the original's backups. Not knowable on servers without @@server_uuid.
+     */
+    private function installId(array &$warnings): string
+    {
+        $id = backupSetting($this->conn, 'backup_install_id');
+        $fp = backupDatabaseFingerprint($this->conn);
+        if ($id === '' || $fp === null) return $id;
+        $saved = backupSetting($this->conn, 'backup_install_fingerprint');
+        if ($saved !== '' && !hash_equals($saved, $fp)) {
+            $id = bin2hex(random_bytes(16));
+            backupSaveSetting($this->conn, 'backup_install_id', $id);
+            $warnings[] = 'This database has moved to another server or name, so it is now treated as a separate install: '
+                        . 'backups made before the move are no longer removed automatically. Delete them from the target when you no longer need them.';
+        }
+        if ($saved !== $fp) backupSaveSetting($this->conn, 'backup_install_fingerprint', $fp);
+        return $id;
     }
 
     /** @var array<string,bool> pool names handled in this run */
     private array $seen = [];
+
+    /** @var array<string,int> pool object => size, from the last listing plus this run's uploads */
+    private array $pool = [];
 
     private function newSetName(): string
     {

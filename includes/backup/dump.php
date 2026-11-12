@@ -104,7 +104,7 @@ function backupDumpRows(PDO $conn, string $table, int $batchBytes, callable $put
             $vals = [];
             foreach ($r as $i => $v) {
                 if ($v === null)      $vals[] = 'NULL';
-                elseif ($hex[$i])     $vals[] = $v === '' ? "''" : '0x' . bin2hex((string)$v);
+                elseif ($hex[$i])     $vals[] = $v === '' ? "''" : '_binary' . $conn->quote((string)$v);   // escaped, not hex: hex doubles a row, which then may not fit max_allowed_packet on restore
                 else                  $vals[] = $conn->quote((string)$v);
             }
             $tuple = '(' . implode(', ', $vals) . ')';
@@ -126,14 +126,16 @@ function backupDumpRows(PDO $conn, string $table, int $batchBytes, callable $put
 /**
  * Runs a dump's statements against $target.
  *
+ * @param int|null $maxPacket  the server's max_allowed_packet (default: asked); tests pass a small one
  * @return int  statements run
- * @throws RuntimeException  unreadable or truncated dump (statements already run stay run:
- *                           the caller restores into a database it may wipe)
+ * @throws RuntimeException  unreadable or truncated dump, or a statement the server will not take
+ *                           (statements already run stay run: the caller restores into a database it may wipe)
  */
-function backupReplayDump(PDO $target, string $inPath, ?callable $progress = null): int
+function backupReplayDump(PDO $target, string $inPath, ?callable $progress = null, ?int $maxPacket = null): int
 {
     $gz = @gzopen($inPath, 'rb');
     if (!$gz) throw new RuntimeException('The database dump could not be opened.');
+    $maxPacket ??= (int)$target->query('SELECT @@max_allowed_packet')->fetchColumn();
     $n = 0;
     try {
         while (true) {
@@ -143,6 +145,13 @@ function backupReplayDump(PDO $target, string $inPath, ?callable $progress = nul
             $size = unpack('N', $len)[1];
             $sql = backupGzRead($gz, $size);
             if (strlen($sql) !== $size) throw new RuntimeException('The database dump is truncated.');
+            if ($maxPacket > 0 && $size + 1024 > $maxPacket) {
+                $table = preg_match('/^INSERT INTO `((?:[^`]|``)+)`/', $sql, $m) ? str_replace('``', '`', $m[1]) : '?';
+                throw new RuntimeException(sprintf(
+                    'A row of table %s needs %.1f MB, more than this MySQL server accepts (max_allowed_packet = %.1f MB). '
+                    . 'Raise max_allowed_packet on the server (for example --max-allowed-packet=%dM) and run the restore again.',
+                    $table, $size / 1048576, $maxPacket / 1048576, (int)ceil(($size + 1024) / 1048576) * 2));
+            }
             $target->exec($sql);
             $n++;
             if ($progress && $n % 200 === 0) $progress($n);
