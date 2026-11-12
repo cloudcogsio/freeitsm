@@ -41,5 +41,12 @@ return [
             'grant'     => 'Choose where files are stored (a server folder or S3-compatible storage), move them between locations, and the largest file that can be uploaded',
             'sensitive' => true,   // moves every file's bytes
         ],
+        [
+            'id'        => 'recycle',
+            'cap'       => capKey(Cap::FILES_RECYCLE),
+            'label_key' => 'files.settings.tab_recycle',
+            'grant'     => 'Choose how long deleted files and folders stay in the recycle bin before they are deleted for good',
+            'sensitive' => true,   // a short period deletes files sooner
+        ],
     ],
 ];
