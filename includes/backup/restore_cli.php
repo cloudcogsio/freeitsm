@@ -142,8 +142,16 @@ function backupRestoreCli(array $argv, $in = STDIN, $out = STDOUT): int
         if ($ask('Type RESTORE to continue: ') !== 'RESTORE') { $say('Nothing was changed.'); return 2; }
     }
 
+    // A trial restore into another database must not write Files content where the restored
+    // settings point: that is the live install's Files storage. It goes under --app-root.
+    $filesStore = null;
+    if ($dbName !== DB_NAME) {
+        $filesStore = new LocalDriver($appRoot . '/uploads/files');
+        $say("Files content goes to $appRoot/uploads/files (not to the Files storage the restored settings name).");
+    }
+
     try {
-        $r = (new BackupRestore($target, $set, $pass, $db, $appRoot, $keyPath, isset($opt['force']), $say))->run();
+        $r = (new BackupRestore($target, $set, $pass, $db, $appRoot, $keyPath, isset($opt['force']), $say, $filesStore))->run();
     } catch (BackupWrongPassphrase $e) {
         $say('That passphrase does not open these backups. Nothing was changed.');
         return 2;

@@ -310,6 +310,7 @@ final class BackupRestore
                                     ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)');
         $set->execute(['backup_schedule', 'off']);
         $set->execute(['backup_install_id', bin2hex(random_bytes(16))]);
+        $this->db->exec("DELETE FROM system_settings WHERE setting_key = 'backup_install_fingerprint'");   // recorded by its first backup
         try {
             $this->db->exec("UPDATE job_schedules SET mode = 'off', next_due_at = NULL WHERE job_key = 'backup'");
         } catch (PDOException $e) {
