@@ -211,6 +211,39 @@ final class BackupsService
     }
 
     /**
+     * The latest runs, newest first; null when the table does not exist yet (Database
+     * Verification has not run) - never an empty list that would claim "no backups".
+     */
+    public static function runs(PDO $conn, int $limit = 50): ?array
+    {
+        try {
+            $s = $conn->prepare("SELECT r.id, r.kind, r.status, r.set_name, r.started_at, r.finished_at, r.size_bytes, r.files_total,
+                                        r.files_new, r.db_bytes, r.error_text, r.warning_text, r.verify_status, r.verified_at, r.verify_detail,
+                                        a.full_name AS started_by_name, v.full_name AS verified_by_name
+                                   FROM backup_runs r
+                                   LEFT JOIN analysts a ON a.id = r.started_by
+                                   LEFT JOIN analysts v ON v.id = r.verified_by
+                                  ORDER BY r.id DESC LIMIT " . max(1, min(500, $limit)));
+            $s->execute();
+            return $s->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            if ($e->getCode() === '42S02') return null;
+            throw $e;
+        }
+    }
+
+    /** Starts a backup in the background (it can take hours); the page follows it in the run list. */
+    public static function backupNow(PDO $conn, int $by): void
+    {
+        if (backupTargetConfig($conn) === null || backupKeyring($conn) === null) throw new BackupsInputError('err_not_set_up');
+        if (self::isRunning($conn)) throw new BackupsInputError('err_running');
+        require_once __DIR__ . '/../intune.php';   // intuneFindPhpExe(): the PHP the scheduler fallback uses
+        $script = realpath(__DIR__ . '/../../cron/backup.php');
+        $php = intuneFindPhpExe(jobSetting($conn, 'intune_php_exe') ?: null);
+        if (!$script || !jobSchedulerSpawn($php, $script, ['--manual', '--by=' . $by])) throw new BackupsInputError('err_spawn');
+    }
+
+    /**
      * Decrypts the backup of run $runId and checks every checksum (System -> Backups -> Verify).
      * Runs in the request: the passphrase must never be stored or put on a command line.
      * The result is recorded on the run, so a browser that gives up waiting still sees it.
