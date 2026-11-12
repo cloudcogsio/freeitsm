@@ -150,6 +150,8 @@ try {
     // ── A small install of its own: upload folders under a temporary app root, Files in a
     //    temporary folder, a folder target, and the backup settings (all put back at the end).
     section('Set-up');
+    $firstRun = (int)$conn->query('SELECT COALESCE(MAX(id), 0) FROM backup_runs')->fetchColumn();
+    $cleanup[] = fn() => $conn->prepare('DELETE FROM backup_runs WHERE id > ?')->execute([$firstRun]);
     $snap = $conn->query("SELECT setting_key, setting_value FROM system_settings WHERE setting_key LIKE 'backup\\_%' OR setting_key LIKE 'files\\_s3\\_%' OR setting_key LIKE 'files\\_storage\\_%'")->fetchAll(PDO::FETCH_KEY_PAIR);
     $cleanup[] = function () use ($conn, $snap) {
         $conn->exec("DELETE FROM system_settings WHERE setting_key LIKE 'backup\\_%' OR setting_key LIKE 'files\\_s3\\_%' OR setting_key LIKE 'files\\_storage\\_%'");
@@ -316,6 +318,7 @@ try {
     [$code, $j] = $api(['action' => 'restore_check', 'run_id' => $realRun, 'passphrase' => 'rollback test passphrase']);
     ok('check: what the backup is, and the key is the same', $code === 200 && ($j['restore']['set'] ?? '') === $real['set'] && ($j['restore']['key_differs'] ?? null) === false
        && ($j['restore']['files'] ?? 0) > 0, json_encode($j));
+    ok('check: the date is UTC in the database\'s format (as the page formats dates)', (bool)preg_match('/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/', (string)($j['restore']['created_at'] ?? '')), (string)($j['restore']['created_at'] ?? ''));
     $restoreRun = (int)$conn->query("SELECT id FROM backup_runs WHERE kind = 'restore' ORDER BY id DESC LIMIT 1")->fetchColumn();
     [$code, $j] = $api(['action' => 'restore_check', 'run_id' => $restoreRun, 'passphrase' => 'rollback test passphrase']);
     ok('check: a restore row is not a backup', $code === 400 && ($j['error'] ?? '') === t('system.backups.err_restore_not_ok'), json_encode($j));

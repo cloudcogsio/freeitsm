@@ -42,7 +42,7 @@ function getSystemAreas() {
             'desc'     => 'system.landing.encryption_desc',
             'keywords' => 'system.landing.encryption_keywords',
         ],
-        // Backups (#286): scheduled, encrypted backups of everything, restored from the command line.
+        // Backups (#286): scheduled, encrypted backups of everything; restore here (rollback) or from the command line.
         [
             'icon'     => 'backups',
             'url'      => 'backups/',
