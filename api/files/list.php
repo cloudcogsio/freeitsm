@@ -23,7 +23,7 @@ filesApiRun(function () use ($conn, $analystId) {
     if ($folderId > 0 && !isset($levels[$folderId])) filesApiFail('Folder not found.');
 
     // "Make available offline" badges: 'self' (marked), 'folder' (a marked folder above), null.
-    $offMarks   = filesOfflineMarks($conn);
+    $offMarks   = filesOfflineDisplayMarks($conn);   // null: none, or copies mean nothing here
     $offFolders = filesOfflineCoveredFolders($conn, $offMarks);
 
     // Subfolders the caller can see.
@@ -135,7 +135,7 @@ filesApiRun(function () use ($conn, $analystId) {
         'items'   => $items,
         'shortcuts' => $shortcuts,
         // Whether "Make available offline" means anything here (Files is in S3-compatible storage).
-        'offline_enabled' => $offMarks !== null && filesOfflineApplies($conn),
+        'offline_enabled' => $offMarks !== null,
         'can'     => [
             'upload' => $folderId > 0 ? $level >= FilesAcl::UPLOAD : filesHasCap($conn, $analystId, Cap::FILES_FOLDERS),
             'modify' => $level >= FilesAcl::MODIFY,

@@ -18,10 +18,26 @@ require_once __DIR__ . '/../files/offline.php';
 require_once __DIR__ . '/../files/names.php';
 require_once __DIR__ . '/../files/audit.php';
 
+/** Too little free disk to make an offline copy. */
+class FilesOfflineDiskFull extends RuntimeException {}
+
 final class FilesOfflineService
 {
     /** Leftover temporary copies older than this are removed by the job. */
     const TMP_MAX_AGE = 86400;
+
+    /**
+     * Marking a single file copies it at once only up to this size; bigger files are
+     * left to the job, so a click never waits for a multi-GB download from S3.
+     */
+    public static int $instantMaxBytes = 64 * 1024 * 1024;
+
+    /**
+     * Free disk to leave where the copies live. A copy that would leave less is not
+     * made: copies share a disk with uploads in progress (_incoming), and a full disk
+     * would make every upload fail.
+     */
+    public static int $minFreeBytes = 1024 * 1024 * 1024;
 
     /**
      * The target if this person can see it: ['folder_id' => int, 'item_id' => ?int,
@@ -78,7 +94,7 @@ final class FilesOfflineService
             if ($row = $v->fetch(PDO::FETCH_ASSOC)) {
                 $key = (string)$row['storage_path'];
                 $size = (int)$row['size_bytes'];
-                if (!filesOfflineHasCopy($conn, $key, $size)) {
+                if ($size <= self::$instantMaxBytes && !filesOfflineHasCopy($conn, $key, $size)) {
                     try {
                         self::copyKey($conn, $key, $size, $row['sha256'] !== null ? (string)$row['sha256'] : null);
                     } catch (Throwable $e) {
@@ -129,6 +145,11 @@ final class FilesOfflineService
         $final = filesOfflinePath($conn, $key);
         if ($final === null) throw new RuntimeException('Not a stored file.');
         $tmp = self::tmpFor($final);
+        $free = @disk_free_space(dirname($tmp));
+        // Unknown free space (false) does not block: the write itself fails on a full disk.
+        if ($free !== false && $free - $size < self::$minFreeBytes) {
+            throw new FilesOfflineDiskFull('Not enough free disk for offline copies (' . (int)$free . ' bytes free).');
+        }
         try {
             filesStoreFor($conn, $key)->readTo($key, $tmp);
             clearstatcache(true, $tmp);
@@ -176,11 +197,13 @@ final class FilesOfflineService
      * copies nothing covers (all of them when no S3-compatible storage is in use).
      * Stops filling when storage cannot be reached; stops at $deadlineUnix.
      *
-     * @return array ['copied', 'removed', 'failed', 'marks_dropped' => int, 'done' => bool]
+     * @return array ['copied', 'removed', 'failed', 'marks_dropped' => int, 'done' => bool,
+     *               'disk_full' => bool (stopped: too little free disk)]
      */
     public static function sync(PDO $conn, int $deadlineUnix): array
     {
-        $r = ['copied' => 0, 'removed' => 0, 'failed' => 0, 'marks_dropped' => 0, 'done' => true];
+        $r = ['copied' => 0, 'removed' => 0, 'failed' => 0, 'marks_dropped' => 0, 'done' => true, 'disk_full' => false];
+        $started = time();
         $marks = filesOfflineMarks($conn);
         if ($marks === null) return $r;   // before Database Verification: nothing was ever marked
 
@@ -206,20 +229,31 @@ final class FilesOfflineService
                     $r['failed']++;
                     $r['done'] = false;
                     break;
+                } catch (FilesOfflineDiskFull $e) {
+                    error_log('files offline: copying stopped: ' . $e->getMessage());
+                    $r['failed']++;
+                    $r['done'] = false;
+                    $r['disk_full'] = true;
+                    break;
                 } catch (Throwable $e) {
                     error_log("files offline: could not copy {$key}: " . $e->getMessage());
                     $r['failed']++;
                 }
             }
+            // Copying can take minutes: marks and uploads made meanwhile count too.
+            $covered = filesOfflineCoveredKeys($conn);
         }
 
-        // Remove what nothing covers, and temporary files left by a crash.
+        // Remove what nothing covers, and temporary files left by a crash. A copy written
+        // since this run started (a mark or an upload racing it) is left for the next run.
         foreach (self::copies($conn) as [$path, $rel]) {
             if (str_ends_with($rel, '.tmp')) {
                 if (@filemtime($path) < time() - self::TMP_MAX_AGE) @unlink($path);
                 continue;
             }
             if (!filesStorageKeyIsValid($rel) || isset($covered[$rel])) continue;
+            clearstatcache(true, $path);
+            if (@filemtime($path) > $started) continue;
             if (self::removeCopy($conn, $rel)) $r['removed']++;
         }
         return $r;

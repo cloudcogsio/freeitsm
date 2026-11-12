@@ -107,6 +107,8 @@ function filesOfflineCoveredKeys(PDO $conn, ?array $marks = null): array
     $args  = [];
     if ($folders) { $where[] = 'i.folder_id IN (' . implode(',', array_fill(0, count($folders), '?')) . ')'; $args = array_merge($args, $folders); }
     if ($items)   { $where[] = 'i.id IN (' . implode(',', array_fill(0, count($items), '?')) . ')';         $args = array_merge($args, $items); }
+    // Every marked folder is in the recycle bin and no file is marked: nothing is covered.
+    if (!$where) return [];
     $st = $conn->prepare("SELECT i.folder_id, v.storage_path, v.size_bytes, v.sha256
                             FROM files_items i
                             JOIN files_versions v ON v.id = i.current_version_id
@@ -120,6 +122,16 @@ function filesOfflineCoveredKeys(PDO $conn, ?array $marks = null): array
         $out[$key] = ['size' => (int)$r['size_bytes'], 'sha256' => $r['sha256'] !== null ? (string)$r['sha256'] : null];
     }
     return $out;
+}
+
+/**
+ * The marks to SHOW (badges, Properties): the marks while offline copies mean something,
+ * null when they do not (Files stored in a server folder - marks are kept but have no
+ * effect, and the menu to remove them is hidden, so a badge would only mislead).
+ */
+function filesOfflineDisplayMarks(PDO $conn): ?array
+{
+    return filesOfflineApplies($conn) ? filesOfflineMarks($conn) : null;
 }
 
 /** Where offline copies live: <storage root>/offline. Not created here. */
