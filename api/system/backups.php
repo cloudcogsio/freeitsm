@@ -3,7 +3,10 @@
  * API: System -> Backups (#286). Administrators only.
  *
  * GET  - the settings (no secrets) and the latest runs
- * POST - {action: test | save_target | set_passphrase | change_passphrase | save_schedule | backup_now | verify, ...}
+ * POST - {action: test | save_target | set_passphrase | change_passphrase | save_schedule | backup_now | verify
+ *         | restore_check | restore_start, ...}
+ *        restore_start switches maintenance mode on and starts the rollback in the background;
+ *        from then on every page is the maintenance page (the progress page for this browser).
  *
  * Errors come back as translated text; never exception or database detail, except the
  * storage error a Test connection shows (as the Files Storage tab does).
@@ -64,6 +67,18 @@ try {
             set_time_limit(0);
             $r = BackupsService::verify($conn, (int)($in['run_id'] ?? 0), (string)($in['passphrase'] ?? ''), $analystId);
             echo json_encode(['success' => true, 'verify' => ['ok' => $r['ok'], 'checked' => $r['checked'], 'errors' => array_slice($r['errors'], 0, 20)]]);
+            break;
+        case 'restore_check':
+            echo json_encode(['success' => true, 'restore' => BackupsService::restoreCheck($conn, (int)($in['run_id'] ?? 0), (string)($in['passphrase'] ?? ''))]);
+            break;
+        case 'restore_start':
+            // Maintenance mode goes on now; this browser keeps the token that lets it follow the progress.
+            $token = BackupsService::restoreStart($conn, (int)($in['run_id'] ?? 0), (string)($in['passphrase'] ?? ''), (string)($in['confirm'] ?? ''), $analystId);
+            setcookie(BACKUP_MAINTENANCE_COOKIE, $token, [
+                'expires' => time() + 7 * 86400, 'path' => defined('BASE_URL') ? BASE_URL : '/',
+                'secure' => function_exists('requestIsHttps') && requestIsHttps(), 'httponly' => true, 'samesite' => 'Strict',
+            ]);
+            echo json_encode(['success' => true]);
             break;
         default:
             http_response_code(400);
