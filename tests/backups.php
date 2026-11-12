@@ -27,6 +27,7 @@ require_once "$root/includes/encryption.php";
 require_once "$root/includes/files/storage.php";
 require_once "$root/includes/backup/runner.php";
 require_once "$root/includes/backup/restore.php";
+require_once "$root/includes/i18n.php";
 
 $pass = 0; $fail = 0;
 function ok(string $label, bool $cond, string $detail = ''): void {
@@ -585,6 +586,57 @@ try {
         $o = $cmd('--bogus-flag');
         ok('an unknown flag is a usage error (exit 2)', str_ends_with($o, 'EXIT=2'), $o);
     }
+
+    section('The API (over HTTP)');
+    $base = rtrim(getenv('FREEITSM_TEST_URL') ?: 'http://localhost', '/') . '/';
+    $sessDir = rtrim(getenv('FREEITSM_SESS_DIR') ?: (ini_get('session.save_path') ?: sys_get_temp_dir()), '/\\');
+    $conn->prepare("INSERT INTO analysts (username, password_hash, full_name, email, is_active, is_admin, created_datetime)
+                    VALUES (?, 'x', 'ZZ Backup NonAdmin', 'zz-bk@example.invalid', 1, 0, UTC_TIMESTAMP())")->execute(['zzbk' . bin2hex(random_bytes(3))]);
+    $nonAdmin = (int)$conn->lastInsertId();
+    $cleanup[] = fn() => $conn->prepare('DELETE FROM analysts WHERE id = ?')->execute([$nonAdmin]);
+    $mkSess = function (int $id, string $csrf) use ($sessDir, &$cleanup): string {
+        $sid = 'zzbk' . bin2hex(random_bytes(8));
+        file_put_contents("$sessDir/sess_$sid", 'analyst_id|i:' . $id . ';csrf_token|s:' . strlen($csrf) . ':"' . $csrf . '";');
+        @chmod("$sessDir/sess_$sid", 0666);
+        $cleanup[] = fn() => @unlink("$sessDir/sess_$sid");
+        return $sid;
+    };
+    $http = function (string $sid, ?array $post = null, ?string $csrf = null) use ($base): array {
+        $ch = curl_init($base . 'api/system/backups.php');
+        $h = ['Content-Type: application/json'];
+        if ($csrf !== null) $h[] = 'X-CSRF-Token: ' . $csrf;
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 120, CURLOPT_COOKIE => 'PHPSESSID=' . $sid, CURLOPT_HTTPHEADER => $h]);
+        if ($post !== null) { curl_setopt($ch, CURLOPT_POST, true); curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($post)); }
+        $body = (string)curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        return [$code, json_decode($body, true), $body];
+    };
+    // The web server runs as another user than this test: let it read the folder target the test made.
+    if (DIRECTORY_SEPARATOR === '/') exec('chmod -R a+rwX ' . escapeshellarg($folder) . ' ' . escapeshellarg($work));
+    $tok = bin2hex(random_bytes(16));
+    $adminSid = $mkSess($admin, $tok);
+    $userSid  = $mkSess($nonAdmin, $tok);
+    [$code, $j] = $http($userSid);
+    ok('a non-administrator gets 403', $code === 403, (string)$code);
+    [$code, $j, $raw] = $http($adminSid);
+    ok('an administrator gets the settings and the runs', $code === 200 && !empty($j['success']) && is_array($j['runs']) && isset($j['settings']['target']), substr($raw, 0, 200));
+    ok('the response holds no pool name key and no keyring secret',
+       !str_contains($raw, bin2hex(backupPoolNameKey($conn))) && !str_contains($raw, 'secret_enc'));
+    [$code, $j] = $http($adminSid, ['action' => 'save_schedule', 'mode' => 'off', 'keep' => 3]);
+    ok('a write without the CSRF token is refused', $code === 403 || $code === 419 || empty($j['success']), (string)$code);
+    [$code, $j] = $http($adminSid, ['action' => 'save_schedule', 'mode' => 'daily', 'time' => '04:15', 'keep' => 3], $tok);
+    ok('a write with the token works', $code === 200 && !empty($j['success']) && backupSetting($conn, 'backup_time') === '04:15', json_encode($j));
+    [$code, $j] = $http($adminSid, ['action' => 'save_schedule', 'mode' => 'daily', 'time' => '99:99', 'keep' => 3], $tok);
+    ok('an input error comes back translated', $code === 400 && ($j['error'] ?? '') === t('system.backups.err_schedule_time') && !str_contains((string)$j['error'], 'err_'), json_encode($j));
+    $okRun = (int)$conn->query("SELECT id FROM backup_runs WHERE status = 'ok' ORDER BY id DESC LIMIT 1")->fetchColumn();
+    [$code, $j] = $http($adminSid, ['action' => 'verify', 'run_id' => $okRun, 'passphrase' => 'definitely wrong'], $tok);
+    ok('verify with a wrong passphrase says so', $code === 400 && ($j['error'] ?? '') === t('system.backups.err_passphrase_wrong'), json_encode($j));
+    [$code, $j] = $http($adminSid, ['action' => 'verify', 'run_id' => $okRun, 'passphrase' => 'a new long passphrase'], $tok);
+    ok('verify with the passphrase works over HTTP', $code === 200 && !empty($j['verify']['ok']), json_encode($j));
+    [$code, $j] = $http($adminSid, ['action' => 'nonsense'], $tok);
+    ok('an unknown action is a 400', $code === 400);
+    BackupsService::saveSchedule($conn, 'off', null, null, 3, $admin);
     section('The backup job');
     ok('the job script exists', is_file("$appRoot/cron/backup.php"));
     BackupsService::saveSchedule($conn, 'daily', null, '03:00', 3, $admin);
