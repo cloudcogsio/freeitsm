@@ -312,6 +312,57 @@ try {
     $u = FilesOfflineService::usage($conn);
     ok('usage counts the copies on the server', $u !== null && $u['files'] >= 2 && $u['bytes'] > 0, json_encode($u));
 
+
+    // ── Review fixes ───────────────────────────────────────────────────
+    // F1: the only mark is a folder in the recycle bin (no file marked).
+    $conn->exec("DELETE FROM files_offline");
+    $Q = folder($conn, null, 'ZZ Off Q');
+    grant($conn, $Q, $V, FilesAcl::VIEW);
+    $q1 = item($conn, $s3dir, $Q, 'zz-q1.txt');
+    FilesOfflineService::mark($conn, $V, 'folder', $Q);
+    FilesOfflineService::sync($conn, time() + 60);
+    ok('CONTROL: the folder\'s file has a copy', filesOfflineHasCopy($conn, $q1['key'], $q1['size']));
+    softDelete($conn, 'folder', $Q);
+    try {
+        $y = FilesOfflineService::sync($conn, time() + 60);
+        ok('only mark on a folder in the bin: the job runs and removes its copies', !is_file(filesOfflinePath($conn, $q1['key'])), json_encode($y));
+    } catch (Throwable $e) { ok('only mark on a folder in the bin: the job runs and removes its copies', false, $e->getMessage()); }
+    softDelete($conn, 'folder', $Q, null);
+
+    // F2: a copy written while the job runs (after it worked out what is covered) stays.
+    $late = '2026/11/11/' . bin2hex(random_bytes(16)) . '.bin';
+    $lp = filesOfflinePath($conn, $late);
+    @mkdir(dirname($lp), 0777, true);
+    file_put_contents($lp, 'written during the run');
+    touch($lp, time() + 30);
+    FilesOfflineService::sync($conn, time() + 60);
+    ok('a copy newer than the run\'s start is not removed by that run', is_file($lp));
+    @unlink($lp);
+
+    // F3: marks show nothing when copies mean nothing (storage is a server folder).
+    ok('display marks while S3 is in use', is_array(filesOfflineDisplayMarks($conn)) && isset(filesOfflineDisplayMarks($conn)['folder'][$Q]));
+    useFake(null);
+    ok('display marks on a server folder: none', filesOfflineDisplayMarks($conn) === null);
+    useFake($fake);
+
+    // F4: a big file is left to the job instead of being copied inside the click.
+    $big = item($conn, $s3dir, $X, 'zz-big.txt');
+    FilesOfflineService::$instantMaxBytes = 4;
+    $r = FilesOfflineService::mark($conn, $V, 'item', $big['id']);
+    FilesOfflineService::$instantMaxBytes = 64 * 1024 * 1024;
+    ok('a file above the instant limit is not copied in the request', $r['ready'] === false, json_encode($r));
+
+    // F5: the job stops before it would leave too little free disk.
+    $conn->exec("DELETE FROM files_offline");
+    FilesOfflineService::sync($conn, time() + 60);   // clear copies
+    FilesOfflineService::mark($conn, $V, 'folder', $Q);
+    FilesOfflineService::$minFreeBytes = PHP_INT_MAX;
+    $y = FilesOfflineService::sync($conn, time() + 60);
+    FilesOfflineService::$minFreeBytes = 1024 * 1024 * 1024;
+    ok('too little free disk: nothing is copied, the run says so', $y['copied'] === 0 && $y['failed'] >= 1 && !$y['done'] && !empty($y['disk_full']), json_encode($y));
+    $y = FilesOfflineService::sync($conn, time() + 60);
+    ok('...and copying resumes once there is room', $y['copied'] === 1 && filesOfflineHasCopy($conn, $q1['key'], $q1['size']), json_encode($y));
+
     // Storage moved back to a folder: copies mean nothing any more.
     useFake(null);
     FilesOfflineService::keepUploadCopy($conn, $X, null, $part, $otherKey);
@@ -319,7 +370,7 @@ try {
     $y = FilesOfflineService::sync($conn, time() + 60);
     $left = 0;
     if (is_dir(filesOfflineRoot($conn))) foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(filesOfflineRoot($conn), FilesystemIterator::SKIP_DOTS)) as $f) $left++;
-    ok('no S3 in use: the job removes every copy', $left === 0 && $y['removed'] >= 2, json_encode($y) . " left $left");
+    ok('no S3 in use: the job removes every copy', $left === 0 && $y['removed'] >= 1, json_encode($y) . " left $left");
     $conn->exec("DELETE FROM files_offline");
 } catch (Throwable $e) {
     ok('no unexpected exception', false, get_class($e) . ': ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
