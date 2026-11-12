@@ -24,12 +24,29 @@ require_once "$root/includes/backup/target.php";
 require_once "$root/includes/services/backups.php";
 require_once "$root/includes/job_registry.php";
 require_once "$root/includes/encryption.php";
+require_once "$root/includes/files/storage.php";
+require_once "$root/includes/backup/runner.php";
+require_once "$root/includes/backup/restore.php";
 
 $pass = 0; $fail = 0;
 function ok(string $label, bool $cond, string $detail = ''): void {
     global $pass, $fail;
     if ($cond) { $pass++; printf("  PASS %-70s\n", $label); }
     else       { $fail++; printf("  FAIL %-70s %s\n", $label, $detail); }
+}
+/** Files storage stand-in: a folder that can be switched off like an unreachable S3. */
+final class ZzBkFakeS3 implements StorageDriver
+{
+    public bool $down = false;
+    private LocalDriver $d;
+    public function __construct(string $dir) { $this->d = new LocalDriver($dir); }
+    private function up(): void { if ($this->down) throw new StorageUnavailable('Storage could not be reached: test stand-in is down'); }
+    public function putFile(string $key, string $localPath, bool $move = false): void { $this->up(); $this->d->putFile($key, $localPath, $move); }
+    public function readRange(string $key, int $start, int $end, callable $sink): void { $this->up(); $this->d->readRange($key, $start, $end, $sink); }
+    public function readTo(string $key, string $localPath): void { $this->up(); $this->d->readTo($key, $localPath); }
+    public function size(string $key): ?int { $this->up(); return $this->d->size($key); }
+    public function delete(string $key): void { $this->up(); $this->d->delete($key); }
+    public function label(): string { return 'zz-fake-s3'; }
 }
 function section(string $t): void { echo "\n$t\n" . str_repeat('-', 72) . "\n"; }
 
@@ -300,6 +317,172 @@ try {
     }
     BackupsService::saveTarget($conn, ['type' => 'folder', 'folder' => $folder], $admin);
     ok('describe() never contains the pool name key', !str_contains(json_encode(BackupsService::describe($conn)), bin2hex(backupPoolNameKey($conn))));
+
+    section('The backup run');
+    // Files on a stand-in "S3" (a folder that can be switched off), a ZZ file in an upload
+    // folder, and a folder target. The passphrase and target come from the section above.
+    $s3dir = "$work/fake-s3";
+    mkdir($s3dir);
+    $fake = new ZzBkFakeS3($s3dir);
+    filesStorageReset();
+    FilesStorageCache::$drivers['active'] = $fake;
+    $appRoot = dirname(__DIR__);
+    $upDir = "$appRoot/uploads/zz-backup-test-" . bin2hex(random_bytes(3));
+    mkdir($upDir, 0777, true);
+    $cleanup[] = function () use ($upDir) { foreach (glob("$upDir/*") as $f) @unlink($f); @rmdir($upDir); };
+    $marker = 'ZZ-BACKUP-PLAINTEXT-MARKER-' . bin2hex(random_bytes(8));
+    file_put_contents("$upDir/note.txt", "$marker in a dir file");
+
+    $conn->prepare("INSERT INTO files_folders (name, created_by, created_datetime) VALUES ('ZZ backup test', ?, UTC_TIMESTAMP())")->execute([$admin]);
+    $zzFolder = (int)$conn->lastInsertId();
+    $cleanup[] = fn() => $conn->prepare('DELETE FROM files_folders WHERE id = ?')->execute([$zzFolder]);
+    $mkFile = function (string $bytes) use ($conn, $zzFolder, $admin, $fake, &$cleanup): array {
+        $key = gmdate('Y/m/d/') . bin2hex(random_bytes(16)) . '.bin';
+        $conn->prepare("INSERT INTO files_items (folder_id, name, size_bytes, mime_type, created_by, created_datetime) VALUES (?, ?, ?, 'text/plain', ?, UTC_TIMESTAMP())")
+             ->execute([$zzFolder, 'ZZ ' . bin2hex(random_bytes(3)) . '.txt', strlen($bytes), $admin]);
+        $item = (int)$conn->lastInsertId();
+        $conn->prepare("INSERT INTO files_versions (item_id, version_no, storage_path, size_bytes, mime_type, sha256, uploaded_by, uploaded_datetime) VALUES (?, 1, ?, ?, 'text/plain', ?, ?, UTC_TIMESTAMP())")
+             ->execute([$item, $key, strlen($bytes), hash('sha256', $bytes), $admin]);
+        $cleanup[] = fn() => $conn->prepare('DELETE FROM files_items WHERE id = ?')->execute([$item]);
+        $tmp = tempnam(sys_get_temp_dir(), 'zzf');
+        file_put_contents($tmp, $bytes);
+        $fake->putFile($key, $tmp, true);
+        return ['item' => $item, 'key' => $key, 'bytes' => $bytes];
+    };
+    $f1 = $mkFile("$marker in Files one");
+    $f2 = $mkFile(random_bytes(150000));
+
+    $target = backupTargetDriver(backupTargetConfig($conn));
+    $mails = [];
+    $mailer = function (string $subject, string $body) use (&$mails) { $mails[] = [$subject, $body]; };
+    $runner = new BackupRunner($conn, $target, $appRoot, $mailer);
+
+    $conn->beginTransaction();
+    $threw = null;
+    try { $runner->run('manual', $admin); } catch (Throwable $e) { $threw = $e; }
+    $conn->rollBack();
+    ok('a run on a connection already in a transaction is refused', $threw instanceof LogicException, $threw ? get_class($threw) : 'ran');
+
+    $r1 = $runner->run('manual', $admin);
+    ok('first run: ok', $r1['status'] === 'ok', json_encode($r1));
+    $set1 = (string)$r1['set'];
+    ok('first run: the set is complete (done.json)', $target->size("sets/$set1/done.json") !== null);
+    $refs = array_values(array_filter(explode("\n", (string)@file_get_contents("$folder/backup/sets/$set1/refs.txt"))));
+    ok('first run: refs.txt lists every pooled file once', $r1['files_total'] >= 3 && count($refs) === count(array_unique($refs)) && count($refs) <= $r1['files_total'],
+       count($refs) . ' / ' . $r1['files_total']);
+    ok('first run: every distinct file was uploaded', $r1['files_new'] === count($refs), $r1['files_new'] . ' vs ' . count($refs));
+    $row = $conn->query('SELECT * FROM backup_runs WHERE id = ' . (int)$r1['run_id'])->fetch(PDO::FETCH_ASSOC);
+    ok('first run: the run row says ok, with sizes', $row && $row['status'] === 'ok' && $row['set_name'] === $set1 && (int)$row['files_new'] === $r1['files_new']
+       && (int)$row['started_by'] === $admin && $row['finished_at'] !== null && (int)$row['db_bytes'] > 0);
+    $cleanup[] = fn() => $conn->exec('DELETE FROM backup_runs WHERE id >= ' . (int)$r1['run_id']);
+    $leak = false;
+    foreach ((new LocalDriver("$folder/backup"))->listKeys('') as $k) {
+        if (str_contains((string)file_get_contents("$folder/backup/$k"), $marker)) $leak = $k;
+    }
+    ok('nothing on the target contains a file\'s plaintext', $leak === false, (string)$leak);
+    $open = backupOpenSet($target, $set1, 'a new long passphrase');
+    $paths = array_map(fn($f) => $f['store'] . ':' . $f['path'], $open['manifest']['files']);
+    ok('the manifest lists the Files key', in_array('files:' . $f1['key'], $paths, true));
+    ok('the manifest lists the upload folder file', in_array('dir:uploads:' . basename($upDir) . '/note.txt', $paths, true), implode(', ', array_slice($paths, 0, 8)));
+    ok('the manifest skips the Files storage folder in the folder walk', !array_filter($paths, fn($p) => str_starts_with($p, 'dir:uploads:files/')));
+    ok('the manifest carries this install and the table counts',
+       $open['manifest']['install_id'] === backupSetting($conn, 'backup_install_id') && ($open['manifest']['tables']['backup_runs'] ?? null) !== null);
+
+    $r2 = $runner->run('manual', $admin);
+    ok('second run: ok and nothing new uploaded', $r2['status'] === 'ok' && $r2['files_new'] === 0, json_encode($r2));
+    file_put_contents("$upDir/second.txt", 'another file ' . bin2hex(random_bytes(8)));
+    $r3 = $runner->run('manual', $admin);
+    ok('a new file: exactly one upload', $r3['status'] === 'ok' && $r3['files_new'] === 1, json_encode($r3));
+
+    // A crashed upload left a short pool object: it must be uploaded again, not reused.
+    $name = backupPoolName(backupPoolNameKey($conn), hash('sha256', $f2['bytes']));
+    $p = "$folder/backup/pool/$name";
+    file_put_contents($p, substr((string)file_get_contents($p), 0, 1000));
+    $r4 = $runner->run('manual', $admin);
+    ok('a truncated pool object is uploaded again', $r4['status'] === 'ok' && $r4['files_new'] === 1 && filesize($p) === backupEncryptedSize(150000), json_encode($r4));
+
+    // Files storage down: the run fails, says so, emails, and prunes nothing.
+    $setsBefore = count(array_unique(array_map(fn($k) => explode('/', $k)[1], $target->listKeys('sets/'))));
+    $fake->down = true;
+    $mails = [];
+    $r5 = $runner->run('scheduled', null);
+    $fake->down = false;
+    ok('Files storage down: the run fails', $r5['status'] === 'failed', json_encode($r5));
+    ok('Files storage down: the error names Files', str_contains(strtolower((string)$r5['error']), 'files'), (string)$r5['error']);
+    ok('Files storage down: administrators are emailed once', count($mails) === 1);
+    ok('Files storage down: the failed set is not complete', $r5['set'] === null || $target->size('sets/' . $r5['set'] . '/done.json') === null);
+    $setsAfter = array_unique(array_map(fn($k) => explode('/', $k)[1], $target->listKeys('sets/')));
+    ok('Files storage down: no complete set was pruned', count($setsAfter) >= $setsBefore);
+
+    // A Files version deleted while the backup runs: recorded, warned, not fatal.
+    $f3 = $mkFile('short-lived ' . bin2hex(random_bytes(4)));
+    $runner->afterInventory = function () use ($conn, $fake, $f3) {
+        $conn->prepare('DELETE FROM files_items WHERE id = ?')->execute([$f3['item']]);
+        $fake->delete($f3['key']);
+    };
+    $r6 = $runner->run('manual', $admin);
+    $runner->afterInventory = null;
+    ok('a Files version deleted mid-run: ok with a warning', $r6['status'] === 'ok' && (string)$r6['warning'] !== '', json_encode($r6));
+    $m6 = backupOpenSet($target, $r6['set'], 'a new long passphrase')['manifest']['files'];
+    $e6 = array_values(array_filter($m6, fn($f) => $f['path'] === $f3['key']));
+    ok('...and the manifest records it as missing', $e6 && ($e6[0]['missing'] ?? '') !== '');
+    $fake->delete($f1['key']);
+    $r7 = $runner->run('manual', $admin);
+    ok('a Files version missing while its row still exists fails the run', $r7['status'] === 'failed', json_encode($r7));
+    $tmpf = tempnam(sys_get_temp_dir(), 'zzf');
+    file_put_contents($tmpf, $f1['bytes']);
+    $fake->putFile($f1['key'], $tmpf, true);
+
+    // Two more good runs without second.txt, so the oldest sets hold the only reference to it.
+    unlink("$upDir/second.txt");
+    $r8 = $runner->run('manual', $admin);
+    $r9 = $runner->run('manual', $admin);
+    ok('two more runs: ok', $r8['status'] === 'ok' && $r9['status'] === 'ok');
+
+    section('Pruning');
+    $sets = function () use ($target): array {
+        $s = [];
+        foreach ($target->listKeys('sets/') as $k) if (str_ends_with($k, '/done.json')) $s[] = explode('/', $k)[1];
+        sort($s);
+        return $s;
+    };
+    $complete = $sets();
+    ok('there are several complete sets', count($complete) >= 4, (string)count($complete));
+    // Another install's set on the same target: never pruned, its pool objects kept.
+    $other = '19990101T000000Z';
+    foreach (['done.json' => json_encode(['format' => 1, 'install_id' => str_repeat('f', 32)]), 'owner.json' => json_encode(['install_id' => str_repeat('f', 32)]),
+              'refs.txt' => "$name\n"] as $k => $v) {
+        file_put_contents($tmpf, $v);
+        $target->putFile("sets/$other/$k", $tmpf);
+    }
+    $r = $runner->prune(2, backupSetting($conn, 'backup_install_id'));
+    $left = $sets();
+    ok('prune keeps the newest N of this install', array_values(array_diff($left, [$other])) === array_slice($complete, -2), json_encode($left));
+    ok('prune leaves another install\'s set alone', in_array($other, $left, true));
+    ok('prune removed the older sets', $r['sets_removed'] >= count($complete) - 2, json_encode($r));
+    $union = [];
+    foreach ($left as $s) foreach (array_filter(explode("\n", (string)file_get_contents("$folder/backup/sets/$s/refs.txt"))) as $n) $union[$n] = true;
+    $pool = array_unique(array_map(fn($k) => preg_replace('/\.key$/', '', substr($k, 5)), $target->listKeys('pool/')));
+    ok('the pool holds exactly what remaining sets reference', !array_diff($pool, array_keys($union)) && !array_diff(array_keys($union), $pool),
+       count($pool) . ' vs ' . count($union));
+    ok('the pool lost something (objects only old sets used)', $r['pool_removed'] > 0, json_encode($r));
+
+    // An unreadable refs.txt: nothing is deleted from the pool.
+    $victim = $left[0] === $other ? $left[1] : $left[0];
+    $rp = "$folder/backup/sets/$victim/refs.txt";
+    rename($rp, "$rp.bak");
+    mkdir($rp);
+    file_put_contents("$rp/x", 'x');
+    $before = $target->listKeys('pool/');
+    $r = $runner->prune(2, backupSetting($conn, 'backup_install_id'));
+    ok('an unreadable refs.txt skips the pool clean-up', $r['gc_skipped'] === true && $target->listKeys('pool/') === $before, json_encode($r));
+    unlink("$rp/x"); rmdir($rp); rename("$rp.bak", $rp);
+
+    section('The backup job');
+    ok('the job script exists', is_file("$appRoot/cron/backup.php"));
+    BackupsService::saveSchedule($conn, 'daily', null, '03:00', 3, $admin);
+    ok('the job is needed once a schedule is set', jobRegistry()['backup']['needed']($conn) === true);
+    BackupsService::saveSchedule($conn, 'off', null, null, 3, $admin);
 } catch (Throwable $e) {
     ok('no unexpected error', false, get_class($e) . ': ' . $e->getMessage() . ' @' . basename($e->getFile()) . ':' . $e->getLine());
 } finally {

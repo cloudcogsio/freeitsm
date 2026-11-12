@@ -54,6 +54,8 @@ const EMAIL_LOG_ROUTES = [
     'mailbox_test'   => 'Mailbox test',
     // Domains (#154): expiry/certificate digests and change-detection warnings.
     'domain_alert'   => 'Domain alert',
+    // System -> Backups: a backup failed (to every active administrator).
+    'backup'         => 'Backup failure',
     // A task assigned to an analyst who asked to be emailed about it (2.10.0).
     'task'           => 'Task assigned',
     // A contractor's contact told about a task, or reminded (3.3.0, includes/task_contractors.php).
