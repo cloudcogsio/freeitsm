@@ -12,6 +12,7 @@
  * top, with its full path as a hint, and never learns what else is in Finance.
  */
 require_once __DIR__ . '/../../includes/files/api_bootstrap.php';
+require_once __DIR__ . '/../../includes/files/offline.php';
 
 filesApiRun(function () use ($conn, $analystId) {
     $folderId = (int)($_GET['folder'] ?? 0);
@@ -20,6 +21,10 @@ filesApiRun(function () use ($conn, $analystId) {
     $tree     = FilesAcl::tree($conn);
 
     if ($folderId > 0 && !isset($levels[$folderId])) filesApiFail('Folder not found.');
+
+    // "Make available offline" badges: 'self' (marked), 'folder' (a marked folder above), null.
+    $offMarks   = filesOfflineMarks($conn);
+    $offFolders = filesOfflineCoveredFolders($conn, $offMarks);
 
     // Subfolders the caller can see.
     $childIds = [];
@@ -50,6 +55,7 @@ filesApiRun(function () use ($conn, $analystId) {
                 // caller may not see, which is fine: expanding one reveals nothing.
                 'has_children' => (int)$r['sub_count'] > 0,
                 'path'      => $folderId === 0 && $r['parent_id'] !== null ? FilesAcl::path($conn, $id) : null,
+                'offline'   => $offFolders[$id] ?? null,
             ];
         }
         usort($folders, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
@@ -62,8 +68,10 @@ filesApiRun(function () use ($conn, $analystId) {
         $st = $conn->prepare("SELECT i.id, i.name, i.size_bytes, i.mime_type,
                                      COALESCE(i.updated_datetime, i.created_datetime) AS modified,
                                      COALESCE(u.full_name, c.full_name) AS modified_by,
-                                     (SELECT COUNT(*) FROM files_versions v WHERE v.item_id = i.id) AS versions
+                                     (SELECT COUNT(*) FROM files_versions v WHERE v.item_id = i.id) AS versions,
+                                     cv.storage_path
                                 FROM files_items i
+                           LEFT JOIN files_versions cv ON cv.id = i.current_version_id
                            LEFT JOIN analysts c ON c.id = i.created_by
                            LEFT JOIN analysts u ON u.id = i.updated_by
                                WHERE i.folder_id = ? AND i.deleted_datetime IS NULL");
@@ -77,6 +85,9 @@ filesApiRun(function () use ($conn, $analystId) {
                 'modified'    => $r['modified'],
                 'modified_by' => $r['modified_by'],
                 'versions'    => (int)$r['versions'],
+                'offline'     => $off = filesOfflineItemCoverage($offFolders, $offMarks, (int)$r['id'], $folderId),
+                // Covered but not copied yet: the job is still making it.
+                'offline_ready' => $off !== null && filesOfflineHasCopy($conn, (string)$r['storage_path'], (int)$r['size_bytes']),
             ];
         }
         usort($items, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
@@ -123,6 +134,8 @@ filesApiRun(function () use ($conn, $analystId) {
         'folders' => $folders,
         'items'   => $items,
         'shortcuts' => $shortcuts,
+        // Whether "Make available offline" means anything here (Files is in S3-compatible storage).
+        'offline_enabled' => $offMarks !== null && filesOfflineApplies($conn),
         'can'     => [
             'upload' => $folderId > 0 ? $level >= FilesAcl::UPLOAD : filesHasCap($conn, $analystId, Cap::FILES_FOLDERS),
             'modify' => $level >= FilesAcl::MODIFY,
