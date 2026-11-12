@@ -169,7 +169,17 @@ function filesServeBytes(PDO $conn, array $version, int $start, int $end, callab
     if (!filesStorageKeyIsValid($key)) return 404;
     $started = false;
     try {
-        filesStoreFor($conn, $key)->readRange($key, $start, $end, function (string $chunk) use (&$started, $begin) {
+        $store = filesStoreFor($conn, $key);
+        if (!($store instanceof LocalDriver)) {
+            // "Make available offline": a complete copy on this server is read first, so
+            // the file opens while S3 is unreachable. Keys are never rewritten, so a copy
+            // of the right size holds the right bytes (includes/files/offline.php).
+            require_once __DIR__ . '/offline.php';
+            if (filesOfflineHasCopy($conn, $key, (int)($version['size_bytes'] ?? -1))) {
+                $store = new LocalDriver(filesOfflineRoot($conn));
+            }
+        }
+        $store->readRange($key, $start, $end, function (string $chunk) use (&$started, $begin) {
             if (!$started) { $started = true; $begin(); }
             echo $chunk;
             flush();
