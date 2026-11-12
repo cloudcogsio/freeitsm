@@ -40,6 +40,9 @@ final class BackupRunner
     /** Test hook: fn(string $localPath) - runs after a file's checksum, just before it is encrypted. */
     public ?Closure $beforeEncrypt = null;
 
+    /** fn(): void - after each file is pooled (a rollback's heartbeat through a long safety backup). */
+    public ?Closure $onFile = null;
+
     /** Unreferenced pool objects younger than this are kept: another run may be about to use them. */
     public int $gcGraceSeconds = 172800;
 
@@ -70,7 +73,8 @@ final class BackupRunner
     /**
      * Takes one backup. Never throws for a failed backup: it is recorded and reported.
      *
-     * @param string $kind  scheduled | manual
+     * @param string $kind  scheduled | manual | safety (taken by a rollback just before it starts: never prunes,
+     *                      so the set about to be restored, and every other, is still there)
      * @return array{status: string, run_id: int, set: ?string, files_total: int, files_new: int,
      *               size: int, warning: ?string, error: ?string, prune: ?array}
      */
@@ -85,7 +89,7 @@ final class BackupRunner
             // A first backup's file phase can take hours with this connection idle: keep it open.
             if ((int)$this->conn->query('SELECT @@SESSION.wait_timeout')->fetchColumn() < 86400) $this->conn->exec('SET SESSION wait_timeout = 86400');
             $this->conn->prepare("INSERT INTO backup_runs (kind, status, started_at, started_by) VALUES (?, 'running', UTC_TIMESTAMP(), ?)")
-                       ->execute([$kind === 'scheduled' ? 'scheduled' : 'manual', $by]);
+                       ->execute([in_array($kind, ['scheduled', 'safety'], true) ? $kind : 'manual', $by]);
         } catch (PDOException $e) {
             // Without its history table (Database Verification not run yet) a backup cannot be
             // recorded: it does not run, and administrators are told rather than left guessing.
@@ -152,6 +156,7 @@ final class BackupRunner
             foreach ($inventory as $f) {
                 $entry = $this->poolFile($f, $poolKey, $public, $out, $warnings);
                 $files[] = $entry;
+                if ($this->onFile) ($this->onFile)();
                 if (isset($entry['pool'])) {
                     $refs[$entry['pool']] = (int)$entry['size'];
                     $plainTotal += (int)$entry['size'];
@@ -213,8 +218,8 @@ final class BackupRunner
                                          files_new = ?, db_bytes = ?, warning_text = ? WHERE id = ?")
                        ->execute([$out['size'], $out['files_total'], $out['files_new'], (int)filesize($dump), $out['warning'], $runId]);
 
-            // 6. Retention. A failure here does not undo a good backup.
-            try {
+            // 6. Retention. A failure here does not undo a good backup. A safety backup never prunes.
+            if ($kind !== 'safety') try {
                 $out['prune'] = $this->prune(BackupsKeep::count($this->conn), $installId);
                 if ($out['prune']['gc_skipped']) $warnings[] = 'Old stored files were not cleaned up this time: ' . $out['prune']['gc_reason'];
             } catch (Throwable $e) {
@@ -325,14 +330,27 @@ final class BackupRunner
     /** Every file in the upload folders, as ['store' => 'dir:<rel>', 'path' => ...]. */
     private function directoryFiles(): array
     {
-        $skip = array_map(fn($d) => $this->appRoot . '/' . $d, self::SKIP_DIRS);
-        $filesRoot = rtrim(str_replace('\\', '/', filesStorageRoot($this->conn)), '/');
-        $skip[] = $filesRoot;
+        return self::uploadFolderFiles($this->appRoot, filesStorageRoot($this->conn));
+    }
+
+    /**
+     * Every file a backup covers in the upload folders under $appRoot: the folders of
+     * storagePersistenceDirectories() except the key's, without SKIP_DIRS, the local Files
+     * root ($filesRoot) and symbolic links. A rollback deletes by this same list, so it can
+     * never reach a file a backup would not have held.
+     *
+     * @return array<int, array{store: string, path: string}>  store is 'dir:<rel>'
+     */
+    public static function uploadFolderFiles(string $appRoot, string $filesRoot): array
+    {
+        $appRoot = rtrim(str_replace('\\', '/', $appRoot), '/');
+        $skip = array_map(fn($d) => $appRoot . '/' . $d, self::SKIP_DIRS);
+        $skip[] = rtrim(str_replace('\\', '/', $filesRoot), '/');
         $out = [];
         foreach (storagePersistenceDirectories() as $d) {
             if (!empty($d['critical'])) continue;   // the key: backed up on its own
             $rel  = (string)$d['rel'];
-            $base = $this->appRoot . '/' . $rel;
+            $base = $appRoot . '/' . $rel;
             if (!is_dir($base)) continue;
             $it = new RecursiveIteratorIterator(
                 new RecursiveCallbackFilterIterator(
