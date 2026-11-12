@@ -300,6 +300,73 @@ try {
     ok('a background job still running: waits, then gives up without changing anything', $res['state'] === 'failed' && str_contains((string)$res['error'], 'directory_sync')
        && $res['safety_set'] === null && !backupMaintenanceActive(), json_encode($res));
     $lock->query("SELECT RELEASE_LOCK(" . $lock->quote(JobRun::lockName($conn, 'directory_sync')) . ")");
+
+    section('From the page: check, start, follow (over HTTP, the real job)');
+    // A backup of this install as it really is (its own upload folders and Files storage).
+    filesStorageReset();
+    $real = (new BackupRunner($conn, $target, $root, fn() => null))->run('manual', $admin);
+    ok('a backup of the real install', $real['status'] === 'ok', (string)$real['error']);
+    $realRun = (int)$real['run_id'];
+    $conn->prepare("INSERT INTO files_folders (name, created_by, created_datetime) VALUES ('ZZ rollback e2e row', ?, UTC_TIMESTAMP())")->execute([$admin]);
+    $csrf = bin2hex(random_bytes(16));
+    $sid = $mkSess($admin, $csrf);
+    $api = fn(array $body) => $http('api/system/backups.php', 'PHPSESSID=' . $sid, $body, $csrf);
+    [$code, $j] = $api(['action' => 'restore_check', 'run_id' => $realRun, 'passphrase' => 'wrong wrong wrong']);
+    ok('check: a wrong passphrase says so', $code === 400 && ($j['error'] ?? '') === t('system.backups.err_passphrase_wrong'), json_encode($j));
+    [$code, $j] = $api(['action' => 'restore_check', 'run_id' => $realRun, 'passphrase' => 'rollback test passphrase']);
+    ok('check: what the backup is, and the key is the same', $code === 200 && ($j['restore']['set'] ?? '') === $real['set'] && ($j['restore']['key_differs'] ?? null) === false
+       && ($j['restore']['files'] ?? 0) > 0, json_encode($j));
+    $restoreRun = (int)$conn->query("SELECT id FROM backup_runs WHERE kind = 'restore' ORDER BY id DESC LIMIT 1")->fetchColumn();
+    [$code, $j] = $api(['action' => 'restore_check', 'run_id' => $restoreRun, 'passphrase' => 'rollback test passphrase']);
+    ok('check: a restore row is not a backup', $code === 400 && ($j['error'] ?? '') === t('system.backups.err_restore_not_ok'), json_encode($j));
+    [$code, $j] = $api(['action' => 'restore_start', 'run_id' => $realRun, 'passphrase' => 'rollback test passphrase', 'confirm' => 'restore']);
+    ok('start: refused without RESTORE typed exactly', $code === 400 && ($j['error'] ?? '') === t('system.backups.err_restore_confirm') && !backupMaintenanceActive(), json_encode($j));
+    [$code, $j] = $api(['action' => 'restore_start', 'run_id' => $realRun, 'passphrase' => 'not it at all!!', 'confirm' => 'RESTORE']);
+    ok('start: refused with a wrong passphrase, nothing switched on', $code === 400 && !backupMaintenanceActive(), json_encode($j));
+    backupSaveSetting($conn, 'files_storage_previous', 'ENC:moving');
+    [$code, $j] = $api(['action' => 'restore_start', 'run_id' => $realRun, 'passphrase' => 'rollback test passphrase', 'confirm' => 'RESTORE']);
+    ok('start: refused while Files is moving storage', $code === 400 && ($j['error'] ?? '') === t('system.backups.err_storage_moving'), json_encode($j));
+    backupSaveSetting($conn, 'files_storage_previous', null);
+
+    // Hold a job lock so the restore waits where it can be looked at.
+    $lock->query("SELECT GET_LOCK(" . $lock->quote(JobRun::lockName($conn, 'directory_sync')) . ", 0)");
+    [$code, $j, , $hdr] = $api(['action' => 'restore_start', 'run_id' => $realRun, 'passphrase' => 'rollback test passphrase', 'confirm' => 'RESTORE']);
+    ok('start: accepted, maintenance mode on', $code === 200 && !empty($j['success']) && backupMaintenanceActive(), json_encode($j));
+    preg_match('/Set-Cookie: ' . BACKUP_MAINTENANCE_COOKIE . '=([0-9a-f]{64});[^\r\n]*/i', $hdr, $cm);
+    ok('start: the browser gets the token cookie (HttpOnly, SameSite=Strict)', isset($cm[1]) && stripos($cm[0], 'httponly') !== false && stripos($cm[0], 'samesite=strict') !== false, trim($hdr));
+    $owner = 'PHPSESSID=' . $sid . '; ' . BACKUP_MAINTENANCE_COOKIE . '=' . ($cm[1] ?? '');
+    $pid = null;
+    for ($i = 0; $i < 30 && !$pid; $i++) { $st = backupMaintenanceRead(); $pid = $st['pid'] ?? null; if (!$pid) sleep(1); }
+    $cmdline = $pid ? (string)@file_get_contents("/proc/$pid/cmdline") : '';
+    $environ = $pid ? (string)@file_get_contents("/proc/$pid/environ") : '';
+    ok('the job runs (its process is known)', (bool)$pid, json_encode(backupMaintenanceRead()));
+    if (DIRECTORY_SEPARATOR === '/' && $pid) {
+        ok('the passphrase is not on the job\'s command line or in its environment', $cmdline !== '' && !str_contains($cmdline, 'rollback test passphrase')
+           && !str_contains($environ, 'rollback test passphrase'), $cmdline);
+    }
+    sleep(4);
+    [$code, $j] = $http('api/system/backup_rollback_status.php', $owner);
+    ok('progress: waiting for the background job', $code === 200 && ($j['state'] ?? '') === 'waiting' && str_contains(json_encode($j['log'] ?? []), 'directory_sync'), json_encode($j));
+    [$code] = $http('index.php');
+    ok('everyone else gets the maintenance page meanwhile', $code === 503, (string)$code);
+    $lock->query("SELECT RELEASE_LOCK(" . $lock->quote(JobRun::lockName($conn, 'directory_sync')) . ")");
+    $final = null;
+    for ($i = 0; $i < 300; $i++) {
+        [$code, $j] = $http('api/system/backup_rollback_status.php', $owner);
+        if ($code === 200 && empty($j['maintenance'])) { $final = $j; break; }
+        sleep(1);
+    }
+    ok('progress: it finishes, restored', ($final['state'] ?? '') === 'done', json_encode($final ?? $j));
+    ok('the row added since the backup is gone', (int)$conn->query("SELECT COUNT(*) FROM files_folders WHERE name = 'ZZ rollback e2e row'")->fetchColumn() === 0);
+    [$code, $j] = $http('api/system/backups.php', 'PHPSESSID=' . $sid);
+    ok('the page shows the last restore', $code === 200 && ($j['settings']['last_restore']['state'] ?? '') === 'done' && ($j['settings']['last_restore']['set'] ?? '') === $real['set']
+       && !str_contains(json_encode($j), 'token_hash'), json_encode($j['settings']['last_restore'] ?? null));
+    $last = $conn->query('SELECT kind, status FROM backup_runs ORDER BY id DESC LIMIT 2')->fetchAll(PDO::FETCH_ASSOC);
+    ok('the history ends with the safety backup and the restore', ($last[0]['kind'] ?? '') === 'restore' && ($last[0]['status'] ?? '') === 'ok' && ($last[1]['kind'] ?? '') === 'safety', json_encode($last));
+    [$code] = $http('index.php');
+    ok('pages are back', $code !== 503, (string)$code);
+    $out = $cli('cron/backup_rollback.php', '--set=' . $real['set'] . ' --by=' . $admin . ' < /dev/null');
+    ok('the job will not run unless a restore is waiting for it', str_contains($out, 'Not started from System') && str_ends_with($out, 'EXIT=2'), $out);
 } catch (Throwable $e) {
     ok('no unexpected error', false, get_class($e) . ': ' . $e->getMessage() . ' @' . basename($e->getFile()) . ':' . $e->getLine());
 } finally {
