@@ -75,7 +75,19 @@ require __DIR__ . '/_top.php';
             <h3>Restoring</h3>
         </div>
     </div>
-    <p>Restoring is done from the command line with <code>scripts/backup_restore.php</code>. It asks where the backups are, which one, and the passphrase, then restores the encryption key, the database and every file, and runs Database Verification. It only needs the backup location and the passphrase - nothing from the old server.</p>
+    <h4>Putting this install back to a backup</h4>
+    <p>Press <strong>Restore</strong> on a backup's row, enter the passphrase, check what the backup is, and type <code>RESTORE</code>. It is a true rollback of the whole install: the database, every uploaded file and everything in Files go back to how they were when the backup was made. Everything since is replaced, and files added since are deleted.</p>
+    <ol>
+        <li>FreeITSM goes into <strong>maintenance mode</strong>: everyone else sees a maintenance page, the API answers 503, and no background job starts. Your browser shows the progress.</li>
+        <li>It waits for background jobs that are already running to finish, then takes a <strong>safety backup</strong> of the current state, so the restore can itself be undone (restore the safety backup the same way).</li>
+        <li>It restores the backup into the current storage, deletes what the backup does not hold (including stored Files content that no file in Files refers to), and runs Database Verification, so a backup from an older version is brought up to date. <code>.htaccess</code> and <code>web.config</code> files are never deleted.</li>
+        <li>This install's backup settings (location, passphrase, schedule), its Files storage settings and the backup history are kept as they are now, not taken from the backup.</li>
+        <li>Maintenance mode switches off and the restore is listed in the history.</li>
+    </ol>
+    <p>If the restore fails part way, the safety backup is put back automatically and FreeITSM is as it was. If that fails too, FreeITSM stays in maintenance mode and the progress page says which safety backup to restore from the command line (below); the administrators are emailed. If the server is restarted during a restore, it does not continue: the progress page says so and lets you switch maintenance mode off once you have checked the install.</p>
+    <div class="help-note">If the backup was made with a different encryption key, its key replaces this install's (the restored settings need it); the page warns before you start. Maintenance mode is kept in a file beside the encryption key, so that folder must be writable by the web server.</div>
+    <h4>Onto a new server (command line)</h4>
+    <p>Restoring onto a new server is done from the command line with <code>scripts/backup_restore.php</code>. It asks where the backups are, which one, and the passphrase, then restores the encryption key, the database and every file, and runs Database Verification. It only needs the backup location and the passphrase - nothing from the old server.</p>
     <h4>With Docker</h4>
     <ol>
         <li>Set up a new install with the same <code>docker-compose.yml</code>, and add <code>FREEITSM_SCHEDULER=0</code> to the app's environment so no background job runs during the restore.</li>
