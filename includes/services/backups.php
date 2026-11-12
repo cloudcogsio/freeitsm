@@ -210,6 +210,43 @@ final class BackupsService
         jobScheduleSave($conn, 'backup', $mode === 'off' ? 'off' : 'daily', null, $mode === 'off' ? null : $time, $by);
     }
 
+    /**
+     * Decrypts the backup of run $runId and checks every checksum (System -> Backups -> Verify).
+     * Runs in the request: the passphrase must never be stored or put on a command line.
+     * The result is recorded on the run, so a browser that gives up waiting still sees it.
+     *
+     * @return array{ok: bool, checked: int, errors: string[]}
+     */
+    public static function verify(PDO $conn, int $runId, string $passphrase, int $by): array
+    {
+        require_once __DIR__ . '/../backup/restore.php';
+        $s = $conn->prepare("SELECT set_name, status FROM backup_runs WHERE id = ?");
+        $s->execute([$runId]);
+        $run = $s->fetch(PDO::FETCH_ASSOC);
+        if (!$run || $run['status'] !== 'ok' || (string)$run['set_name'] === '') throw new BackupsInputError('err_verify_not_ok');
+        $cfg = backupTargetConfig($conn);
+        $kr  = backupKeyring($conn);
+        if ($cfg === null || $kr === null) throw new BackupsInputError('err_not_set_up');
+        try {
+            backupUnlockKeyring($kr, $passphrase);   // say "wrong passphrase" before anything is marked running
+        } catch (BackupWrongPassphrase $e) {
+            throw new BackupsInputError('err_passphrase_wrong');
+        }
+        $conn->prepare("UPDATE backup_runs SET verify_status = 'running', verified_at = UTC_TIMESTAMP(), verified_by = ?, verify_detail = NULL WHERE id = ?")
+             ->execute([$by, $runId]);
+        try {
+            $r = backupVerifySet(backupTargetDriver($cfg), (string)$run['set_name'], $passphrase);
+        } catch (BackupWrongPassphrase $e) {
+            $r = ['ok' => false, 'checked' => 0, 'errors' => ['The passphrase does not open this backup (it was made with another keyring).']];
+        } catch (Throwable $e) {
+            $r = ['ok' => false, 'checked' => 0, 'errors' => [$e->getMessage()]];
+        }
+        $detail = $r['ok'] ? 'Files checked: ' . $r['checked'] : implode("\n", array_slice($r['errors'], 0, 50));
+        $conn->prepare('UPDATE backup_runs SET verify_status = ?, verified_at = UTC_TIMESTAMP(), verify_detail = ? WHERE id = ?')
+             ->execute([$r['ok'] ? 'ok' : 'failed', $detail, $runId]);
+        return $r;
+    }
+
     // ── internals ──
 
     private static function checkNewPassphrase(string $pass, string $confirm): void
