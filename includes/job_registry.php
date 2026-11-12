@@ -59,6 +59,17 @@ function jobNeedOne(PDO $conn, string $sql, array $args = []): bool
     }
 }
 
+/** True while offline copies of Files are on the server (Files -> Make available offline). */
+function jobOfflineCopiesLeft(PDO $conn): bool
+{
+    try {
+        require_once __DIR__ . '/files/offline.php';
+        return filesOfflineHasAnyCopy($conn);
+    } catch (Throwable $e) {
+        throw new JobHealthUnknown('requirement', 0, $e);
+    }
+}
+
 /** The source keys a query returns, prefixed; empty when its table does not exist. Throws on any other failure. */
 function jobSourceKeys(PDO $conn, string $prefix, string $sql): array
 {
@@ -189,11 +200,11 @@ function jobRegistry(): array
                                      || jobNeedOne($c, "SELECT 1 FROM files_purge_pending LIMIT 1"),
         ],
         // Files offline copies: makes the server copies "Make available offline" asks for,
-        // removes those nothing covers. Never needed until something has been marked.
+        // removes those nothing covers. Needed while something is marked, or copies are left.
         'files_offline_sync' => [
             'command' => 'php cron/files_offline_sync.php', 'web' => false,
             'interval' => 5, 'grace' => 15, 'max_runtime' => 15,
-            'needed'  => fn(PDO $c) => jobNeedOne($c, "SELECT 1 FROM files_offline LIMIT 1"),
+            'needed'  => fn(PDO $c) => jobNeedOne($c, "SELECT 1 FROM files_offline LIMIT 1") || jobOfflineCopiesLeft($c),
         ],
         'lms_reminders' => [
             'command' => 'php cron/lms_reminders.php', 'web' => true,

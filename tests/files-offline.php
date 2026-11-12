@@ -302,10 +302,10 @@ try {
     $part = "$store/zz-upload.part";
     file_put_contents($part, 'uploaded bytes');
     $newKey = '2026/11/11/' . bin2hex(random_bytes(16)) . '.bin';
-    FilesOfflineService::keepUploadCopy($conn, $X, null, $part, $newKey);
+    FilesOfflineService::commitUploadCopy($conn, FilesOfflineService::keepUploadCopy($conn, $X, null, $part, $newKey), $newKey);
     ok('an upload into a covered folder is copied at once', is_file(filesOfflinePath($conn, $newKey)) && file_get_contents(filesOfflinePath($conn, $newKey)) === 'uploaded bytes');
     $otherKey = '2026/11/11/' . bin2hex(random_bytes(16)) . '.bin';
-    FilesOfflineService::keepUploadCopy($conn, $B, null, $part, $otherKey);
+    FilesOfflineService::commitUploadCopy($conn, FilesOfflineService::keepUploadCopy($conn, $B, null, $part, $otherKey), $otherKey);
     ok('...and one into an uncovered folder is not', !is_file(filesOfflinePath($conn, $otherKey)));
     ok('the part file is left for the upload to store', is_file($part));
 
@@ -363,9 +363,83 @@ try {
     $y = FilesOfflineService::sync($conn, time() + 60);
     ok('...and copying resumes once there is room', $y['copied'] === 1 && filesOfflineHasCopy($conn, $q1['key'], $q1['size']), json_encode($y));
 
+
+    // ── Deferred minors ────────────────────────────────────────────────
+    // M7: an upload's copy only lands once the upload is committed.
+    mark($conn, 'folder', $X);
+    $mk = '2026/11/11/' . bin2hex(random_bytes(16)) . '.bin';
+    $tmpUp = FilesOfflineService::keepUploadCopy($conn, $X, null, $part, $mk);
+    ok('an upload copy waits under a temporary name until the upload is saved', is_string($tmpUp) && is_file($tmpUp) && !is_file(filesOfflinePath($conn, $mk)));
+    FilesOfflineService::commitUploadCopy($conn, $tmpUp, $mk);
+    ok('...and lands once it is', is_file(filesOfflinePath($conn, $mk)) && !is_file($tmpUp));
+    FilesOfflineService::commitUploadCopy($conn, null, $mk);   // nothing kept: harmless
+
+    // M8: the job is needed while any copy is left, even with no marks.
+    ok('copies on the server are noticed', filesOfflineHasAnyCopy($conn) === true);
+
+    // M9: deleting permanently drops the marks in the same go.
+    $pm = item($conn, $s3dir, $X, 'zz-purge-mark.txt');
+    mark($conn, 'item', $pm['id']);
+    $PF = folder($conn, $X, 'ZZ Off PF');
+    mark($conn, 'folder', $PF);
+    softDelete($conn, 'item', $pm['id']);
+    softDelete($conn, 'folder', $PF);
+    FilesRecycleService::purge($conn, 990000103, 'item', $pm['id']);
+    FilesRecycleService::purge($conn, 990000103, 'folder', $PF);
+    $s = $conn->prepare("SELECT COUNT(*) FROM files_offline WHERE (target_type = 'item' AND target_id = ?) OR (target_type = 'folder' AND target_id = ?)");
+    $s->execute([$pm['id'], $PF]);
+    ok('deleting permanently removes the marks too', (int)$s->fetchColumn() === 0);
+
+    // M10: a new storage folder: the old folder's copies are removed.
+    $oldRoot = sys_get_temp_dir() . '/zz-off-oldroot-' . bin2hex(random_bytes(4));
+    $ok1 = '2026/11/11/' . bin2hex(random_bytes(16)) . '.bin';
+    @mkdir("$oldRoot/offline/2026/11/11", 0777, true);
+    file_put_contents("$oldRoot/offline/$ok1", 'old copy');
+    file_put_contents("$oldRoot/offline/keep-me.txt", 'not ours');
+    FilesOfflineService::rootChanged($conn, $oldRoot, $oldRoot);
+    ok('CONTROL: the same folder keeps its copies', is_file("$oldRoot/offline/$ok1"));
+    FilesOfflineService::rootChanged($conn, $oldRoot, $store);
+    ok('a new storage folder removes the old folder\'s copies', !is_file("$oldRoot/offline/$ok1"));
+    ok('...and nothing that is not a copy', is_file("$oldRoot/offline/keep-me.txt"));
+    @unlink("$oldRoot/offline/keep-me.txt");
+
+    // M11: moving S3 -> a folder: files already moved are not copied.
+    $conn->exec("DELETE FROM files_offline");
+    FilesOfflineService::sync($conn, time() + 60);
+    $moved = item($conn, $s3dir, $X, 'zz-moved.txt');
+    $notyet = item($conn, $s3dir, $X, 'zz-notyet.txt');
+    @mkdir(dirname("$store/{$moved['key']}"), 0777, true);
+    copy("$s3dir/{$moved['key']}", "$store/{$moved['key']}");
+    $conn->prepare("INSERT INTO storage_migration_items (store, object_key, size_bytes, state) VALUES ('files', ?, ?, 'verified'), ('files', ?, ?, 'pending')")
+         ->execute([$moved['key'], $moved['size'], $notyet['key'], $notyet['size']]);
+    filesStorageReset();
+    FilesStorageCache::$drivers['previous'] = $fake;   // active = the folder, previous = "S3"
+    mark($conn, 'folder', $X);
+    $y = FilesOfflineService::sync($conn, time() + 60);
+    ok('during a move to a folder: a file already moved is not copied', !is_file(filesOfflinePath($conn, $moved['key'])), json_encode($y));
+    ok('...one still in S3 is', filesOfflineHasCopy($conn, $notyet['key'], $notyet['size']), json_encode($y));
+    $conn->exec("DELETE FROM storage_migration_items WHERE store = 'files'");
+    $conn->exec("DELETE FROM files_offline");
+    useFake($fake);
+    FilesOfflineService::sync($conn, time() + 60);
+
+    // M12: the Storage tab reads the job's count instead of walking the folder each time.
+    mark($conn, 'folder', $Q);
+    FilesOfflineService::sync($conn, time() + 60);
+    $cached = json_decode(filesSetting($conn, 'files_offline_usage'), true);
+    filesStorageReset(); useFake($fake);
+    ok('the job saves what the copies use', is_array($cached) && $cached['files'] === 1 && $cached['bytes'] === $q1['size'], json_encode($cached));
+    ok('usage reads it', FilesOfflineService::usage($conn) == ['files' => 1, 'bytes' => $q1['size']]);
+    FilesOfflineService::unmark($conn, $V, 'folder', $Q);
+    filesStorageReset(); useFake($fake);
+    ok('removing a mark forgets the saved count', filesSetting($conn, 'files_offline_usage') === '' && FilesOfflineService::usage($conn) == ['files' => 0, 'bytes' => 0]);
+    ok('no copies left: the job is not needed for them', filesOfflineHasAnyCopy($conn) === false);
+    mark($conn, 'folder', $X);   // copies again, for the next section
+    FilesOfflineService::sync($conn, time() + 60);
+
     // Storage moved back to a folder: copies mean nothing any more.
     useFake(null);
-    FilesOfflineService::keepUploadCopy($conn, $X, null, $part, $otherKey);
+    FilesOfflineService::commitUploadCopy($conn, FilesOfflineService::keepUploadCopy($conn, $X, null, $part, $otherKey), $otherKey);
     ok('CONTROL: a folder backend keeps no upload copy', !is_file(filesOfflinePath($conn, $otherKey)));
     $y = FilesOfflineService::sync($conn, time() + 60);
     $left = 0;

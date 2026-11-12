@@ -94,16 +94,17 @@ final class FilesOfflineService
             if ($row = $v->fetch(PDO::FETCH_ASSOC)) {
                 $key = (string)$row['storage_path'];
                 $size = (int)$row['size_bytes'];
-                if ($size <= self::$instantMaxBytes && !filesOfflineHasCopy($conn, $key, $size)) {
+                if ($size <= self::$instantMaxBytes && !filesOfflineHasCopy($conn, $key, $size) && !self::isLocal($conn, $key)) {
                     try {
                         self::copyKey($conn, $key, $size, $row['sha256'] !== null ? (string)$row['sha256'] : null);
                     } catch (Throwable $e) {
                         error_log("files offline: could not copy {$key} now (the job will retry): " . $e->getMessage());
                     }
                 }
-                $ready = filesOfflineHasCopy($conn, $key, $size);
+                $ready = filesOfflineHasCopy($conn, $key, $size) || self::isLocal($conn, $key);
             }
         }
+        self::forgetUsage($conn);
         return ['ok' => true, 'ready' => $ready];
     }
 
@@ -130,7 +131,33 @@ final class FilesOfflineService
         foreach (array_diff_key($beforeKeys, $afterKeys) as $key => $_) {
             if (self::removeCopy($conn, $key)) $removed++;
         }
+        self::forgetUsage($conn);
         return ['removed' => $removed];
+    }
+
+    /**
+     * True when the key is (already) stored in a folder on this server - during a move
+     * from S3 back to a folder, for a file the move has verified. A copy of it would
+     * only duplicate it. A lookup that fails is not "local": the copy is still made.
+     */
+    private static function isLocal(PDO $conn, string $key): bool
+    {
+        try {
+            return filesStoreFor($conn, $key) instanceof LocalDriver;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    /** Drops the job's saved usage count, which a mark or removal has just made stale. */
+    private static function forgetUsage(PDO $conn): void
+    {
+        try {
+            filesSaveSetting($conn, 'files_offline_usage', null);
+            FilesStorageCache::$settings['files_offline_usage'] = null;
+        } catch (Throwable $e) {
+            error_log('files offline: could not reset the saved usage: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -157,7 +184,11 @@ final class FilesOfflineService
             if ($sha !== null && $sha !== '' && !hash_equals(strtolower($sha), hash_file('sha256', $tmp))) {
                 throw new RuntimeException('copy did not match (SHA-256)');
             }
-            if (!@rename($tmp, $final)) throw new RuntimeException('could not move the copy into place');
+            // On Windows a rename onto a copy someone has open fails. If another request
+            // put the same copy there meanwhile, that is success.
+            if (!@rename($tmp, $final) && !filesOfflineHasCopy($conn, $key, $size)) {
+                throw new RuntimeException('could not move the copy into place');
+            }
         } finally {
             if (is_file($tmp)) @unlink($tmp);
         }
@@ -165,31 +196,86 @@ final class FilesOfflineService
 
     /**
      * Keeps a copy of a file being uploaded into a covered folder (or as a new version
-     * of a marked file). Called before the upload stores the part, which may move it
-     * away. Never throws: the job fills anything missed.
+     * of a marked file), under a temporary name. Called before the upload stores the
+     * part, which may move it away; commitUploadCopy() puts it in place once the upload
+     * is saved, so a failed upload leaves no copy (only a .tmp the job clears). Never
+     * throws: the job fills anything missed.
      *
      * @param ?int   $itemId   the file a new version belongs to; null for a new file
      * @param string $partPath the assembled upload on this server
      * @param string $key      the storage key the upload is about to be stored under
+     * @return ?string the temporary copy to pass to commitUploadCopy(); null when none was kept
      */
-    public static function keepUploadCopy(PDO $conn, int $folderId, ?int $itemId, string $partPath, string $key): void
+    public static function keepUploadCopy(PDO $conn, int $folderId, ?int $itemId, string $partPath, string $key): ?string
     {
         try {
-            if (!filesOfflineApplies($conn)) return;
+            if (!filesOfflineApplies($conn)) return null;
+            // Uploads go to the active store; a folder on this server needs no copy.
+            if (filesActiveStore($conn) instanceof LocalDriver) return null;
             $marks = filesOfflineMarks($conn);
-            if (!$marks || (!$marks['folder'] && !$marks['item'])) return;
+            if (!$marks || (!$marks['folder'] && !$marks['item'])) return null;
             $covered = filesOfflineItemCoverage(filesOfflineCoveredFolders($conn, $marks), $marks, $itemId ?? 0, $folderId);
-            if ($covered === null) return;
+            if ($covered === null) return null;
             $final = filesOfflinePath($conn, $key);
-            if ($final === null) return;
+            if ($final === null) return null;
             $tmp = self::tmpFor($final);
-            if (!@copy($partPath, $tmp) || !@rename($tmp, $final)) {
+            if (!@copy($partPath, $tmp)) {
                 @unlink($tmp);
                 error_log("files offline: could not keep a copy of the upload {$key} (the job will retry)");
+                return null;
             }
+            return $tmp;
         } catch (Throwable $e) {
             error_log("files offline: could not keep a copy of the upload {$key}: " . $e->getMessage());
+            return null;
         }
+    }
+
+    /**
+     * Puts an upload's temporary copy (from keepUploadCopy) in place, after the upload is
+     * saved. Never throws.
+     *
+     * @param ?string $tmp  what keepUploadCopy() returned; null does nothing
+     */
+    public static function commitUploadCopy(PDO $conn, ?string $tmp, string $key): void
+    {
+        if ($tmp === null) return;
+        try {
+            $final = filesOfflinePath($conn, $key);
+            if ($final === null || (!@rename($tmp, $final) && !is_file($final))) {
+                error_log("files offline: could not keep a copy of the upload {$key} (the job will retry)");
+            }
+            self::forgetUsage($conn);
+        } catch (Throwable $e) {
+            error_log("files offline: could not keep a copy of the upload {$key}: " . $e->getMessage());
+        } finally {
+            if (is_file($tmp)) @unlink($tmp);
+        }
+    }
+
+    /**
+     * The local storage folder changed (Files -> Settings -> Storage): copies under the
+     * old one would never be read or tidied again, so they are removed (the job makes
+     * new ones under the new folder). Nothing happens when both are the same place.
+     * Only files named like our copies are touched.
+     */
+    public static function rootChanged(PDO $conn, string $oldRoot, string $newRoot): int
+    {
+        $oldRoot = rtrim(str_replace('\\', '/', $oldRoot), '/');
+        $newRoot = rtrim(str_replace('\\', '/', $newRoot), '/');
+        if ($oldRoot === '' || $oldRoot === $newRoot || !is_dir($oldRoot . '/offline')) return 0;
+        try {
+            if (storageSameLocation(new LocalDriver($oldRoot), new LocalDriver($newRoot))) return 0;
+        } catch (Throwable $e) {
+            return 0;   // cannot tell: keep them
+        }
+        $removed = 0;
+        foreach (self::copiesUnder($oldRoot . '/offline') as [$path, $rel]) {
+            if (!filesStorageKeyIsValid($rel) && !str_ends_with($rel, '.tmp')) continue;
+            if (@unlink($path)) $removed++;
+        }
+        self::forgetUsage($conn);
+        return $removed;
     }
 
     /**
@@ -214,7 +300,7 @@ final class FilesOfflineService
         if ($r['marks_dropped']) $marks = filesOfflineMarks($conn);
 
         $applies = filesOfflineApplies($conn);
-        $covered = $applies ? filesOfflineCoveredKeys($conn, $marks) : [];
+        $covered = $applies ? self::wanted($conn, $marks) : [];
 
         if ($applies) {
             foreach ($covered as $key => $c) {
@@ -241,7 +327,7 @@ final class FilesOfflineService
                 }
             }
             // Copying can take minutes: marks and uploads made meanwhile count too.
-            $covered = filesOfflineCoveredKeys($conn);
+            $covered = self::wanted($conn);
         }
 
         // Remove what nothing covers, and temporary files left by a crash. A copy written
@@ -256,11 +342,38 @@ final class FilesOfflineService
             if (@filemtime($path) > $started) continue;
             if (self::removeCopy($conn, $rel)) $r['removed']++;
         }
+
+        // Saved for the Storage tab, so it does not walk the folder on every load.
+        $u = self::countCopies($conn);
+        if ($u !== null) {
+            filesSaveSetting($conn, 'files_offline_usage', json_encode($u));
+            FilesStorageCache::$settings['files_offline_usage'] = json_encode($u);
+        }
         return $r;
     }
 
-    /** What the offline copies use on this server; null when it cannot be worked out. */
+    /** The covered keys that need a copy: not those already stored in a folder here. */
+    private static function wanted(PDO $conn, ?array $marks = null): array
+    {
+        return array_filter(filesOfflineCoveredKeys($conn, $marks), fn($c, $key) => !self::isLocal($conn, (string)$key), ARRAY_FILTER_USE_BOTH);
+    }
+
+    /**
+     * What the offline copies use on this server: the job's last count, or counted now
+     * when there is none (never run, or a mark changed since). null when it cannot be
+     * worked out.
+     */
     public static function usage(PDO $conn): ?array
+    {
+        $saved = json_decode(filesSetting($conn, 'files_offline_usage'), true);
+        if (is_array($saved) && isset($saved['files'], $saved['bytes'])) {
+            return ['files' => (int)$saved['files'], 'bytes' => (int)$saved['bytes']];
+        }
+        return self::countCopies($conn);
+    }
+
+    /** Counts the copies on disk; null when the folder cannot be read. */
+    private static function countCopies(PDO $conn): ?array
     {
         try {
             $n = 0; $bytes = 0;
@@ -299,7 +412,16 @@ final class FilesOfflineService
      */
     private static function copies(PDO $conn): array
     {
-        $root = filesOfflineRoot($conn);
+        return self::copiesUnder(filesOfflineRoot($conn));
+    }
+
+    /**
+     * Every file under $root, as [full path, path relative to it].
+     *
+     * @return array<array{0: string, 1: string}>
+     */
+    private static function copiesUnder(string $root): array
+    {
         if (!is_dir($root)) return [];
         $out = [];
         $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));

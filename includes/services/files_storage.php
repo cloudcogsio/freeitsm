@@ -206,6 +206,7 @@ final class FilesStorageService
         }
 
         $current = filesStorageConfig($conn);
+        $oldRoot = rtrim(str_replace('\\', '/', filesSetting($conn, 'files_storage_root', filesDefaultStorageRoot())), '/');
         $next    = $s3 ?? ['driver' => 'local', 'root' => $rootAbs];
         $moving  = self::locationKey($current) !== self::locationKey($next)
                    // Different settings, same place (another spelling of one folder or bucket):
@@ -244,6 +245,16 @@ final class FilesStorageService
             throw $e;
         }
         filesStorageReset();
+        // Offline copies live under the storage folder: a new one leaves the old copies
+        // where nothing reads or tidies them. The job makes new ones under the new folder.
+        if ($oldRoot !== $rootAbs) {
+            try {
+                require_once __DIR__ . '/files_offline.php';
+                FilesOfflineService::rootChanged($conn, $oldRoot, $rootAbs);
+            } catch (Throwable $e) {
+                error_log('files storage: could not remove the old offline copies: ' . $e->getMessage());
+            }
+        }
 
         filesAudit($conn, $analystId, 'settings', ['path' => '(Settings: storage)'], [
             'storage'        => self::label($next),

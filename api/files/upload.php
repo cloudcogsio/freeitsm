@@ -133,9 +133,9 @@ filesApiRun(function () use ($conn, $analystId) {
         $mime = filesDetectMime($part, $up['file_name']);   // before the put, which may move the .part away
         $usedCfg = filesStorageConfig($conn);
         $store = filesActiveStore($conn);
-        // Into a folder kept offline: keep a copy on this server too - before the put,
-        // which may move the part away. Never fails the upload (the job fills it in).
-        FilesOfflineService::keepUploadCopy($conn, $folderId, $up['item_id'] !== null ? (int)$up['item_id'] : null, $part, $rel);
+        // Into a folder kept offline: copy the part now (the put may move it away), and put
+        // the copy in place once the upload is saved. Never fails the upload (the job fills it in).
+        $offlineTmp = FilesOfflineService::keepUploadCopy($conn, $folderId, $up['item_id'] !== null ? (int)$up['item_id'] : null, $part, $rel);
         try {
             $store->putFile($rel, $part, true);
         } catch (StorageUnavailable $e) {
@@ -173,6 +173,7 @@ filesApiRun(function () use ($conn, $analystId) {
         $conn->commit();
         // Someone may have saved a new storage location while this file was being stored.
         FilesStorageService::queueIfMoved($conn, $usedCfg, $rel, $size, $sha);
+        FilesOfflineService::commitUploadCopy($conn, $offlineTmp, $rel);
 
         filesAudit($conn, $analystId, $isNew ? 'upload' : 'new_version',
                    ['folder_id' => $folderId, 'item_id' => $itemId, 'version_id' => $versionId, 'item_name' => $name],

@@ -512,6 +512,7 @@ final class FilesRecycleService
                 $conn->prepare("DELETE FROM files_uploads WHERE item_id IN ($in)")->execute($items);
                 $conn->prepare("DELETE FROM files_versions WHERE item_id IN ($in)")->execute($items);
                 $conn->prepare("DELETE FROM files_items WHERE id IN ($in)")->execute($items);
+                self::dropOfflineMarks($conn, 'item', $items);
             }
             if ($folders) {
                 $in = implode(',', array_fill(0, count($folders), '?'));
@@ -519,6 +520,7 @@ final class FilesRecycleService
                      ->execute(array_merge($folders, $folders));
                 $conn->prepare("DELETE FROM files_uploads WHERE folder_id IN ($in)")->execute($folders);
                 $conn->prepare("DELETE FROM files_permissions WHERE folder_id IN ($in)")->execute($folders);
+                self::dropOfflineMarks($conn, 'folder', $folders);
                 // Deepest first, so a parent is never deleted before its children.
                 $depth = function (int $fid) use ($all): int {
                     $d = 0; $f = $all[$fid] ?? null;
@@ -558,6 +560,25 @@ final class FilesRecycleService
             'by' => $analystId > 0 ? null : 'retention', 'bytes_pending' => $pending ?: null,
         ], fn($v) => $v !== null));
         return ['files' => count($items), 'bytes' => $bytes, 'pending' => $pending];
+    }
+
+    /**
+     * Forgets "Make available offline" marks on things being deleted for good, so a new
+     * row that reuses an id never inherits one. files_offline may not exist yet (before
+     * Database Verification): then there is nothing to forget.
+     *
+     * @param string $type 'item' | 'folder'
+     * @param int[]  $ids
+     */
+    private static function dropOfflineMarks(PDO $conn, string $type, array $ids): void
+    {
+        require_once __DIR__ . '/../files/offline.php';
+        try {
+            $in = implode(',', array_map('intval', $ids));
+            $conn->prepare("DELETE FROM files_offline WHERE target_type = ? AND target_id IN ($in)")->execute([$type]);
+        } catch (PDOException $e) {
+            if (!filesOfflineMissingTable($e)) throw $e;
+        }
     }
 
     /**
