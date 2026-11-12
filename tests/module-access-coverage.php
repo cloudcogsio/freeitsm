@@ -70,6 +70,7 @@ $EXEMPT = [
     'api/notifications/mark_read.php'      => 'your own notifications (the bell on every page)',
     'api/reporting/scheduler_fallback.php' => 'the bell on every page starts the scheduler fallback (#233): it reads nothing back and starts only jobs already due',
     'api/settings/save_system_settings.php' => 'generic writer: authorised PER KEY by includes/settings_keys.php',
+    'api/system/backup_rollback_status.php' => 'progress of a backup restore, for the administrator who started it only (their session AND the one-time token their browser holds); it must not load functions.php, whose guards read the database being replaced',
     'api/system/set_user_preference.php'   => 'your own preferences, used by every module',
     'api/system/get_user_preference.php'   => 'your own preferences, used by every module',
     'api/system/ai/openrouter_models.php'  => 'refused unless you can manage an AI namespace',
