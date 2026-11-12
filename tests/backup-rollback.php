@@ -147,6 +147,38 @@ try {
     ok('scripts/ still run (an administrator at the console)', !str_contains($out, 'maintenance'), $out);
     backupMaintenanceEnd(['state' => 'abandoned']);
 
+    section('Maintenance mode: a job that is still working is never cut off');
+    $token = backupMaintenanceStart($admin, '20261112T000000Z');
+    $owner2 = 'PHPSESSID=' . $adminSid . '; ' . BACKUP_MAINTENANCE_COOKIE . '=' . $token;
+    $null = DIRECTORY_SEPARATOR === '\\' ? 'NUL' : '/dev/null';
+    $dummy = proc_open([PHP_BINARY, '-r', 'sleep(60);', 'backup_rollback.php'], [0 => ['pipe', 'r'], 1 => ['file', $null, 'w'], 2 => ['file', $null, 'w']], $dp);
+    $dpid = (int)proc_get_status($dummy)['pid'];
+    usleep(500000);   // let it get past exec: the real job records its own pid only once running
+    backupMaintenanceUpdate(['pid' => $dpid, 'state' => 'restoring', 'heartbeat' => time() - BACKUP_MAINTENANCE_STALE - 60]);
+    [$code, $j] = $http('api/system/backup_rollback_status.php', $owner2);
+    ok('status: a quiet heartbeat with the job still alive is not "stopped"', $code === 200 && ($j['stopped'] ?? null) === false, json_encode($j));
+    [$code] = $http('api/system/backup_rollback_status.php', $owner2, ['action' => 'off'], $csrf);
+    ok('turn off: refused while the job is alive, however long it has been quiet', $code === 409 && backupMaintenanceActive(), (string)$code);
+    $out = $cli('scripts/backup_maintenance.php', '--off');
+    ok('command line off: refused while the job is alive', str_contains($out, 'still running') && !str_ends_with($out, 'EXIT=0') && backupMaintenanceActive(), $out);
+    proc_terminate($dummy);
+    proc_close($dummy);
+    [$code, $j] = $http('api/system/backup_rollback_status.php', $owner2);
+    ok('status: once the job is gone it is "stopped"', $code === 200 && ($j['stopped'] ?? null) === true, json_encode($j));
+    $out = $cli('scripts/backup_maintenance.php');
+    ok('command line: says what state it is in', str_contains($out, 'restoring') && str_ends_with($out, 'EXIT=0'), $out);
+    $out = $cli('scripts/backup_maintenance.php', '--off');
+    ok('command line off: works once the job is gone (no browser needed)', !backupMaintenanceActive() && (backupMaintenanceLast()['state'] ?? '') === 'abandoned' && str_ends_with($out, 'EXIT=0'), $out);
+
+    section('Maintenance mode: the restoring administrator stays signed in');
+    $token = backupMaintenanceStart($admin, '20261112T000000Z');
+    @touch("$sessDir/sess_$adminSid", time() - 3000);
+    clearstatcache();
+    $http('api/system/backup_rollback_status.php', 'PHPSESSID=' . $adminSid . '; ' . BACKUP_MAINTENANCE_COOKIE . '=' . $token);
+    clearstatcache();
+    ok('polling the progress keeps the session from being collected', filemtime("$sessDir/sess_$adminSid") > time() - 60, date('c', (int)filemtime("$sessDir/sess_$adminSid")));
+    backupMaintenanceEnd(['state' => 'abandoned']);
+
     // ── A small install of its own: upload folders under a temporary app root, Files in a
     //    temporary folder, a folder target, and the backup settings (all put back at the end).
     section('Set-up');
@@ -292,6 +324,24 @@ try {
     $rb->verifySchema = fn() => true;
     $res = $rb->run();
     ok('a wrong passphrase: failed, no safety backup taken, maintenance off', $res['state'] === 'failed' && $res['safety_set'] === null && !backupMaintenanceActive(), json_encode($res));
+    section('When putting the safety backup back fails too');
+    backupMaintenanceStart($admin, $b1['set']);
+    $mailed = [];
+    $rb = new BackupRollback($conn, $target, $b1['set'], 'rollback test passphrase', $admin, $app, $keyPath, $files,
+                             function (string $subject, string $body) use (&$mailed) { $mailed[] = $body; });
+    $rb->verifySchema = fn() => true;
+    $rb->jobWaitSeconds = 5;
+    $rb->failAfterDatabase = function () use ($target) {
+        $target->delete('sets/' . backupMaintenanceRead()['safety_set'] . '/done.json');   // the safety backup can no longer be opened
+        throw new RuntimeException('ZZ simulated failure');
+    };
+    $res = $rb->run();
+    ok('broken: maintenance mode stays on', $res['state'] === 'broken' && backupMaintenanceActive() && (backupMaintenanceRead()['state'] ?? '') === 'broken', json_encode($res));
+    ok('broken: the administrators are told the exact command, with --force', isset($mailed[0]) && str_contains($mailed[0], '--set=' . $res['safety_set']) && str_contains($mailed[0], '--force')
+       && str_contains($mailed[0], 'scripts/backup_maintenance.php --off'), $mailed[0] ?? '');
+    ok('broken: the page says the same', str_contains(t('system.backups.mm_broken'), '--force') && str_contains(t('system.backups.mm_broken'), 'backup_maintenance.php'));
+    backupMaintenanceEnd(['state' => 'abandoned']);
+
     $lock = connectToDatabase();
     $lock->query("SELECT GET_LOCK(" . $lock->quote(JobRun::lockName($conn, 'directory_sync')) . ", 0)");
     backupMaintenanceStart($admin, $b1['set']);
@@ -370,6 +420,13 @@ try {
     ok('pages are back', $code !== 503, (string)$code);
     $out = $cli('cron/backup_rollback.php', '--set=' . $real['set'] . ' --by=' . $admin . ' < /dev/null');
     ok('the job will not run unless a restore is waiting for it', str_contains($out, 'Not started from System') && str_ends_with($out, 'EXIT=2'), $out);
+
+    section('Only the current passphrase starts a restore');
+    BackupsService::changePassphrase($conn, 'rollback test passphrase', 'a newer rollback passphrase', 'a newer rollback passphrase', $admin);
+    $e = null;
+    try { BackupsService::restoreCheck($conn, $realRun, 'rollback test passphrase'); } catch (BackupsInputError $x) { $e = $x->getMessage(); }
+    ok('an older passphrase that still opens an older backup is refused (it could not open the safety backup)', $e === 'err_restore_old_passphrase', (string)$e);
+    ok('the current passphrase is accepted', BackupsService::restoreCheck($conn, $realRun, 'a newer rollback passphrase')['set'] === $real['set']);
 } catch (Throwable $e) {
     ok('no unexpected error', false, get_class($e) . ': ' . $e->getMessage() . ' @' . basename($e->getFile()) . ':' . $e->getLine());
 } finally {

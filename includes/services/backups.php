@@ -337,6 +337,14 @@ final class BackupsService
             error_log('[backups] restore check: ' . $e->getMessage());
             throw new BackupsInputError('err_restore_unreadable');
         }
+        // Only the CURRENT passphrase: an older one can still open an older backup, but not the
+        // safety backup taken first, which a failed restore must be able to put back.
+        try {
+            sodium_memzero(backupUnlockKeyring(backupKeyring($conn), $passphrase)['secret']);
+        } catch (BackupWrongPassphrase $e) {
+            sodium_memzero($open['keys']['secret']);
+            throw new BackupsInputError('err_restore_old_passphrase');
+        }
         try {
             $key = trim(backupDecryptString(backupReadString($t, 'sets/' . $run['set_name'] . '/key.bin'), $open['datakey']));
         } catch (Throwable $e) {

@@ -263,7 +263,7 @@ final class BackupRestore
             if ($sha !== ($m['db']['sha256'] ?? '')) throw new BackupCorrupt('The database dump does not match its checksum.');
             ($this->log)('Restoring the database...');
             $this->dropEverything();
-            $n = backupReplayDump($this->db, $this->tmp . '/db.dump');
+            $n = backupReplayDump($this->db, $this->tmp . '/db.dump', $this->onFile ? fn() => ($this->onFile)() : null);
             @unlink($this->tmp . '/db.dump');
             ($this->log)("Database restored ($n statements).");
             if ($this->afterDatabaseHook) ($this->afterDatabaseHook)($this->db, trim($keyBytes));
