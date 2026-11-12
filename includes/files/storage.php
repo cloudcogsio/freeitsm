@@ -170,21 +170,29 @@ function filesServeBytes(PDO $conn, array $version, int $start, int $end, callab
     $started = false;
     try {
         $store = filesStoreFor($conn, $key);
+        $sink = function (string $chunk) use (&$started, $begin) {
+            if (!$started) { $started = true; $begin(); }
+            echo $chunk;
+            flush();
+            return !connection_aborted();
+        };
+        $served = false;
         if (!($store instanceof LocalDriver)) {
             // "Make available offline": a complete copy on this server is read first, so
             // the file opens while S3 is unreachable. Keys are never rewritten, so a copy
             // of the right size holds the right bytes (includes/files/offline.php).
             require_once __DIR__ . '/offline.php';
             if (filesOfflineHasCopy($conn, $key, (int)($version['size_bytes'] ?? -1))) {
-                $store = new LocalDriver(filesOfflineRoot($conn));
+                try {
+                    (new LocalDriver(filesOfflineRoot($conn)))->readRange($key, $start, $end, $sink);
+                    $served = true;
+                } catch (StorageNotFound $e) {
+                    // Removed between the check and the read (the job, or a purge): use the store.
+                    if ($started) throw $e;
+                }
             }
         }
-        $store->readRange($key, $start, $end, function (string $chunk) use (&$started, $begin) {
-            if (!$started) { $started = true; $begin(); }
-            echo $chunk;
-            flush();
-            return !connection_aborted();
-        });
+        if (!$served) $store->readRange($key, $start, $end, $sink);
         if (!$started) $begin();   // an empty range still needs its headers
         return 0;
     } catch (StorageNotFound $e) {
