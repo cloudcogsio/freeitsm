@@ -349,7 +349,7 @@ final class BackupsService
         return [
             'run_id'      => $runId,
             'set'         => (string)$run['set_name'],
-            'created_at'  => isset($m['created_at']) ? (string)$m['created_at'] : null,
+            'created_at'  => isset($m['created_at']) && strtotime((string)$m['created_at']) ? gmdate('Y-m-d H:i:s', strtotime((string)$m['created_at'])) : null,   // UTC, as the page's dates
             'app_version' => isset($m['app_version']) ? (string)$m['app_version'] : null,
             'files'       => count((array)($m['files'] ?? [])),
             'size'        => $run['size_bytes'] !== null ? (int)$run['size_bytes'] : null,
