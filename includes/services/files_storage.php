@@ -45,7 +45,7 @@ final class FilesStorageService
      * service, which hands out the server's own credentials. Private-network
      * addresses (a MinIO on the LAN) stay allowed.
      */
-    private static function endpointRefusal(string $endpoint): ?string
+    public static function endpointRefusal(string $endpoint): ?string
     {
         // A quick answer for the person typing. The real guard is in every request
         // (S3Driver::once -> storageCheckedAddress), which also sees the bucket's own
