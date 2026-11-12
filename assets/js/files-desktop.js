@@ -192,6 +192,46 @@
             '<rect x=".5" y=".5" width="15" height="15" rx="2" fill="#fff" stroke="#9aa5b1"/>' +
             '<path d="M5 11.5c0-3.5 2-5.5 5.5-5.5M8.5 3.5l2.5 2.5-2.5 2.5" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
     }
+    // ── Offline copies ("Make available offline", S3-compatible storage only) ──
+    /** What an entry's offline badge says: kept itself, kept by a folder above, or still being copied. */
+    function offlineLabel(e) {
+        if (e.type === 'item' && !e.offline_ready) return L('ex.offline_pending', 'Being made available offline');
+        return e.offline === 'self' ? L('ex.offline_self', 'Available offline') : L('ex.offline_folder', 'Available offline (from a folder)');
+    }
+    /** An icon with the offline tick over its bottom-right corner (hollow while the copy is being made). */
+    function offlineIcon(base, e, px) {
+        var a = Math.max(10, Math.round(px * 0.38)), ready = e.type !== 'item' || e.offline_ready;
+        var fg = ready ? '#fff' : '#16a34a', bg = ready ? '#16a34a' : '#fff';
+        return '<span class="fi-sc" style="width:' + px + 'px;height:' + px + 'px">' + base +
+            '<svg class="fi-off" width="' + a + '" height="' + a + '" viewBox="0 0 16 16" role="img" aria-label="' + esc(offlineLabel(e)) + '">' +
+            '<title>' + esc(offlineLabel(e)) + '</title>' +
+            '<circle cx="8" cy="8" r="7" fill="' + bg + '" stroke="' + fg + '" stroke-width="1.5"/>' +
+            '<path d="M4.8 8.2l2.1 2.1 4.3-4.6" fill="none" stroke="' + fg + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+    }
+    /** Marks or unmarks each selected file or folder in turn, then redraws. */
+    function setOffline(ex, sel, on) {
+        var chain = Promise.resolve(), anyFolder = false;
+        sel.forEach(function (e) {
+            if (e.type !== 'folder' && e.type !== 'item') return;
+            if (e.type === 'folder') anyFolder = true;
+            chain = chain.then(function () { return api('offline.php', { action: on ? 'on' : 'off', type: e.type, id: e.id }).catch(fail); });
+        });
+        chain.then(function () {
+            if (on && anyFolder) WM.notify(L('ex.offline_bg', 'Copies are being made in the background.'));
+            ex.reload();
+        });
+    }
+    /** The entry menu's offline item, or null when it does not apply here. */
+    function offlineMenu(ex, e, many) {
+        if (!ex.data || !ex.data.offline_enabled) return null;
+        var sel = many ? ex.selected() : [e];
+        if (!many && e.offline === 'self') {
+            return { label: L('ex.offline_off', 'Remove offline copy'), action: function () { setOffline(ex, sel, false); } };
+        }
+        // Already kept by a folder above: nothing to add here (it is removed from that folder).
+        return { label: L('ex.offline_on', 'Make available offline'), disabled: !many && e.offline === 'folder', action: function () { setOffline(ex, sel, true); } };
+    }
+
     /** "Create shortcut >" for a file or folder: beside it, or on my desktop. */
     function shortcutMenu(type, id, canHere, disabled) {
         return { label: L('sc.create', 'Create shortcut'), icon: IC.shortcut, disabled: disabled, sub: [
@@ -479,8 +519,8 @@
         var d = this.data, out = [];
         if (!d) return out;
         var lvl = d.folder ? d.folder.level : 0;
-        d.folders.forEach(function (f) { out.push({ key: 'f:' + f.id, type: 'folder', id: f.id, name: f.name, modified: f.modified, level: f.level, path: f.path }); });
-        d.items.forEach(function (i) { out.push({ key: 'i:' + i.id, type: 'item', id: i.id, name: i.name, modified: i.modified, size: i.size, level: lvl, by: i.modified_by, versions: i.versions }); });
+        d.folders.forEach(function (f) { out.push({ key: 'f:' + f.id, type: 'folder', id: f.id, name: f.name, modified: f.modified, level: f.level, path: f.path, offline: f.offline || null, offline_ready: true }); });
+        d.items.forEach(function (i) { out.push({ key: 'i:' + i.id, type: 'item', id: i.id, name: i.name, modified: i.modified, size: i.size, level: lvl, by: i.modified_by, versions: i.versions, offline: i.offline || null, offline_ready: !!i.offline_ready }); });
         // Shortcuts: `level` is THIS folder's (it decides rename/delete); the
         // target's own permissions decide what opening it does.
         (d.shortcuts || []).forEach(function (s) {
@@ -535,6 +575,7 @@
             var px = self.view === 'icons' ? 48 : 18;
             var icon = e.type === 'shortcut' ? shortcutIcon(e.target_type, e.target_name, px)
                      : e.type === 'folder' ? FI.folder(px) : FI.file(e.name, px);
+            if (e.offline) icon = offlineIcon(icon, e, px);
             var tip = e.type === 'shortcut' ? L('sc.tip', 'Shortcut to {path}', { path: e.path }) : (e.path ? e.path : e.name);
             var drag = 'true';
             if (self.view === 'icons') {
@@ -783,6 +824,7 @@
             { label: L('ex.copy', 'Copy'), icon: IC.copy, shortcut: 'Ctrl+C', action: function () { self.command('copy'); }, disabled: !c.copy },
             e.type === 'folder' && clip ? { label: L('ex.paste_into', 'Paste into folder'), icon: IC.paste, action: function () { paste(e.id); }, disabled: e.level < LV.UPLOAD || many } : null,
             shortcutMenu(e.type, e.id, c.shortcutHere, many),
+            offlineMenu(self, e, many),
             { sep: true },
             { label: L('ex.rename', 'Rename'), icon: IC.rename, shortcut: 'F2', action: function () { self.command('rename'); }, disabled: !c.rename },
             { label: L('ex.delete', 'Delete'), icon: IC.del, shortcut: 'Del', action: function () { self.command('delete'); }, disabled: !c.del },
@@ -1571,6 +1613,11 @@
                     .map(function (x) { return '<tr><th>' + esc(x[0]) + '</th><td>' + esc(x[1]) + '</td></tr>'; }).join('');
             };
             var head = '<div class="fd-props-head">' + (p.type === 'folder' ? FI.folder(48) : FI.file(p.name, 48)) + '<div class="fd-props-name"></div></div>';
+            /** The Offline row: only for something kept offline (marked itself or by a folder). */
+            var offlineRow = function (p) {
+                var o = p.offline || {};
+                return o.state ? [L('props.offline', 'Offline'), offlineLabel({ type: p.type, offline: o.state, offline_ready: o.ready !== false })] : null;
+            };
             var general;
             if (p.type === 'folder') {
                 general = rows([
@@ -1581,7 +1628,8 @@
                     [L('props.created', 'Created'), fmtWhen(p.created) + (p.created_by ? ' - ' + p.created_by : '')],
                     [L('props.modified', 'Modified'), p.modified ? fmtWhen(p.modified) + (p.modified_by ? ' - ' + p.modified_by : '') : ''],
                     [L('props.inherits', 'Inherits permissions'), p.inherit ? L('yes', 'Yes') : L('no', 'No')],
-                    [L('props.your_access', 'Your access'), names[p.level]]
+                    [L('props.your_access', 'Your access'), names[p.level]],
+                    offlineRow(p)
                 ]);
             } else {
                 general = rows([
@@ -1590,7 +1638,8 @@
                     [L('props.size', 'Size'), fmtSize(p.size) + ' (' + p.size.toLocaleString() + ' ' + L('props.bytes', 'bytes') + ')'],
                     [L('props.created', 'Created'), fmtWhen(p.created) + (p.created_by ? ' - ' + p.created_by : '')],
                     [L('props.modified', 'Modified'), fmtWhen(p.modified)],
-                    [L('props.your_access', 'Your access'), names[p.level]]
+                    [L('props.your_access', 'Your access'), names[p.level]],
+                    offlineRow(p)
                 ]);
             }
             var versions = '';

@@ -39,6 +39,7 @@ $sections = [
     'permissions' => 6,
     'inheritance' => 4,
     'recycle'     => 4,
+    'offline'     => 4,
     'audit'       => 3,
     'ownership'   => 3,
     'settings'    => 5,

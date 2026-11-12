@@ -72,6 +72,17 @@ final class FilesStorageService
         }
     }
 
+    /** What "Make available offline" copies use on this server, or null when it cannot be worked out. */
+    private static function offlineUsage(PDO $conn): ?array
+    {
+        try {
+            require_once __DIR__ . '/files_offline.php';
+            return FilesOfflineService::usage($conn);
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+
     /** The Storage tab's data. The S3 secret is reported as set or not, never sent. */
     public static function describe(PDO $conn): array
     {
@@ -91,6 +102,8 @@ final class FilesStorageService
             'stored_bytes'   => (int)$usage['bytes'],
             // Of those, what only deleted files use - purging the recycle bin frees it.
             'recycle'        => self::recycleUsage($conn),
+            // Copies kept on this server by "Make available offline" (in the storage folder).
+            'offline'        => self::offlineUsage($conn),
             'free_bytes'     => $driver === 'local' ? (@disk_free_space(is_dir($root) ? $root : dirname($root)) ?: null) : null,
             's3'             => [
                 'endpoint'      => filesSetting($conn, 'files_s3_endpoint'),
