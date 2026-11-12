@@ -188,6 +188,13 @@ function jobRegistry(): array
             'needed'  => fn(PDO $c) => (int)jobSettingStrict($c, 'files_recycle_bin_days') > 0
                                      || jobNeedOne($c, "SELECT 1 FROM files_purge_pending LIMIT 1"),
         ],
+        // Files offline copies: makes the server copies "Make available offline" asks for,
+        // removes those nothing covers. Never needed until something has been marked.
+        'files_offline_sync' => [
+            'command' => 'php cron/files_offline_sync.php', 'web' => false,
+            'interval' => 5, 'grace' => 15, 'max_runtime' => 15,
+            'needed'  => fn(PDO $c) => jobNeedOne($c, "SELECT 1 FROM files_offline LIMIT 1"),
+        ],
         'lms_reminders' => [
             'command' => 'php cron/lms_reminders.php', 'web' => true,
             'interval' => 1440, 'grace' => 360, 'max_runtime' => 10,

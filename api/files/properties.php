@@ -6,10 +6,13 @@
  * is still looking.
  */
 require_once __DIR__ . '/../../includes/files/api_bootstrap.php';
+require_once __DIR__ . '/../../includes/files/offline.php';
 
 filesApiRun(function () use ($conn, $analystId) {
     $type = ($_GET['type'] ?? '') === 'folder' ? 'folder' : 'item';
     $id   = (int)($_GET['id'] ?? 0);
+    $offMarks   = filesOfflineMarks($conn);
+    $offFolders = filesOfflineCoveredFolders($conn, $offMarks);
 
     if ($type === 'folder') {
         $lvl = filesNeed($conn, $analystId, $id, FilesAcl::VIEW);
@@ -38,6 +41,7 @@ filesApiRun(function () use ($conn, $analystId) {
             'files'      => (int)$agg['n'],
             'size'       => (int)$agg['bytes'],
             'level'      => $lvl,
+            'offline'    => ['state' => $offFolders[$id] ?? null, 'ready' => null],
         ]]);
     }
 
@@ -47,6 +51,9 @@ filesApiRun(function () use ($conn, $analystId) {
                             FROM files_versions v LEFT JOIN analysts a ON a.id = v.uploaded_by
                            WHERE v.item_id = ? ORDER BY v.version_no DESC");
     $st->execute([$id]);
+    $ck = $conn->prepare("SELECT storage_path FROM files_versions WHERE id = ?");
+    $ck->execute([(int)$it['current_version_id']]);
+    $curKey = $ck->fetchColumn();
     $c = $conn->prepare("SELECT full_name FROM analysts WHERE id = ?");
     $c->execute([(int)$it['created_by']]);
     filesAudit($conn, $analystId, 'browse', ['folder_id' => (int)$it['folder_id'], 'item_id' => $id, 'item_name' => $it['name']], ['properties' => true]);
@@ -65,5 +72,7 @@ filesApiRun(function () use ($conn, $analystId) {
         ], $st->fetchAll(PDO::FETCH_ASSOC)),
         'current_version_id' => (int)$it['current_version_id'],
         'level'      => $lvl,
+        'offline'    => ['state' => $off = filesOfflineItemCoverage($offFolders, $offMarks, $id, (int)$it['folder_id']),
+                         'ready' => $off === null ? null : filesOfflineHasCopy($conn, (string)$curKey, (int)$it['size_bytes'])],
     ]]);
 });

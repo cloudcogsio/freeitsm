@@ -19,6 +19,7 @@
  */
 require_once __DIR__ . '/../../includes/files/api_bootstrap.php';
 require_once __DIR__ . '/../../includes/services/files_storage.php';
+require_once __DIR__ . '/../../includes/services/files_offline.php';
 
 // Changes data: never on a GET, which a link on another site can send (csrf.php).
 csrfRequireWriteMethod();
@@ -132,6 +133,9 @@ filesApiRun(function () use ($conn, $analystId) {
         $mime = filesDetectMime($part, $up['file_name']);   // before the put, which may move the .part away
         $usedCfg = filesStorageConfig($conn);
         $store = filesActiveStore($conn);
+        // Into a folder kept offline: keep a copy on this server too - before the put,
+        // which may move the part away. Never fails the upload (the job fills it in).
+        FilesOfflineService::keepUploadCopy($conn, $folderId, $up['item_id'] !== null ? (int)$up['item_id'] : null, $part, $rel);
         try {
             $store->putFile($rel, $part, true);
         } catch (StorageUnavailable $e) {
