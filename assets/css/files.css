@@ -493,6 +493,8 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
 .fi-sc { position: relative; display: inline-flex; flex: 0 0 auto; }
 .fi-sc > .fi { display: block; }
 .fi-sc-arrow { position: absolute; left: 0; bottom: 0; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .25)); }
+/* "Available offline": a tick over the icon's bottom-right corner (hollow while being copied). */
+.fi-off { position: absolute; right: 0; bottom: 0; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .25)); }
 .fd-dicon .fi-sc { filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .35)); }
 .fd-dicon-gone { opacity: .45; }
 /* The desktop while something is dragged over it (becomes a shortcut there). */
