@@ -50,6 +50,23 @@ final class ZzBkFakeS3 implements StorageDriver
     public function delete(string $key): void { $this->up(); $this->d->delete($key); }
     public function label(): string { return 'zz-fake-s3'; }
 }
+/** Backup target stand-in: a folder target that counts size checks and can be switched off. */
+final class ZzBkFlakyTarget implements StorageDriver, StorageLister
+{
+    public bool $down = false;
+    public int $sizeCalls = 0;
+    private LocalDriver $d;
+    public function __construct(string $dir) { $this->d = new LocalDriver($dir); }
+    private function up(): void { if ($this->down) throw new StorageUnavailable('Storage could not be reached: test target is down'); }
+    public function putFile(string $key, string $localPath, bool $move = false): void { $this->up(); $this->d->putFile($key, $localPath, $move); }
+    public function readRange(string $key, int $start, int $end, callable $sink): void { $this->up(); $this->d->readRange($key, $start, $end, $sink); }
+    public function readTo(string $key, string $localPath): void { $this->up(); $this->d->readTo($key, $localPath); }
+    public function size(string $key): ?int { $this->up(); $this->sizeCalls++; return $this->d->size($key); }
+    public function delete(string $key): void { $this->up(); $this->d->delete($key); }
+    public function listKeys(string $prefix): array { $this->up(); return $this->d->listKeys($prefix); }
+    public function listObjects(string $prefix): array { $this->up(); return $this->d->listObjects($prefix); }
+    public function label(): string { return 'zz-flaky-target'; }
+}
 function section(string $t): void { echo "\n$t\n" . str_repeat('-', 72) . "\n"; }
 
 echo "\nBackups\n" . str_repeat('=', 72) . "\n";
@@ -192,17 +209,25 @@ try {
     $ins->bindValue(1, 'big'); $ins->bindValue(2, $big, PDO::PARAM_LOB); $ins->bindValue(3, '-5.50'); $ins->bindValue(4, null);
     $ins->execute();
     $ins->execute(['Žluťoučký 🚀', "\x00\x01\xff", '1.00', '1999-12-31 23:59:59']);
+    $every = implode('', array_map('chr', range(0, 255))) . "'\\\"\x1a\r\n\x00";
+    $ins->bindValue(1, 'every byte'); $ins->bindValue(2, $every, PDO::PARAM_LOB); $ins->bindValue(3, '2.00'); $ins->bindValue(4, null);
+    $ins->execute();
 
     $dump = "$work/db.dump";
     $conn->beginTransaction();
     $info = backupDumpDatabase($conn, $dump, 1024 * 1024);
     $conn->commit();
-    ok('the dump counts every table', ($info['tables']['zz_backup_t'] ?? null) === 4 && count($info['tables']) === count(zzTableCounts($conn)),
+    ok('the dump counts every table', ($info['tables']['zz_backup_t'] ?? null) === 5 && count($info['tables']) === count(zzTableCounts($conn)),
        json_encode($info['tables']['zz_backup_t'] ?? null));
     ok('the dump is compressed (smaller than the big row)', filesize($dump) > 3 * 1024 * 1024 && filesize($dump) < 4 * 1024 * 1024, (string)filesize($dump));
     $threw = null;
     try { backupDumpDatabase($conn, "$work/x.dump"); } catch (Throwable $e) { $threw = $e; }
     ok('dumping outside a transaction is refused (no consistent snapshot)', $threw instanceof LogicException, $threw ? get_class($threw) : 'dumped');
+    $largest = 0;
+    $gz = gzopen($dump, 'rb');
+    while (strlen($l = backupGzRead($gz, 4)) === 4) { $sz = unpack('N', $l)[1]; $largest = max($largest, $sz); backupGzRead($gz, $sz); }
+    gzclose($gz);
+    ok('binary values are not doubled in the dump (they must fit max_allowed_packet on restore)', $largest < 1.2 * strlen($big), "$largest vs " . strlen($big));
 
     $rc = zzRestoreConn($conn, $restoreDb);
     if (!$rc) {
@@ -221,6 +246,11 @@ try {
         $threw = null;
         try { backupReplayDump($rc, "$work/cut.dump"); } catch (Throwable $e) { $threw = $e; }
         ok('a truncated dump fails rather than restoring part of the data silently', $threw instanceof RuntimeException, $threw ? get_class($threw) : 'replayed');
+        $threw = null;
+        try { backupReplayDump(zzRestoreConn($conn, $restoreDb), $dump, null, 1024 * 1024); } catch (Throwable $e) { $threw = $e; }
+        ok('a row larger than the server\'s max_allowed_packet: a clear error naming the table',
+           $threw instanceof RuntimeException && str_contains($threw->getMessage(), 'max_allowed_packet') && str_contains($threw->getMessage(), 'zz_backup_t'),
+           $threw ? get_class($threw) . ': ' . $threw->getMessage() : 'replayed');
     }
 
     section('Settings: target, passphrase, schedule');
@@ -401,6 +431,76 @@ try {
     $r3 = $runner->run('manual', $admin);
     ok('a new file: exactly one upload', $r3['status'] === 'ok' && $r3['files_new'] === 1, json_encode($r3));
 
+    // The pool is listed once per run, not checked object by object (100,000 files = 200,000 requests).
+    $flaky = new ZzBkFlakyTarget("$folder/backup");
+    $fr = new BackupRunner($conn, $flaky, $appRoot, $mailer);
+    $rf = $fr->run('manual', $admin);
+    ok('a run checks the pool by listing it, not one request per file', $rf['status'] === 'ok' && $flaky->sizeCalls <= 2 && $rf['files_total'] >= 3,
+       'size calls: ' . $flaky->sizeCalls . ', files: ' . $rf['files_total'] . ' ' . json_encode($rf['error']));
+
+    // The target goes away after the database dump: failed, reported once, nothing complete.
+    $mails = [];
+    $fr->afterInventory = function () use ($flaky) { $flaky->down = true; };
+    file_put_contents("$upDir/after-dump.txt", 'needs an upload ' . bin2hex(random_bytes(8)));
+    $rd = $fr->run('scheduled', null);
+    $fr->afterInventory = null;
+    $flaky->down = false;
+    ok('target down after the dump: the run fails', $rd['status'] === 'failed' && str_contains((string)$rd['error'], 'test target is down'), json_encode($rd));
+    ok('target down after the dump: administrators are emailed once', count($mails) === 1);
+    ok('target down after the dump: the set is not complete', $rd['set'] !== null && $target->size('sets/' . $rd['set'] . '/done.json') === null);
+    $rowD = $conn->query('SELECT status, error_text FROM backup_runs WHERE id = ' . (int)$rd['run_id'])->fetch(PDO::FETCH_ASSOC);
+    ok('target down after the dump: the run row says failed', $rowD && $rowD['status'] === 'failed' && (string)$rowD['error_text'] !== '');
+    unlink("$upDir/after-dump.txt");
+
+    // A long file phase must not lose the database connection to wait_timeout.
+    $conn->exec('SET SESSION wait_timeout = 2');
+    $runner->afterInventory = function () { sleep(3); };
+    $rw = null;
+    try { $rw = $runner->run('manual', $admin); } catch (Throwable $e) { $rw = ['status' => 'threw', 'error' => $e->getMessage()]; }
+    $runner->afterInventory = null;
+    if ($rw['status'] !== 'ok') $conn = connectToDatabase();
+    ok('a file phase longer than wait_timeout: still ok', $rw['status'] === 'ok', json_encode($rw));
+
+    // A file changed between its checksum and its encryption: the backup holds what was encrypted.
+    file_put_contents("$upDir/changing.txt", 'before ' . bin2hex(random_bytes(8)));
+    $after = 'after the change ' . bin2hex(random_bytes(8));
+    $runner->beforeEncrypt = function (string $path) use ($upDir, $after) {
+        if (str_ends_with(str_replace('\\', '/', $path), '/changing.txt')) file_put_contents("$upDir/changing.txt", $after);
+    };
+    $rch = $runner->run('manual', $admin);
+    $runner->beforeEncrypt = null;
+    $mch = array_values(array_filter(backupOpenSet($target, (string)$rch['set'], 'a new long passphrase')['manifest']['files'],
+                                     fn($f) => str_ends_with($f['path'], '/changing.txt')));
+    ok('a file changed mid-run: the manifest has the checksum of what was stored', $rch['status'] === 'ok' && $mch && $mch[0]['sha256'] === hash('sha256', $after),
+       json_encode($mch));
+    $vch = backupVerifySet($target, (string)$rch['set'], 'a new long passphrase');
+    ok('...and that backup verifies', $vch['ok'] === true, json_encode($vch['errors']));
+    unlink("$upDir/changing.txt");
+
+    // No backup_runs table (Database Verification not run): administrators still hear about it.
+    $mails = [];
+    $conn->exec('RENAME TABLE backup_runs TO zz_backup_runs_hold');
+    $rm = null;
+    try { $rm = $runner->run('scheduled', null); } catch (Throwable $e) { $rm = ['status' => 'threw', 'error' => $e->getMessage()]; }
+    $conn->exec('RENAME TABLE zz_backup_runs_hold TO backup_runs');
+    ok('no history table: the run fails without throwing', $rm['status'] === 'failed', json_encode($rm));
+    ok('no history table: administrators are emailed', count($mails) === 1, (string)count($mails));
+
+    // A copy of this database on another server or under another name is another install.
+    $realId = backupSetting($conn, 'backup_install_id');
+    $realFp = backupSetting($conn, 'backup_install_fingerprint');
+    ok('a run records where this install\'s database lives', $realFp !== '');
+    backupSaveSetting($conn, 'backup_install_fingerprint', str_repeat('0', 64));
+    $rcl = $runner->run('manual', $admin);
+    $cloneId = backupSetting($conn, 'backup_install_id');
+    ok('a cloned database gets its own install id', $rcl['status'] === 'ok' && $cloneId !== $realId && $cloneId !== '', json_encode($rcl));
+    ok('...and says so in the run\'s warning', str_contains((string)$rcl['warning'], 'install'), (string)$rcl['warning']);
+    $doneCl = json_decode((string)file_get_contents("$folder/backup/sets/{$rcl['set']}/done.json"), true);
+    ok('...and its backups carry the new id', ($doneCl['install_id'] ?? '') === $cloneId);
+    foreach ($target->listKeys("sets/{$rcl['set']}/") as $k) $target->delete($k);
+    backupSaveSetting($conn, 'backup_install_id', $realId);
+    backupSaveSetting($conn, 'backup_install_fingerprint', $realFp);
+
     // A crashed upload left a short pool object: it must be uploaded again, not reused.
     $name = backupPoolName(backupPoolNameKey($conn), hash('sha256', $f2['bytes']));
     $p = "$folder/backup/pool/$name";
@@ -541,6 +641,20 @@ try {
     $vr = BackupsService::verify($conn, $runRow, 'a new long passphrase', $admin);
     $row = $conn->query("SELECT verify_status, verified_by, verified_at FROM backup_runs WHERE id = $runRow")->fetch(PDO::FETCH_ASSOC);
     ok('service verify: the result is recorded on the run', $vr['ok'] && $row['verify_status'] === 'ok' && (int)$row['verified_by'] === $admin && $row['verified_at'] !== null, json_encode($row));
+    // A verify the web server killed (timeout) never records its result: it must not say "running" for ever.
+    $conn->exec("UPDATE backup_runs SET verify_status = 'running', verified_at = UTC_TIMESTAMP() - INTERVAL 4 HOUR WHERE id = $runRow");
+    $byId = array_column(BackupsService::runs($conn), null, 'id');
+    ok('a verify that stopped hours ago shows as interrupted', ($byId[$runRow]['verify_status'] ?? '') === 'interrupted', json_encode($byId[$runRow] ?? null));
+    $conn->exec("UPDATE backup_runs SET verify_status = 'running', verified_at = UTC_TIMESTAMP() WHERE id = $runRow");
+    $byId = array_column(BackupsService::runs($conn), null, 'id');
+    ok('a verify started just now still shows as running', ($byId[$runRow]['verify_status'] ?? '') === 'running');
+    $conn->exec("UPDATE backup_runs SET verify_status = 'ok' WHERE id = $runRow");
+    // A backup whose process died (no job lock held) is not "running" either.
+    $conn->exec("INSERT INTO backup_runs (kind, status, started_at) VALUES ('scheduled', 'running', UTC_TIMESTAMP() - INTERVAL 1 HOUR)");
+    $deadRun = (int)$conn->lastInsertId();
+    $byId = array_column(BackupsService::runs($conn), null, 'id');
+    ok('a backup whose process died shows as interrupted', ($byId[$deadRun]['status'] ?? '') === 'interrupted', json_encode($byId[$deadRun] ?? null));
+    $conn->exec("DELETE FROM backup_runs WHERE id = $deadRun");
 
     section('Keyrings and authenticity');
     $origKeyring = json_decode((string)file_get_contents("$folder/backup/keyring.json"), true);
@@ -651,6 +765,24 @@ try {
         ok('a restore into another database must say where the key and files go (exit 2)', str_ends_with($o, 'EXIT=2') && str_contains($o, '--app-root'), $o);
         $o = $cmd('--bogus-flag');
         ok('an unknown flag is a usage error (exit 2)', str_ends_with($o, 'EXIT=2'), $o);
+
+        // A trial restore must not write Files bytes where the restored settings point (the live Files store).
+        $liveFiles = "$work/livefiles";
+        mkdir($liveFiles);
+        $oldRoot = $conn->query("SELECT setting_value FROM system_settings WHERE setting_key = 'files_storage_root'")->fetchColumn();
+        backupSaveSetting($conn, 'files_storage_root', $liveFiles);
+        $rt = $runner->run('manual', $admin);
+        backupSaveSetting($conn, 'files_storage_root', $oldRoot === false ? null : (string)$oldRoot);
+        filesStorageReset();
+        FilesStorageCache::$drivers['active'] = $fake;
+        $newRoot3 = "$work/newapp3";
+        mkdir($newRoot3);
+        $o = $cmd('--folder=' . escapeshellarg($folder) . " --set={$rt['set']} --database=$restoreDb --app-root=" . escapeshellarg($newRoot3)
+                  . ' --key-path=' . escapeshellarg("$work/keys3/freeitsm.key") . ' --yes --force --no-verify-schema', "FREEITSM_BACKUP_PASSPHRASE='a new long passphrase'");
+        $liveLeft = (new LocalDriver($liveFiles))->listKeys('');
+        ok('a trial restore leaves the restored settings\' Files store alone', $rt['status'] === 'ok' && str_ends_with($o, 'EXIT=0') && $liveLeft === [],
+           json_encode(array_slice($liveLeft, 0, 3)) . ' ' . $o);
+        ok('...and puts the Files bytes under --app-root', @hash_file('sha256', "$newRoot3/uploads/files/{$f2['key']}") === hash('sha256', $f2['bytes']));
     }
 
     section('The API (over HTTP)');

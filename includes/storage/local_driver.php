@@ -99,7 +99,15 @@ final class LocalDriver implements StorageDriver, StorageLister
         if (!is_dir($this->root)) return [];
         $keys = [];
         try {
-            $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->root, FilesystemIterator::SKIP_DOTS));
+            // Only folders on the way to the prefix are walked, not the whole store.
+            $rootLen = strlen($this->root) + 1;
+            $it = new RecursiveIteratorIterator(new RecursiveCallbackFilterIterator(
+                new RecursiveDirectoryIterator($this->root, FilesystemIterator::SKIP_DOTS),
+                function (SplFileInfo $f) use ($prefix, $rootLen): bool {
+                    if ($prefix === '') return true;
+                    $key = substr(str_replace(DIRECTORY_SEPARATOR, '/', $f->getPathname()), $rootLen);
+                    return str_starts_with($key, $prefix) || ($f->isDir() && str_starts_with($prefix, $key . '/'));
+                }));
             foreach ($it as $f) {
                 if (!$f->isFile()) continue;
                 $key = substr(str_replace(DIRECTORY_SEPARATOR, '/', $f->getPathname()), strlen($this->root) + 1);

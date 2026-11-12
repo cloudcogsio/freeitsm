@@ -22,6 +22,8 @@ final class BackupsService
     public const PASSPHRASE_MIN = 12;
     public const KEEP_DEFAULT = 7;
     public const KEEP_MAX = 365;
+    /** A Verify still "running" after this long was killed (by a web server timeout): shown as interrupted. */
+    public const VERIFY_STALE_SECONDS = 7200;
 
     /** Key derivation cost; tests lower it. Null = libsodium's MODERATE. */
     public static ?int $kdfOps = null;
@@ -217,6 +219,7 @@ final class BackupsService
     public static function runs(PDO $conn, int $limit = 50): ?array
     {
         try {
+            $running = self::isRunning($conn);
             $s = $conn->prepare("SELECT r.id, r.kind, r.status, r.set_name, r.started_at, r.finished_at, r.size_bytes, r.files_total,
                                         r.files_new, r.db_bytes, r.error_text, r.warning_text, r.verify_status, r.verified_at, r.verify_detail,
                                         a.full_name AS started_by_name, v.full_name AS verified_by_name
@@ -225,11 +228,20 @@ final class BackupsService
                                    LEFT JOIN analysts v ON v.id = r.verified_by
                                   ORDER BY r.id DESC LIMIT " . max(1, min(500, $limit)));
             $s->execute();
-            return $s->fetchAll(PDO::FETCH_ASSOC);
+            $rows = $s->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
             if ($e->getCode() === '42S02') return null;
             throw $e;
         }
+        // A process that was killed (server restart, out of memory, a web server timeout during
+        // Verify) never records its end: say so rather than "running" for ever.
+        $verifyCutoff = gmdate('Y-m-d H:i:s', time() - self::VERIFY_STALE_SECONDS);
+        foreach ($rows as &$r) {
+            if ($r['status'] === 'running' && !$running) $r['status'] = 'interrupted';
+            if ($r['verify_status'] === 'running' && (string)$r['verified_at'] < $verifyCutoff) $r['verify_status'] = 'interrupted';
+        }
+        unset($r);
+        return $rows;
     }
 
     /** Starts a backup in the background (it can take hours); the page follows it in the run list. */
@@ -267,6 +279,19 @@ final class BackupsService
         }
         $conn->prepare("UPDATE backup_runs SET verify_status = 'running', verified_at = UTC_TIMESTAMP(), verified_by = ?, verify_detail = NULL WHERE id = ?")
              ->execute([$by, $runId]);
+        // Keep going if the browser gives up, and record a fatal stop (PHP's time limit) as a failure.
+        ignore_user_abort(true);
+        @set_time_limit(0);
+        $finished = false;
+        register_shutdown_function(function () use ($conn, $runId, &$finished) {
+            if ($finished) return;
+            try {
+                $conn->prepare("UPDATE backup_runs SET verify_status = 'failed', verify_detail = ? WHERE id = ? AND verify_status = 'running'")
+                     ->execute(['Verification stopped before it finished (the server ended it). Try again.', $runId]);
+            } catch (Throwable $e) {
+                // the page shows it as interrupted after a while
+            }
+        });
         try {
             $r = backupVerifySet(backupTargetDriver($cfg), (string)$run['set_name'], $passphrase);
         } catch (BackupWrongPassphrase $e) {
@@ -277,6 +302,7 @@ final class BackupsService
         $detail = $r['ok'] ? 'Files checked: ' . $r['checked'] : implode("\n", array_slice($r['errors'], 0, 50));
         $conn->prepare('UPDATE backup_runs SET verify_status = ?, verified_at = UTC_TIMESTAMP(), verify_detail = ? WHERE id = ?')
              ->execute([$r['ok'] ? 'ok' : 'failed', $detail, $runId]);
+        $finished = true;
         return $r;
     }
 

@@ -23,8 +23,22 @@ const BACKUP_SETTING_KEYS = [
     'backup_s3_endpoint', 'backup_s3_region', 'backup_s3_bucket', 'backup_s3_access_key_id',
     'backup_s3_secret', 'backup_s3_prefix', 'backup_s3_path_style',
     'backup_schedule', 'backup_weekday', 'backup_time', 'backup_keep_count',
-    'backup_public_key', 'backup_keyring', 'backup_pool_name_secret', 'backup_install_id',
+    'backup_public_key', 'backup_keyring', 'backup_pool_name_secret', 'backup_install_id', 'backup_install_fingerprint',
 ];
+
+/**
+ * Where this database lives (the MySQL server's own id and the database name), hashed;
+ * null when the server has no @@server_uuid (MariaDB). A copy elsewhere hashes differently.
+ */
+function backupDatabaseFingerprint(PDO $conn): ?string
+{
+    try {
+        $r = $conn->query('SELECT @@server_uuid, DATABASE()')->fetch(PDO::FETCH_NUM);
+    } catch (PDOException $e) {
+        return null;
+    }
+    return $r && (string)$r[0] !== '' ? hash('sha256', $r[0] . '/' . $r[1]) : null;
+}
 
 /** A system_settings value, or $default when unset. Throws when it cannot be read. */
 function backupSetting(PDO $conn, string $key, string $default = ''): string
