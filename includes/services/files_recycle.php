@@ -571,6 +571,11 @@ final class FilesRecycleService
     private static function deleteBytes(PDO $conn, string $key): string
     {
         if (!filesStorageKeyIsValid($key)) return 'ok';   // never a path we wrote: nothing to do
+        // Its offline copy ("Make available offline") goes at once: nothing uses the key
+        // any more. A leftover would be removed by the files_offline_sync job anyway.
+        require_once __DIR__ . '/../files/offline.php';
+        $copy = filesOfflinePath($conn, $key);
+        if ($copy !== null && is_file($copy) && !@unlink($copy)) error_log("files: could not delete the offline copy of {$key}");
         $error = null;
         $result = 'ok';
         try {
