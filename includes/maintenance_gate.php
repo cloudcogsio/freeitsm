@@ -2,16 +2,18 @@
 /**
  * Maintenance mode: while an in-app rollback (System -> Backups -> Restore) replaces
  * the database and the stored files, nobody else gets in. Runs on include, from
- * functions.php, like password_gate.php - so every page and endpoint is covered
- * without having to remember.
+ * includes/db.php - which every database connection loads (dbConnectionOptions()),
+ * including the endpoints that skip functions.php (password reset, OAuth callbacks) -
+ * so every page, endpoint and job is covered without having to remember.
  *
  * - Web: 503 for everyone. API paths get JSON ({success: false, maintenance: true});
  *   pages get a plain maintenance page. The administrator running the rollback (their
  *   session AND the one-time token their browser holds) gets the progress page.
  *   api/system/backup_rollback_status.php is let through: it reports progress itself.
  * - Command line: anything under cron/ stops at once (the scheduler, every job, and
- *   any old per-job cron line), except the rollback job itself. scripts/ still run,
- *   for an administrator at the console.
+ *   any old per-job cron line), except the rollback job itself, and so do the scheduled
+ *   jobs kept in scripts/ (BACKUP_MAINTENANCE_CLI_JOBS). Other scripts/ still run, for
+ *   an administrator at the console.
  *
  * 🔴 It must never touch the database: the tables are being dropped and recreated.
  * One is_file() per request when maintenance mode is off. See includes/backup/maintenance.php.
@@ -27,7 +29,7 @@ function backupMaintenanceGate(): void
     $rel = strncmp($script, $root, strlen($root)) === 0 ? substr($script, strlen($root)) : ltrim((string)parse_url((string)($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH), '/');
 
     if (PHP_SAPI === 'cli') {
-        if (str_starts_with($rel, 'cron/') && $rel !== 'cron/backup_rollback.php') {
+        if ((str_starts_with($rel, 'cron/') && $rel !== 'cron/backup_rollback.php') || in_array($rel, BACKUP_MAINTENANCE_CLI_JOBS, true)) {
             echo "FreeITSM is in maintenance mode (a backup is being restored): nothing was started.\n";
             exit(0);
         }
