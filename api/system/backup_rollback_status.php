@@ -17,6 +17,9 @@ require_once '../../config.php';
 require_once '../../includes/base_url.php';
 require_once '../../includes/backup/maintenance.php';
 require_once '../../includes/csrf.php';
+// The page polls this for as long as the restore runs: keep the session from being collected
+// (read_and_close never refreshes it - GH #107), or the administrator is locked out of their own restore.
+require_once '../../includes/session_keepalive.php';
 
 header('Content-Type: application/json');
 header('Cache-Control: no-store');

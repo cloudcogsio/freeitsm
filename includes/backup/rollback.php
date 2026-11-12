@@ -139,7 +139,9 @@ final class BackupRollback
                 $broken = $error . ' Putting back the safety backup also failed: ' . $e2->getMessage();
                 $this->beat(['state' => 'broken', 'error' => $broken], 'Putting back the safety backup failed: ' . $e2->getMessage());
                 $this->notify("The restore of backup {$this->set} failed part way, and putting back safety backup $safety failed too. FreeITSM is in maintenance mode. "
-                            . "Restore safety backup $safety from the command line (scripts/backup_restore.php --set=$safety), then switch maintenance mode off on System -> Backups. $broken");
+                            . "On the server: php scripts/backup_restore.php --set=$safety --force (it asks for the target and the passphrase), "
+                            . "then php scripts/backup_maintenance.php --off. A command-line restore pauses scheduled backups and gives the install a new backup id: "
+                            . "turn backups back on in System -> Backups, and remove older backups from the target yourself when no longer needed. $broken");
                 return $this->outcome('broken', $broken, $safety);
             }
         } finally {
