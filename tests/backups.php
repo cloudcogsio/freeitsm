@@ -39,12 +39,13 @@ function ok(string $label, bool $cond, string $detail = ''): void {
 final class ZzBkFakeS3 implements StorageDriver
 {
     public bool $down = false;
+    public int $reads = 0;
     private LocalDriver $d;
     public function __construct(string $dir) { $this->d = new LocalDriver($dir); }
     private function up(): void { if ($this->down) throw new StorageUnavailable('Storage could not be reached: test stand-in is down'); }
     public function putFile(string $key, string $localPath, bool $move = false): void { $this->up(); $this->d->putFile($key, $localPath, $move); }
     public function readRange(string $key, int $start, int $end, callable $sink): void { $this->up(); $this->d->readRange($key, $start, $end, $sink); }
-    public function readTo(string $key, string $localPath): void { $this->up(); $this->d->readTo($key, $localPath); }
+    public function readTo(string $key, string $localPath): void { $this->up(); $this->reads++; $this->d->readTo($key, $localPath); }
     public function size(string $key): ?int { $this->up(); return $this->d->size($key); }
     public function delete(string $key): void { $this->up(); $this->d->delete($key); }
     public function label(): string { return 'zz-fake-s3'; }
@@ -58,11 +59,13 @@ section('S3 list response parsing');
 $xml = '<?xml version="1.0" encoding="UTF-8"?><ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">'
      . '<Name>b</Name><Prefix>p/</Prefix><KeyCount>2</KeyCount><IsTruncated>true</IsTruncated>'
      . '<NextContinuationToken>t+1/=</NextContinuationToken>'
-     . '<Contents><Key>p/backup/a&amp;b.txt</Key><Size>3</Size></Contents>'
+     . '<Contents><Key>p/backup/a&amp;b.txt</Key><LastModified>2026-11-10T08:00:00.000Z</LastModified><Size>3</Size></Contents>'
      . '<Contents><Key>p/backup/c.txt</Key><Size>4</Size></Contents></ListBucketResult>';
 $r = s3ParseListObjects($xml);
 ok('keys are read (entities decoded)', $r['keys'] === ['p/backup/a&b.txt', 'p/backup/c.txt'], json_encode($r));
 ok('continuation token when truncated', $r['next'] === 't+1/=');
+ok('sizes and dates are read', ($r['objects']['p/backup/a&b.txt']['size'] ?? null) === 3
+   && ($r['objects']['p/backup/a&b.txt']['mtime'] ?? null) === strtotime('2026-11-10T08:00:00Z'), json_encode($r['objects'] ?? null));
 $r = s3ParseListObjects(str_replace('<IsTruncated>true</IsTruncated>', '<IsTruncated>false</IsTruncated>', $xml));
 ok('no continuation when not truncated', $r['next'] === null);
 $r = s3ParseListObjects('<ListBucketResult><IsTruncated>false</IsTruncated></ListBucketResult>');
@@ -391,6 +394,9 @@ try {
 
     $r2 = $runner->run('manual', $admin);
     ok('second run: ok and nothing new uploaded', $r2['status'] === 'ok' && $r2['files_new'] === 0, json_encode($r2));
+    $fake->reads = 0;
+    $r2b = $runner->run('manual', $admin);
+    ok('Files already in the backup are not downloaded again', $r2b['status'] === 'ok' && $fake->reads === 0, 'reads: ' . $fake->reads);
     file_put_contents("$upDir/second.txt", 'another file ' . bin2hex(random_bytes(8)));
     $r3 = $runner->run('manual', $admin);
     ok('a new file: exactly one upload', $r3['status'] === 'ok' && $r3['files_new'] === 1, json_encode($r3));
@@ -401,9 +407,14 @@ try {
     file_put_contents($p, substr((string)file_get_contents($p), 0, 1000));
     $r4 = $runner->run('manual', $admin);
     ok('a truncated pool object is uploaded again', $r4['status'] === 'ok' && $r4['files_new'] === 1 && filesize($p) === backupEncryptedSize(150000), json_encode($r4));
+    file_put_contents("$p.key", substr((string)file_get_contents("$p.key"), 0, 10));
+    $r4b = $runner->run('manual', $admin);
+    ok('a truncated sealed key is uploaded again', $r4b['status'] === 'ok' && $r4b['files_new'] === 1
+       && filesize("$p.key") === SODIUM_CRYPTO_BOX_SEALBYTES + SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_KEYBYTES, json_encode($r4b));
 
     // Files storage down: the run fails, says so, emails, and prunes nothing.
     $setsBefore = count(array_unique(array_map(fn($k) => explode('/', $k)[1], $target->listKeys('sets/'))));
+    $f4 = $mkFile('needs a download ' . bin2hex(random_bytes(4)));
     $fake->down = true;
     $mails = [];
     $r5 = $runner->run('scheduled', null);
@@ -427,12 +438,19 @@ try {
     $m6 = backupOpenSet($target, $r6['set'], 'a new long passphrase')['manifest']['files'];
     $e6 = array_values(array_filter($m6, fn($f) => $f['path'] === $f3['key']));
     ok('...and the manifest records it as missing', $e6 && ($e6[0]['missing'] ?? '') !== '');
-    $fake->delete($f1['key']);
+    $f5 = $mkFile('never backed up ' . bin2hex(random_bytes(4)));
+    $fake->delete($f5['key']);
     $r7 = $runner->run('manual', $admin);
     ok('a Files version missing while its row still exists fails the run', $r7['status'] === 'failed', json_encode($r7));
+    $conn->prepare('DELETE FROM files_items WHERE id = ?')->execute([$f5['item']]);
     $tmpf = tempnam(sys_get_temp_dir(), 'zzf');
-    file_put_contents($tmpf, $f1['bytes']);
-    $fake->putFile($f1['key'], $tmpf, true);
+
+    // An upload-folder file deleted while the backup runs: recorded, warned, not fatal.
+    file_put_contents("$upDir/vanish.txt", 'gone soon ' . bin2hex(random_bytes(4)));
+    $runner->afterInventory = function () use ($upDir) { @unlink("$upDir/vanish.txt"); };
+    $r7b = $runner->run('manual', $admin);
+    $runner->afterInventory = null;
+    ok('an upload-folder file deleted mid-run: ok with a warning', $r7b['status'] === 'ok' && str_contains((string)$r7b['warning'], 'vanish.txt'), json_encode($r7b));
 
     // Two more good runs without second.txt, so the oldest sets hold the only reference to it.
     unlink("$upDir/second.txt");
@@ -456,8 +474,30 @@ try {
         file_put_contents($tmpf, $v);
         $target->putFile("sets/$other/$k", $tmpf);
     }
-    $r = $runner->prune(2, backupSetting($conn, 'backup_install_id'));
+    $myId = backupSetting($conn, 'backup_install_id');
+    $orphan = 'pool/' . str_repeat('0', 64);
+    file_put_contents($tmpf, 'orphan');
+    $target->putFile($orphan, $tmpf);
+    $mkIncomplete = function (string $name, string $owner, int $startedAgo) use ($target, $tmpf) {
+        file_put_contents($tmpf, json_encode(['install_id' => $owner, 'started_at' => gmdate('c', time() - $startedAgo)]));
+        $target->putFile("sets/$name/owner.json", $tmpf);
+        file_put_contents($tmpf, 'x');
+        $target->putFile("sets/$name/db.bin", $tmpf);
+    };
+    $mkIncomplete('20000101T000000Z', $myId, 3 * 86400);          // ours, abandoned long ago
+    $mkIncomplete('20000101T000001Z', $myId, 60);                  // ours (or a clone's), still being written
+    $mkIncomplete('20000101T000002Z', str_repeat('e', 32), 60);    // another install's, still being written
+    $r0 = $runner->prune(99, $myId);
+    ok('a fresh unreferenced pool object is kept (grace period)', $target->size($orphan) !== null, json_encode($r0));
+    ok('another install writing a backup does not stop the clean-up', $r0['gc_skipped'] === false, json_encode($r0));
+    ok('an abandoned incomplete set of ours is removed', !$target->listKeys('sets/20000101T000000Z/'));
+    ok('a recent incomplete set of ours is left alone', (bool)$target->listKeys('sets/20000101T000001Z/'));
+    ok('another install\'s incomplete set is left alone', (bool)$target->listKeys('sets/20000101T000002Z/'));
+    foreach (['20000101T000001Z', '20000101T000002Z'] as $n) foreach ($target->listKeys("sets/$n/") as $k) $target->delete($k);
+    $runner->gcGraceSeconds = 0;
+    $r = $runner->prune(2, $myId);
     $left = $sets();
+    ok('without the grace period the orphan goes', $target->size($orphan) === null);
     ok('prune keeps the newest N of this install', array_values(array_diff($left, [$other])) === array_slice($complete, -2), json_encode($left));
     ok('prune leaves another install\'s set alone', in_array($other, $left, true));
     ok('prune removed the older sets', $r['sets_removed'] >= count($complete) - 2, json_encode($r));
@@ -501,6 +541,30 @@ try {
     $vr = BackupsService::verify($conn, $runRow, 'a new long passphrase', $admin);
     $row = $conn->query("SELECT verify_status, verified_by, verified_at FROM backup_runs WHERE id = $runRow")->fetch(PDO::FETCH_ASSOC);
     ok('service verify: the result is recorded on the run', $vr['ok'] && $row['verify_status'] === 'ok' && (int)$row['verified_by'] === $admin && $row['verified_at'] !== null, json_encode($row));
+
+    section('Keyrings and authenticity');
+    $origKeyring = json_decode((string)file_get_contents("$folder/backup/keyring.json"), true);
+    $other_kr = backupNewKeyring('someone else entirely', ...$fast);
+    backupWriteKeyring($target, $other_kr['keyring']);
+    ok('a different keyring does not overwrite the old one: it is kept beside it',
+       count(array_filter($target->listKeys(''), fn($k) => preg_match('#^keyring-[0-9a-f]{16}\.json$#', $k))) >= 1, json_encode($target->listKeys('')));
+    $threw = null;
+    try { $o = backupOpenSet($target, $good, 'a new long passphrase'); } catch (Throwable $e) { $threw = $e; }
+    ok('an old set still opens with its own (correct) passphrase after a new keyring was written', $threw === null, $threw ? get_class($threw) . ': ' . $threw->getMessage() : '');
+    $threw = null;
+    try { backupOpenSet($target, $good, 'not the passphrase at all'); } catch (Throwable $e) { $threw = $e; }
+    ok('...and a wrong passphrase is still refused', $threw instanceof BackupWrongPassphrase, $threw ? get_class($threw) : 'opened');
+    backupWriteKeyring($target, $origKeyring);
+
+    $dkPath = "$folder/backup/sets/$good/datakey.bin";
+    $dkOrig = file_get_contents($dkPath);
+    file_put_contents($dkPath, backupSealKey(random_bytes(32), base64_decode($origKeyring['public'])));
+    $threw = null;
+    try { backupOpenSet($target, $good, 'a new long passphrase'); } catch (Throwable $e) { $threw = $e; }
+    ok('a set re-sealed by someone with only the public key is refused (not authentic)', $threw instanceof BackupCorrupt, $threw ? get_class($threw) . ': ' . $threw->getMessage() : 'opened');
+    file_put_contents($dkPath, $dkOrig);
+    ok('restore only writes into the known upload folders', backupRestoreDirAllowed('uploads') && backupRestoreDirAllowed('forms/images')
+       && !backupRestoreDirAllowed('includes') && !backupRestoreDirAllowed('uploads/../includes') && !backupRestoreDirAllowed(''));
 
     section('Restore');
     $rc = zzRestoreConn($conn, $restoreDb);
@@ -583,6 +647,8 @@ try {
                   . ' --key-path=' . escapeshellarg($newKey) . ' --yes --force --no-verify-schema', "FREEITSM_BACKUP_PASSPHRASE='a new long passphrase'");
         ok('a full restore from the command line exits 0', str_ends_with($o, 'EXIT=0'), $o);
         ok('the passphrase never appears in the output', !str_contains($o, 'a new long passphrase'));
+        $o = $cmd('--folder=' . escapeshellarg($folder) . " --set=latest --database=$restoreDb --yes --force", "FREEITSM_BACKUP_PASSPHRASE='a new long passphrase'");
+        ok('a restore into another database must say where the key and files go (exit 2)', str_ends_with($o, 'EXIT=2') && str_contains($o, '--app-root'), $o);
         $o = $cmd('--bogus-flag');
         ok('an unknown flag is a usage error (exit 2)', str_ends_with($o, 'EXIT=2'), $o);
     }

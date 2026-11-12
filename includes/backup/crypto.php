@@ -20,6 +20,8 @@ class BackupCorrupt extends RuntimeException {}
 
 const BACKUP_MAGIC = "FIBK\x01";
 const BACKUP_CHUNK = 65536;
+/** Size of a sealed 32-byte key (pool/<name>.key, datakey.bin). */
+const BACKUP_SEALED_KEY_SIZE = SODIUM_CRYPTO_BOX_SEALBYTES + SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_KEYBYTES;
 
 function backupSodiumAvailable(): bool
 {
@@ -124,6 +126,17 @@ function backupRekeyKeyring(array $keyring, string $old, string $new): array
 function backupPoolName(string $poolNameKey, string $sha256hex): string
 {
     return hash_hmac('sha256', strtolower($sha256hex), $poolNameKey);
+}
+
+/**
+ * Proof a set was made by an install holding the pool name key - which someone with
+ * only bucket access (and the published public key) does not have. Covers the sealed
+ * data key and the encrypted manifest; the manifest pins every other checksum.
+ */
+function backupSetAuth(string $poolNameKey, string $set, string $datakeyBin, string $manifestBin): string
+{
+    return hash_hmac('sha256', "FIBK-set-v1\n$set\n" . hash('sha256', $datakeyBin) . "\n" . hash('sha256', $manifestBin),
+                     hash_hmac('sha256', 'set-auth', $poolNameKey, true));
 }
 
 // ── Sealed keys ──
