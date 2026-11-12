@@ -137,11 +137,33 @@ function backupMaintenanceEnd(array $changes = []): void
     @unlink(backupMaintenanceFile());
 }
 
-/** True when the rollback process is no longer working: it gave up, or its heartbeat stopped. */
+/**
+ * True when the rollback process is no longer working: it gave up, or its heartbeat stopped
+ * AND its process is gone. A process that is still alive is never "stopped", however long it
+ * has been quiet - replaying a large database or one huge file writes no heartbeat.
+ */
 function backupMaintenanceStale(array $st): bool
 {
     if (!in_array($st['state'] ?? '', BACKUP_MAINTENANCE_WORKING, true)) return true;
-    return (int)($st['heartbeat'] ?? 0) < time() - BACKUP_MAINTENANCE_STALE;
+    if ((int)($st['heartbeat'] ?? 0) >= time() - BACKUP_MAINTENANCE_STALE) return false;
+    return backupMaintenanceJobAlive($st) !== true;
+}
+
+/** Is the rollback's process (the pid it recorded) still running? Null when it cannot be told. */
+function backupMaintenanceJobAlive(array $st): ?bool
+{
+    $pid = (int)($st['pid'] ?? 0);
+    if ($pid <= 0) return null;
+    if (PHP_OS_FAMILY === 'Windows') {
+        $out = @shell_exec('tasklist /FI "PID eq ' . $pid . '" /NH 2>NUL');
+        if (!is_string($out)) return null;
+        return (bool)preg_match('/' . $pid . '/', $out);
+    }
+    if (!is_dir('/proc/self')) {
+        return function_exists('posix_kill') ? @posix_kill($pid, 0) : null;
+    }
+    $cmd = @file_get_contents("/proc/$pid/cmdline");
+    return is_string($cmd) && str_contains($cmd, 'backup_rollback');   // and not a later process that reused the pid
 }
 
 /**
@@ -162,8 +184,8 @@ function backupMaintenanceIsOwner(array $st): bool
 /** What the progress page may show: no token hash, no process id. */
 function backupMaintenancePublic(array $st): array
 {
+    $st['stopped'] = backupMaintenanceStale($st);   // before the pid is removed: it is how "stopped" is told
     unset($st['token_hash'], $st['pid']);
-    $st['stopped'] = backupMaintenanceStale($st);
     $st['heartbeat_age'] = max(0, time() - (int)($st['heartbeat'] ?? 0));
     return $st;
 }
