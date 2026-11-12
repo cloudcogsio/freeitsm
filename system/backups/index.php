@@ -1,8 +1,9 @@
 <?php
 /**
  * System - Backups (#286): where backups go, the passphrase that protects them, when
- * they run, and every run with its result. Restoring is done from the command line
- * (scripts/backup_restore.php); see the help page.
+ * they run, and every run with its result. Restore puts the whole install back to a
+ * backup under maintenance mode (includes/backup/rollback.php); a restore onto a new
+ * server is done from the command line (scripts/backup_restore.php). See the help page.
  */
 session_start();
 require_once '../../config.php';
@@ -66,6 +67,12 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
         [data-theme-mode="dark"] .bk-warning { background: #3a3220; border-color: #6d5a2a; color: var(--text); }
         .bk-detail { color: var(--text-dim, #777); font-size: 12px; white-space: pre-line; margin-top: 4px; }
         .bk-hidden { display: none !important; }
+        .bk-row-actions { white-space: nowrap; }
+        .bk-row-actions .btn + .btn { margin-left: 6px; }
+        .bk-restore { border: 1px solid var(--danger, #c62828); border-radius: 8px; padding: 16px; margin-bottom: 14px; }
+        .bk-restore h4 { margin: 0 0 10px 0; font-size: 15px; color: var(--text, #333); }
+        .btn-danger { background: var(--danger, #c62828); border-color: var(--danger, #c62828); color: #fff; }
+        #bkLastRestore { display: block; margin-bottom: 12px; }
     </style>
     <link rel="stylesheet" href="../../assets/css/mobile.css?v=196">
 </head>
@@ -164,6 +171,30 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
                         <button class="btn btn-primary" id="bkNowBtn" type="button"><?php echo $h('system.backups.now'); ?></button>
                         <span class="bk-msg" id="bkNowMsg"></span>
                     </div>
+                    <div id="bkLastRestore" class="bk-hidden"></div>
+                    <div id="bkRestoreBox" class="bk-restore bk-hidden">
+                        <h4 id="bkRestoreHeading"></h4>
+                        <div class="bk-warning"><?php echo $h('system.backups.restore_warning'); ?></div>
+                        <div class="bk-row">
+                            <div class="bk-field"><label for="bkRestorePass"><?php echo $h('system.backups.restore_pass'); ?></label><input id="bkRestorePass" type="password" autocomplete="off"></div>
+                            <div class="bk-actions" style="align-self: flex-end;">
+                                <button class="btn btn-primary" id="bkRestoreCheck" type="button"><?php echo $h('system.backups.restore_check'); ?></button>
+                                <button class="btn" id="bkRestoreCancel" type="button"><?php echo $h('common.cancel'); ?></button>
+                            </div>
+                        </div>
+                        <div id="bkRestoreStep2" class="bk-hidden">
+                            <div class="bk-status" id="bkRestoreInfo"></div>
+                            <div class="bk-warning bk-hidden" id="bkRestoreKeyWarn"><?php echo $h('system.backups.restore_key_warning'); ?></div>
+                            <div class="bk-row">
+                                <div class="bk-field"><label for="bkRestoreConfirm" id="bkRestoreConfirmLabel"></label><input id="bkRestoreConfirm" type="text" autocomplete="off" spellcheck="false"></div>
+                                <div class="bk-actions" style="align-self: flex-end;">
+                                    <button class="btn btn-danger" id="bkRestoreGo" type="button" disabled><?php echo $h('system.backups.restore_go'); ?></button>
+                                    <button class="btn" id="bkRestoreCancel2" type="button"><?php echo $h('common.cancel'); ?></button>
+                                </div>
+                            </div>
+                        </div>
+                        <span class="bk-msg" id="bkRestoreMsg"></span>
+                    </div>
                     <div id="bkVerifyBox" class="bk-row bk-hidden">
                         <div class="bk-field"><label for="bkVerifyPass" id="bkVerifyLabel"></label><input id="bkVerifyPass" type="password" autocomplete="off"></div>
                         <div class="bk-actions" style="align-self: flex-end;">
@@ -193,7 +224,7 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
     <script>window.BK_API = '<?php echo $path_prefix; ?>api/system/backups.php';</script>
     <script src="../../assets/js/tz.js?v=5"></script>
     <script src="../../assets/js/i18n.js?v=3"></script>
-    <script src="../../assets/js/system-backups.js?v=1"></script>
+    <script src="../../assets/js/system-backups.js?v=2"></script>
     <script src="../../assets/js/mobile.js?v=83"></script>
 </body>
 </html>
