@@ -10637,7 +10637,7 @@ CREATE TABLE IF NOT EXISTS `files_uploads` (
 CREATE TABLE IF NOT EXISTS `storage_migration_items` (
     `id`                    BIGINT NOT NULL AUTO_INCREMENT,
     `store`                 VARCHAR(20) NOT NULL,                   -- files
-    `object_key`            VARCHAR(255) NOT NULL,
+    `object_key`            VARCHAR(500) COLLATE utf8mb4_bin NOT NULL, -- long (#284); binary: "Report.pdf" and "report.pdf" are two files
     `size_bytes`            BIGINT NOT NULL,
     `sha256`                CHAR(64) NULL,
     `state`                 VARCHAR(10) NOT NULL DEFAULT 'pending', -- pending | verified | failed | removed
@@ -10674,6 +10674,19 @@ CREATE TABLE IF NOT EXISTS `files_offline` (
     `marked_datetime`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_files_offline_target` (`target_type`, `target_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- The SHA-256 of objects in a store kept in S3 (#284), by size and modified time, so a
+-- backup does not download an unchanged file again just to learn its checksum.
+-- A cache: losing it costs one full read. See includes/backup/runner.php.
+CREATE TABLE IF NOT EXISTS `storage_object_hashes` (
+    `store`                 VARCHAR(20) NOT NULL,
+    `object_key`            VARCHAR(500) COLLATE utf8mb4_bin NOT NULL, -- binary, as in storage_migration_items
+    `size_bytes`            BIGINT NOT NULL,
+    `mtime`                 BIGINT NOT NULL,
+    `sha256`                CHAR(64) NOT NULL,
+    `updated_datetime`      DATETIME NULL,
+    PRIMARY KEY (`store`, `object_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Backups (System -> Backups): one row per backup run, and the last on-demand

@@ -378,6 +378,8 @@ final class BackupsService
         if (backupMaintenanceActive()) throw new BackupsInputError('err_maintenance_on');
         if (self::isRunning($conn)) throw new BackupsInputError('err_running');
         if (backupSetting($conn, 'files_storage_previous') !== '') throw new BackupsInputError('err_storage_moving');
+        require_once __DIR__ . '/../storage/store_migration.php';
+        if (storesMoving($conn)) throw new BackupsInputError('err_storage_moving');   // a store on System -> Storage
         $check = self::restoreCheck($conn, $runId, $passphrase);
 
         $script = realpath(__DIR__ . '/../../cron/backup_rollback.php');

@@ -97,6 +97,7 @@ $primaryKeys = [
     // silently — the table simply fell through to PRIMARY KEY (`id`).
     'knowledge_article_tags'    => ['article_id', 'tag_id'],
     'task_tag_map'              => ['task_id', 'tag_id'],
+    'storage_object_hashes'     => ['store', 'object_key'],   // #284: one checksum per object of a store
     // 3.3.0: one row per project, day and status - the cumulative flow diagram.
     'project_task_flow'         => ['project_id', 'day', 'status_id'],
     // Microsoft Teams alerts: one workflow per channel and alert.
@@ -445,6 +446,35 @@ try {
         }
     } catch (Exception $e) {
         // Non-fatal — everyone with an address is unaffected either way.
+    }
+
+    // `object_key` of storage_migration_items (was VARCHAR(255), enough for Files keys) and
+    // storage_object_hashes: VARCHAR(500) with a BINARY collation. Moving ticket attachments
+    // (#284) queues email_attachments.file_path - VARCHAR(500), and an older row can carry the
+    // sender's own name - and the default collation would treat "Report.pdf" and "report.pdf"
+    // (or "resume" and "résumé") as one key, so one of the two would never be copied. Same
+    // probe-then-MODIFY shape as below; widening a VARCHAR, or a stricter collation, cannot
+    // invalidate a row, and the (store, object_key) keys still fit.
+    foreach (['storage_migration_items', 'storage_object_hashes'] as $okTable) {
+        try {
+            $okCol = $conn->prepare(
+                "SELECT CHARACTER_MAXIMUM_LENGTH, COLLATION_NAME FROM information_schema.columns
+                 WHERE table_schema = ? AND table_name = ? AND column_name = 'object_key'"
+            );
+            $okCol->execute([$dbName, $okTable]);
+            $ok = $okCol->fetch(PDO::FETCH_ASSOC);
+            if ($ok && ((int)$ok['CHARACTER_MAXIMUM_LENGTH'] < 500 || $ok['COLLATION_NAME'] !== 'utf8mb4_bin')) {
+                $conn->exec("ALTER TABLE `$okTable` MODIFY `object_key` VARCHAR(500) COLLATE utf8mb4_bin NOT NULL");
+                $results[] = [
+                    'table'   => $okTable,
+                    'status'  => 'updated',
+                    'details' => ['object_key: VARCHAR(' . (int)$ok['CHARACTER_MAXIMUM_LENGTH'] . ') ' . $ok['COLLATION_NAME']
+                                  . ' → VARCHAR(500) utf8mb4_bin (long attachment names; names differing only by case or accent are different files)'],
+                ];
+            }
+        } catch (Exception $e) {
+            // Non-fatal — only a long key, or a second spelling of a name, would fail to queue.
+        }
     }
 
     // `changes.risk_level` was VARCHAR(20), wide enough for the built-in words
@@ -2340,16 +2370,16 @@ try {
             $risky = $conn->query("SELECT id, file_path FROM email_attachments WHERE file_path REGEXP '$riskyExt'")->fetchAll(PDO::FETCH_ASSOC);
             $renamed = 0;
             $missing = 0;
-            $attachRoot = dirname(dirname(__DIR__)) . '/tickets/attachments/';
+            // The tickets store (a server folder or S3): renamed there, whichever it is.
+            require_once dirname(__DIR__, 2) . '/includes/storage/stores.php';
+            $there = fn(string $k): bool => storeSize($conn, 'tickets', $k) !== null;
             $updPath = $conn->prepare("UPDATE email_attachments SET file_path = ? WHERE id = ?");
             foreach ($risky as $att) {
                 $rel = (string)$att['file_path'];
                 $newRel = preg_replace('/\.[^.\/\\\\]+$/', '.' . ATTACHMENT_QUARANTINE_EXT, $rel);
                 if ($newRel === null || $newRel === $rel) continue;
 
-                $oldAbs = $attachRoot . $rel;
-                $newAbs = $attachRoot . $newRel;
-                if (!file_exists($oldAbs)) {
+                if (!$there($rel)) {
                     // Row points at a file that is already gone — still worth
                     // correcting the path so nothing re-derives an extension from it.
                     $updPath->execute([$newRel, $att['id']]);
@@ -2364,21 +2394,23 @@ try {
                 // rare, and unrecoverable when it landed. Find a free name instead. The
                 // displayed filename is a separate column, so the suffix is never seen by
                 // anyone; it exists only to keep the two files apart.
-                if (file_exists($newAbs)) {
+                if ($there($newRel)) {
                     $base = preg_replace('/\.[^.\/\\\\]+$/', '', $newRel);
                     $suffix = 1;
                     do {
                         $candidate = $base . '-' . $suffix . '.' . ATTACHMENT_QUARANTINE_EXT;
                         $suffix++;
-                    } while ($suffix < 1000 && file_exists($attachRoot . $candidate));
-                    if (file_exists($attachRoot . $candidate)) continue;   // gave up; leave it alone
+                    } while ($suffix < 1000 && $there($candidate));
+                    if ($there($candidate)) continue;   // gave up; leave it alone
                     $newRel = $candidate;
-                    $newAbs = $attachRoot . $newRel;
                 }
 
-                if (@rename($oldAbs, $newAbs)) {
+                try {
+                    storeRename($conn, 'tickets', $rel, $newRel);
                     $updPath->execute([$newRel, $att['id']]);
                     $renamed++;
+                } catch (Throwable $e) {
+                    // left as it is; the next verification tries again
                 }
             }
             if ($renamed > 0 || $missing > 0) {

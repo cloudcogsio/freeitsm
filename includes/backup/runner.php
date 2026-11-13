@@ -27,6 +27,7 @@ require_once __DIR__ . '/dump.php';
 require_once __DIR__ . '/target.php';
 require_once __DIR__ . '/../storage_persistence.php';
 require_once __DIR__ . '/../files/storage.php';
+require_once __DIR__ . '/../storage/stores.php';   // stores kept in S3 are backed up through the store (#284)
 require_once __DIR__ . '/../version.php';
 
 final class BackupRunner
@@ -330,7 +331,26 @@ final class BackupRunner
     /** Every file in the upload folders, as ['store' => 'dir:<rel>', 'path' => ...]. */
     private function directoryFiles(): array
     {
-        return self::uploadFolderFiles($this->appRoot, filesStorageRoot($this->conn));
+        // A store kept in S3, or moving (System -> Storage), is listed through the store
+        // and its folder skipped: what is there is not the store (an old copy, or nothing).
+        // A store on its folder is walked as it always was.
+        $areas = [];
+        $fromStores = [];
+        foreach (STORAGE_STORE_BACKUP_DIRS as $store => [$rel, $sub]) {
+            if (storeIsPlainLocal($this->conn, $store)) continue;
+            $areas[] = rtrim($rel . '/' . $sub, '/');
+            foreach (storeList($this->conn, $store) as $key => $o) {
+                [$r, $p] = storeToBackupEntry($store, $key);
+                $skipped = false;
+                foreach (self::SKIP_DIRS as $d) if (str_starts_with("$r/$p", $d . '/')) $skipped = true;
+                if ($skipped) continue;
+                $fromStores[] = ['store' => 'dir:' . $r, 'path' => $p, 'via' => $store, 'key' => $key,
+                                 'listed_size' => (int)$o['size'], 'mtime' => (int)$o['mtime']];
+            }
+        }
+        $out = array_merge(self::uploadFolderFiles($this->appRoot, filesStorageRoot($this->conn), $areas), $fromStores);
+        usort($out, fn($a, $b) => [$a['store'], $a['path']] <=> [$b['store'], $b['path']]);
+        return $out;
     }
 
     /**
@@ -339,12 +359,14 @@ final class BackupRunner
      * root ($filesRoot) and symbolic links. A rollback deletes by this same list, so it can
      * never reach a file a backup would not have held.
      *
+     * @param string[] $skipAreas  more folders (relative to the app) to leave out: the folders of
+     *                            stores kept in S3, whose files come from the store instead
      * @return array<int, array{store: string, path: string}>  store is 'dir:<rel>'
      */
-    public static function uploadFolderFiles(string $appRoot, string $filesRoot): array
+    public static function uploadFolderFiles(string $appRoot, string $filesRoot, array $skipAreas = []): array
     {
         $appRoot = rtrim(str_replace('\\', '/', $appRoot), '/');
-        $skip = array_map(fn($d) => $appRoot . '/' . $d, self::SKIP_DIRS);
+        $skip = array_map(fn($d) => $appRoot . '/' . $d, array_merge(self::SKIP_DIRS, $skipAreas));
         $skip[] = rtrim(str_replace('\\', '/', $filesRoot), '/');
         $out = [];
         foreach (storagePersistenceDirectories() as $d) {
@@ -400,6 +422,28 @@ final class BackupRunner
                 throw new RuntimeException('Files storage could not be read: ' . $e->getMessage());
             }
             $local = $copy;
+        } elseif (isset($f['via'])) {
+            // A store kept in S3: an unchanged object (same size and modified time as when
+            // its checksum was last taken) already in the pool is not downloaded again.
+            $known = $this->knownHash($f['via'], $f['key'], $f['listed_size'], $f['mtime']);
+            if ($known !== null) {
+                $name = backupPoolName($poolKey, $known);
+                if (isset($this->seen[$name]) || $this->inPool($name, $f['listed_size'])) {
+                    $this->seen[$name] = true;
+                    $out['files_total']++;
+                    return $entry + ['size' => $f['listed_size'], 'sha256' => $known, 'pool' => $name];
+                }
+            }
+            $copy = $this->tmp . '/file.bin';
+            try {
+                storeHolder($this->conn, $f['via'], $f['key'])->readTo($f['key'], $copy);
+            } catch (StorageNotFound $e) {
+                $warnings[] = 'A file was deleted while the backup ran and is not in it: ' . substr($f['store'], 4) . '/' . $f['path'];
+                return $entry + ['missing' => 'deleted during backup'];
+            } catch (StorageUnavailable $e) {
+                throw new RuntimeException('The ' . $f['via'] . ' store could not be read: ' . $e->getMessage());
+            }
+            $local = $copy;
         } else {
             $local = $this->appRoot . '/' . substr($f['store'], 4) . '/' . $f['path'];
         }
@@ -441,7 +485,33 @@ final class BackupRunner
         }
         $this->seen[$name] = true;
         if ($copy !== null) @unlink($copy);
+        if (isset($f['via']) && (int)$size === $f['listed_size']) $this->rememberHash($f['via'], $f['key'], (int)$size, $f['mtime'], $sha);
         return $entry + ['size' => (int)$size, 'sha256' => $sha, 'pool' => $name];
+    }
+
+    /** A store object's SHA-256 recorded at this size and modified time, or null. */
+    private function knownHash(string $store, string $key, int $size, int $mtime): ?string
+    {
+        try {
+            $s = $this->conn->prepare('SELECT sha256 FROM storage_object_hashes WHERE store = ? AND object_key = ? AND size_bytes = ? AND mtime = ?');
+            $s->execute([$store, $key, $size, $mtime]);
+            $sha = $s->fetchColumn();
+            return is_string($sha) && preg_match('/^[0-9a-f]{64}$/', $sha) ? $sha : null;
+        } catch (PDOException $e) {
+            return null;   // before Database Verification: read it
+        }
+    }
+
+    private function rememberHash(string $store, string $key, int $size, int $mtime, string $sha): void
+    {
+        try {
+            $this->conn->prepare('INSERT INTO storage_object_hashes (store, object_key, size_bytes, mtime, sha256, updated_datetime)
+                                  VALUES (?, ?, ?, ?, ?, UTC_TIMESTAMP())
+                                  ON DUPLICATE KEY UPDATE size_bytes = VALUES(size_bytes), mtime = VALUES(mtime), sha256 = VALUES(sha256), updated_datetime = VALUES(updated_datetime)')
+                       ->execute([$store, $key, $size, $mtime, $sha]);
+        } catch (PDOException $e) {
+            // a cache: the next backup reads it again
+        }
     }
 
     /** The object and its sealed key are on the target (as last listed), both at their exact sizes. */
