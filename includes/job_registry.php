@@ -186,7 +186,9 @@ function jobRegistry(): array
         'storage_migrate' => [
             'command' => 'php cron/storage_migrate.php', 'web' => false,
             'interval' => 1, 'grace' => 10, 'max_runtime' => 15,
-            'needed'  => fn(PDO $c) => jobSettingStrict($c, 'files_storage_previous') !== '',
+            // Files moving, or one of the other stores (System -> Storage, #284).
+            'needed'  => fn(PDO $c) => jobSettingStrict($c, 'files_storage_previous') !== ''
+                                     || jobNeedOne($c, "SELECT 1 FROM system_settings WHERE setting_key LIKE 'storage\\\\_%\\\\_previous' AND setting_value <> '' LIMIT 1"),
         ],
         // Backups (System -> Backups). Off until an administrator sets a target, a passphrase
         // and a schedule. Weekly runs as a daily schedule that is only needed on its day.
