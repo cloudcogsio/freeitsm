@@ -97,6 +97,7 @@ $primaryKeys = [
     // silently — the table simply fell through to PRIMARY KEY (`id`).
     'knowledge_article_tags'    => ['article_id', 'tag_id'],
     'task_tag_map'              => ['task_id', 'tag_id'],
+    'storage_object_hashes'     => ['store', 'object_key'],   // #284: one checksum per object of a store
     // 3.3.0: one row per project, day and status - the cumulative flow diagram.
     'project_task_flow'         => ['project_id', 'day', 'status_id'],
     // Microsoft Teams alerts: one workflow per channel and alert.

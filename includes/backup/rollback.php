@@ -24,12 +24,21 @@ require_once __DIR__ . '/restore.php';
 require_once __DIR__ . '/maintenance.php';
 require_once __DIR__ . '/../job_runs.php';
 require_once __DIR__ . '/../job_registry.php';
+require_once __DIR__ . '/../storage/store_migration.php';   // the stores (System -> Storage, #284)
 
 /** Settings that describe this install, not the backup: put back after a rollback (with BACKUP_SETTING_KEYS). */
 const BACKUP_ROLLBACK_KEEP_SETTINGS = [
     'files_storage_driver', 'files_storage_root', 'files_storage_previous',
     'files_s3_endpoint', 'files_s3_region', 'files_s3_bucket', 'files_s3_access_key_id',
     'files_s3_secret', 'files_s3_prefix', 'files_s3_path_style',
+    // System -> Storage (#284): the one S3 connection and where each store is kept.
+    'storage_s3_endpoint', 'storage_s3_region', 'storage_s3_bucket', 'storage_s3_access_key_id',
+    'storage_s3_secret', 'storage_s3_prefix', 'storage_s3_path_style',
+    'storage_tickets_location', 'storage_tickets_previous', 'storage_tickets_cleanup',
+    'storage_changes_location', 'storage_changes_previous', 'storage_changes_cleanup',
+    'storage_documents_location', 'storage_documents_previous', 'storage_documents_cleanup',
+    'storage_recordings_location', 'storage_recordings_previous', 'storage_recordings_cleanup',
+    'storage_warroom_location', 'storage_warroom_previous', 'storage_warroom_cleanup',
 ];
 
 final class BackupRollback
@@ -53,6 +62,8 @@ final class BackupRollback
     private StorageDriver $files;
     private ?Closure $mailer;
     private int $lastBeat = 0;
+    /** @var array<string, ?StorageDriver> where each store is kept now; null = its folder */
+    private array $storeTargets = [];
     private array $warnings = [];
     private ?array $snapshot = null;
 
@@ -96,6 +107,14 @@ final class BackupRollback
             if ((int)$this->conn->query('SELECT @@SESSION.wait_timeout')->fetchColumn() < 86400) $this->conn->exec('SET SESSION wait_timeout = 86400');
             if (backupSetting($this->conn, 'files_storage_previous') !== '') {
                 throw new RuntimeException('Files is moving to another storage location. Restore when the move has finished.');
+            }
+            if (storesMoving($this->conn)) {
+                throw new RuntimeException('A store is moving to another storage location (System -> Storage). Restore when the move has finished.');
+            }
+            // Where each store is kept NOW: the restore writes it back there.
+            storeReset();
+            foreach (array_keys(STORAGE_STORES) as $s) {
+                $this->storeTargets[$s] = storeIsPlainLocal($this->conn, $s) ? null : storeActive($this->conn, $s);
             }
             $this->beat(['state' => 'starting'], "Opening backup {$this->set}...");
             $open = backupOpenSet($this->target, $this->set, $this->passphrase);
@@ -156,6 +175,7 @@ final class BackupRollback
         $r = new BackupRestore($this->target, $set, $this->passphrase, $this->conn, $this->appRoot, $this->keyPath, true,
                                fn(string $line) => $this->beat([], $line), $this->files);
         $r->removeExtrasFilesRoot = $filesRoot;
+        $r->storeDriverFor = fn(string $store) => $this->storeTargets[$store] ?? null;
         $r->onFile = fn() => $this->beat();
         $r->afterDatabaseHook = function (PDO $db, string $keyHex) use ($isTarget) {
             $this->snapshot['key_hex'] = $keyHex;

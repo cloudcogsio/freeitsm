@@ -37,6 +37,38 @@ const STORAGE_STORES = [
     'warroom'    => 'war-room/attachments',
 ];
 
+/**
+ * How each store appears in a backup (#286): a 'dir:<rel>' manifest entry of the upload
+ * folder that holds it, with the store's keys under <sub>. Unchanged from before the stores
+ * existed, so older backups restore as they always did.
+ */
+const STORAGE_STORE_BACKUP_DIRS = [
+    'tickets'    => ['tickets/attachments', ''],
+    'changes'    => ['change-management/attachments', ''],
+    'documents'  => ['uploads', 'documents/'],
+    'recordings' => ['recordings', ''],
+    'warroom'    => ['war-room/attachments', ''],
+];
+
+/** The store and key a backup entry ('dir:<rel>', path) belongs to, or null. */
+function storeFromBackupEntry(string $rel, string $path): ?array
+{
+    foreach (STORAGE_STORE_BACKUP_DIRS as $store => [$r, $sub]) {
+        if ($r !== $rel) continue;
+        if ($sub !== '' && !str_starts_with($path, $sub)) continue;
+        $key = substr($path, strlen($sub));
+        return storeKeyIsValid($key) ? [$store, $key] : null;
+    }
+    return null;
+}
+
+/** The backup entry [rel, path] for a store's key. */
+function storeToBackupEntry(string $store, string $key): array
+{
+    [$rel, $sub] = STORAGE_STORE_BACKUP_DIRS[$store];
+    return [$rel, $sub . $key];
+}
+
 /** Where an upload to a store kept in S3 is checked before it is sent. */
 const STORAGE_STAGING_DIR = '_staging';
 

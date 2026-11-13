@@ -16,7 +16,7 @@ require __DIR__ . '/_top.php';
     </div>
     <ul>
         <li><strong>The database</strong>, every table, taken at a single moment so it is consistent. All settings are in it.</li>
-        <li><strong>Every stored file</strong>: ticket and change attachments, documents, everything in Files (wherever Files keeps them, including S3-compatible storage), recordings, course content, RFP uploads, branding, label fonts, form images and war room files.</li>
+        <li><strong>Every stored file</strong>: ticket and change attachments, documents, everything in Files (wherever Files keeps them, including S3-compatible storage), recordings, course content, RFP uploads, branding, label fonts, form images and war room files. Stores kept in S3-compatible storage on System &rarr; Storage are backed up from there, and a restore or rollback writes them back there.</li>
         <li><strong>The encryption key</strong>, without which the passwords and API keys in the database cannot be read.</li>
     </ul>
     <p>Temporary files (uploads in progress, asset import files, recordings not yet attached to a ticket) and Files offline copies are left out; they are not needed to restore.</p>

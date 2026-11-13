@@ -151,7 +151,11 @@ function backupRestoreCli(array $argv, $in = STDIN, $out = STDOUT): int
     }
 
     try {
-        $r = (new BackupRestore($target, $set, $pass, $db, $appRoot, $keyPath, isset($opt['force']), $say, $filesStore))->run();
+        $br = new BackupRestore($target, $set, $pass, $db, $appRoot, $keyPath, isset($opt['force']), $say, $filesStore);
+        // A trial restore into another database keeps every store (#284) under --app-root too,
+        // never in the bucket the restored settings name.
+        if ($filesStore !== null) $br->storeDriverFor = fn(string $store) => null;
+        $r = $br->run();
     } catch (BackupWrongPassphrase $e) {
         $say('That passphrase does not open these backups. Nothing was changed.');
         return 2;

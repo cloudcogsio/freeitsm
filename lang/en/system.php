@@ -1269,7 +1269,7 @@ return [
         'err_restore_confirm'     => 'Type RESTORE to confirm.',
         'err_maintenance_on'      => 'A restore is already running.',
         'err_maintenance_folder'  => 'The restore cannot start: the folder that holds the encryption key cannot be written to, and maintenance mode is kept there.',
-        'err_storage_moving'      => 'Files is moving to another storage location. Restore when the move has finished.',
+        'err_storage_moving'      => 'Files, or a store on System -> Storage, is moving to another storage location. Restore when the move has finished.',
     ],
 
     'storage' => [

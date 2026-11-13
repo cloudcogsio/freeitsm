@@ -10647,6 +10647,19 @@ CREATE TABLE IF NOT EXISTS `storage_migration_items` (
     KEY `ix_storage_migration_state` (`store`, `state`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- The SHA-256 of objects in a store kept in S3 (#284), by size and modified time, so a
+-- backup does not download an unchanged file again just to learn its checksum.
+-- A cache: losing it costs one full read. See includes/backup/runner.php.
+CREATE TABLE IF NOT EXISTS `storage_object_hashes` (
+    `store`                 VARCHAR(20) NOT NULL,
+    `object_key`            VARCHAR(500) NOT NULL,
+    `size_bytes`            BIGINT NOT NULL,
+    `mtime`                 BIGINT NOT NULL,
+    `sha256`                CHAR(64) NOT NULL,
+    `updated_datetime`      DATETIME NULL,
+    PRIMARY KEY (`store`, `object_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Backups (System -> Backups): one row per backup run, and the last on-demand
 -- verification of it. The backups themselves live on the backup target.
 -- See includes/backup/runner.php.

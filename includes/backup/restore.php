@@ -202,6 +202,17 @@ final class BackupRestore
     /** fn(): void - after each file (a rollback's heartbeat). */
     public ?Closure $onFile = null;
 
+    /**
+     * fn(string $store): ?StorageDriver - where a store (#284) is written back: a driver for a
+     * store kept in S3, or null for its folder under the app root (as always). Default: as the
+     * RESTORED settings say (a new server). A rollback passes this install's own.
+     */
+    public ?Closure $storeDriverFor = null;
+
+    /** @var array<string, ?StorageDriver> */
+    private array $storeTargets = [];
+    private string $keyHex = '';
+
     private array $result = ['ok' => false, 'restored_files' => 0, 'skipped_files' => 0, 'removed_files' => 0, 'warnings' => [], 'errors' => []];
     private string $tmp = '';
     private StorageDriver&StorageLister $t;
@@ -276,6 +287,7 @@ final class BackupRestore
             }
 
             // Every stored file.
+            $this->keyHex = trim($keyBytes);
             $files = $this->filesStore ?? $this->restoredFilesStore(trim($keyBytes));
             $this->restoreFiles($m, $open['keys'], $files);
             $this->rewriteRfpPaths();
@@ -338,6 +350,41 @@ final class BackupRestore
         ($this->log)('Scheduled backups are paused on this install: turn them back on in System -> Backups.');
     }
 
+    /** Where a store is written back (null = its folder under the app root), cached. */
+    private function storeTarget(string $store): ?StorageDriver
+    {
+        if (!array_key_exists($store, $this->storeTargets)) {
+            $this->storeTargets[$store] = $this->storeDriverFor
+                ? ($this->storeDriverFor)($store)
+                : $this->restoredStoreDriver($store);
+        }
+        return $this->storeTargets[$store];
+    }
+
+    /** A store kept in S3 by the RESTORED settings (its secret read with the restored key), or null. */
+    private function restoredStoreDriver(string $store): ?StorageDriver
+    {
+        $get = function (string $k): string {
+            try {
+                $s = $this->db->prepare('SELECT setting_value FROM system_settings WHERE setting_key = ?');
+                $s->execute([$k]);
+                $v = $s->fetchColumn();
+                return $v === false || $v === null ? '' : (string)$v;
+            } catch (PDOException $e) {
+                return '';
+            }
+        };
+        if ($get("storage_{$store}_location") !== 's3') return null;
+        $p = $get('storage_s3_bucket') !== '' ? 'storage_s3_' : 'files_s3_';
+        if ($get($p . 'bucket') === '') return null;
+        return storeMakeDriver([
+            'driver' => 's3', 'endpoint' => $get($p . 'endpoint'), 'region' => $get($p . 'region') ?: 'us-east-1',
+            'bucket' => $get($p . 'bucket'), 'access_key_id' => $get($p . 'access_key_id'),
+            'secret' => backupDecryptWithKey($get($p . 'secret'), $this->keyHex),
+            'prefix' => $get($p . 'prefix'), 'path_style' => $get($p . 'path_style') === '1',
+        ], $store);
+    }
+
     /** The Files store as the restored settings describe it (its secret read with the restored key). */
     private function restoredFilesStore(string $keyHex): StorageDriver
     {
@@ -380,6 +427,15 @@ final class BackupRestore
                     if (!backupRestoreDirAllowed($rel) || str_contains($f['path'], '..') || $f['path'] === '' || $f['path'][0] === '/' || str_contains($f['path'], "\0")) {
                         throw new RuntimeException('an unsafe path in the manifest');
                     }
+                    // A store kept in S3 (#284) is written back through it.
+                    $mapped = storeFromBackupEntry($rel, (string)$f['path']);
+                    $sd = $mapped !== null ? $this->storeTarget($mapped[0]) : null;
+                    if ($sd !== null) {
+                        if ($sd->size($mapped[1]) === (int)$f['size']) { $this->result['skipped_files']++; continue; }
+                        $sd->putFile($mapped[1], $this->fetch($f, $keys), true);
+                        $this->result['restored_files']++;
+                        continue;
+                    }
                     $dest = $this->appRoot . '/' . $rel . '/' . $f['path'];
                     if (is_file($dest) && hash_file('sha256', $dest) === $f['sha256']) { $this->result['skipped_files']++; continue; }
                     $this->writeFile($dest, 0640, null, $this->fetch($f, $keys));
@@ -406,7 +462,32 @@ final class BackupRestore
         $listed = [];
         foreach ((array)$m['files'] as $f) $listed[(string)$f['store']][(string)$f['path']] = true;
         $removed = 0;
-        foreach (BackupRunner::uploadFolderFiles($this->appRoot, $filesRoot) as $f) {
+        // Stores kept in S3 (#284): their own listing; their folders are not the store.
+        $areas = [];
+        foreach (STORAGE_STORE_BACKUP_DIRS as $store => [$rel, $sub]) {
+            $sd = $this->storeTarget($store);
+            if ($sd === null) continue;
+            $areas[] = rtrim($rel . '/' . $sub, '/');
+            if (!$sd instanceof StorageLister) {
+                $this->result['warnings'][] = "The $store store cannot be listed, so what was added to it since the backup was not removed.";
+                continue;
+            }
+            foreach ($sd->listKeys('') as $k) {
+                if (!storeListedKeyIsFile($k)) continue;
+                [$r, $p] = storeToBackupEntry($store, $k);
+                if (isset($listed['dir:' . $r][$p])) continue;
+                $skipped = false;
+                foreach (BackupRunner::SKIP_DIRS as $d) if (str_starts_with("$r/$p", $d . '/')) $skipped = true;
+                if ($skipped) continue;
+                try {
+                    $sd->delete($k);
+                    $removed++;
+                } catch (Throwable $e) {
+                    $this->result['errors'][] = "$store: $k could not be removed: " . $e->getMessage();
+                }
+            }
+        }
+        foreach (BackupRunner::uploadFolderFiles($this->appRoot, $filesRoot, $areas) as $f) {
             if (isset($listed[$f['store']][$f['path']])) continue;
             $name = basename($f['path']);
             if ($name === '' || $name[0] === '.' || strcasecmp($name, 'web.config') === 0) continue;

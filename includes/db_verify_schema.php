@@ -7004,6 +7004,15 @@ return [
         'last_error'          => 'VARCHAR(500) NULL',
         'updated_datetime'    => 'DATETIME NULL',
     ],
+    // Checksums of objects in a store kept in S3, for backups (#284) - see freeitsm.sql.
+    'storage_object_hashes' => [
+        'store'               => 'VARCHAR(20) NOT NULL',
+        'object_key'          => 'VARCHAR(500) NOT NULL',
+        'size_bytes'          => 'BIGINT NOT NULL',
+        'mtime'               => 'BIGINT NOT NULL',
+        'sha256'              => 'CHAR(64) NOT NULL',
+        'updated_datetime'    => 'DATETIME NULL',
+    ],
     // Backups (System -> Backups) - see freeitsm.sql.
     'backup_runs' => [
         'id'                  => 'INT NOT NULL AUTO_INCREMENT',
