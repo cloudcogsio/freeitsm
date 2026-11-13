@@ -10635,7 +10635,7 @@ CREATE TABLE IF NOT EXISTS `files_uploads` (
 CREATE TABLE IF NOT EXISTS `storage_migration_items` (
     `id`                    BIGINT NOT NULL AUTO_INCREMENT,
     `store`                 VARCHAR(20) NOT NULL,                   -- files
-    `object_key`            VARCHAR(500) NOT NULL,                  -- ticket attachment keys can be long (#284)
+    `object_key`            VARCHAR(500) COLLATE utf8mb4_bin NOT NULL, -- long (#284); binary: "Report.pdf" and "report.pdf" are two files
     `size_bytes`            BIGINT NOT NULL,
     `sha256`                CHAR(64) NULL,
     `state`                 VARCHAR(10) NOT NULL DEFAULT 'pending', -- pending | verified | failed | removed
@@ -10652,7 +10652,7 @@ CREATE TABLE IF NOT EXISTS `storage_migration_items` (
 -- A cache: losing it costs one full read. See includes/backup/runner.php.
 CREATE TABLE IF NOT EXISTS `storage_object_hashes` (
     `store`                 VARCHAR(20) NOT NULL,
-    `object_key`            VARCHAR(500) NOT NULL,
+    `object_key`            VARCHAR(500) COLLATE utf8mb4_bin NOT NULL, -- binary, as in storage_migration_items
     `size_bytes`            BIGINT NOT NULL,
     `mtime`                 BIGINT NOT NULL,
     `sha256`                CHAR(64) NOT NULL,

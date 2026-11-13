@@ -6996,7 +6996,7 @@ return [
     'storage_migration_items' => [
         'id'                  => 'BIGINT NOT NULL AUTO_INCREMENT',
         'store'               => 'VARCHAR(20) NOT NULL',
-        'object_key'          => 'VARCHAR(500) NOT NULL',
+        'object_key'          => 'VARCHAR(500) COLLATE utf8mb4_bin NOT NULL',
         'size_bytes'          => 'BIGINT NOT NULL',
         'sha256'              => 'CHAR(64) NULL',
         'state'               => "VARCHAR(10) NOT NULL DEFAULT 'pending'",
@@ -7007,7 +7007,7 @@ return [
     // Checksums of objects in a store kept in S3, for backups (#284) - see freeitsm.sql.
     'storage_object_hashes' => [
         'store'               => 'VARCHAR(20) NOT NULL',
-        'object_key'          => 'VARCHAR(500) NOT NULL',
+        'object_key'          => 'VARCHAR(500) COLLATE utf8mb4_bin NOT NULL',
         'size_bytes'          => 'BIGINT NOT NULL',
         'mtime'               => 'BIGINT NOT NULL',
         'sha256'              => 'CHAR(64) NOT NULL',
