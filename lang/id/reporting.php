@@ -199,8 +199,6 @@ return [
         'affects_files_versions_tidy' => 'Berkas menyimpan lebih banyak versi lama daripada yang diizinkan Berkas -> Pengaturan -> Versi, sehingga memakai lebih banyak penyimpanan',
         'name_report_downloads_tidy' => 'Pembersihan tautan laporan yang dikirim lewat email',
         'affects_report_downloads_tidy' => 'Laporan di balik tautan unduhan yang kedaluwarsa atau dicabut tetap berada di disk',
-        'name_storage_migrate' => 'Pemindahan penyimpanan Berkas',
-        'affects_storage_migrate' => 'Menyalin berkas ke lokasi penyimpanan baru (berkas yang belum disalin dibaca dari yang lama)',
         'name_files_recycle_purge' => 'Tempat sampah Files',
         'affects_files_recycle_purge' => 'Menghapus berkas untuk selamanya setelah berada di tempat sampah lebih lama dari masa retensi',
         'name_lms_reminders' => 'Pengingat pelatihan',
