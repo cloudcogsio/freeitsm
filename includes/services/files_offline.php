@@ -265,7 +265,8 @@ final class FilesOfflineService
         $newRoot = rtrim(str_replace('\\', '/', $newRoot), '/');
         if ($oldRoot === '' || $oldRoot === $newRoot || !is_dir($oldRoot . '/offline')) return 0;
         try {
-            if (storageSameLocation(new LocalDriver($oldRoot), new LocalDriver($newRoot))) return 0;
+            // Only when PROVED to be two places; 'same' or 'unknown' keeps them (PR #318 review).
+            if (storageLocationRelation(new LocalDriver($oldRoot), new LocalDriver($newRoot)) !== 'different') return 0;
         } catch (Throwable $e) {
             return 0;   // cannot tell: keep them
         }

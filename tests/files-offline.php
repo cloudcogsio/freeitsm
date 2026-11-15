@@ -212,6 +212,14 @@ try {
     ok('a copy of the wrong size is never served', $st === 503, "status $st");
     [$st] = serve($conn, $c1);
     ok('no copy and S3 down: unavailable (503)', $st === 503, "status $st");
+    // Reading a whole file into a local file (Attach as a copy) takes the copy too.
+    putCopy($conn, $x1);
+    $tmpRead = tempnam(sys_get_temp_dir(), 'zzrd');
+    try { filesReadToLocal($conn, $x1['key'], $x1['size'], $tmpRead); $got = (string)file_get_contents($tmpRead); }
+    catch (Throwable $e) { $got = get_class($e) . ': ' . $e->getMessage(); }
+    @unlink($tmpRead);
+    ok('a whole-file read uses the copy while S3 is down', $got === $x1['bytes'], $got);
+    ok('...and Attach as a copy reads that way', str_contains((string)file_get_contents("$root/includes/services/files_attach.php"), 'filesReadToLocal('));
     $fake->down = false;
     useFake(null);
     // Local folder backend: the real file is served even if an "offline" file differs.
