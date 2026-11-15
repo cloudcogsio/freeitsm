@@ -87,9 +87,11 @@ function filesOfflineCoveredFolders(PDO $conn, ?array $marks): array
         $memo[$id] = null;   // cycle guard
         if (!isset($tree[$id])) return null;
         if (isset($marks['folder'][$id])) return $memo[$id] = 'self';
-        if (isset($marks['exclude']['folder'][$id])) return $memo[$id] = 'excluded';
         $p = $tree[$id]['parent_id'];
-        return $memo[$id] = ($p !== null && filesOfflineKept($state($p))) ? 'folder' : null;
+        $above = $p !== null && filesOfflineKept($state($p));
+        // Left out only while a folder above keeps it; an exclusion nothing covers means nothing.
+        if (isset($marks['exclude']['folder'][$id])) return $memo[$id] = $above ? 'excluded' : null;
+        return $memo[$id] = $above ? 'folder' : null;
     };
     $out = [];
     foreach ($tree as $id => $f) {
@@ -108,8 +110,9 @@ function filesOfflineCoveredFolders(PDO $conn, ?array $marks): array
 function filesOfflineItemCoverage(array $coveredFolders, ?array $marks, int $itemId, int $folderId): ?string
 {
     if ($marks && isset($marks['item'][$itemId])) return 'self';
-    if ($marks && isset($marks['exclude']['item'][$itemId])) return 'excluded';
-    return filesOfflineKept($coveredFolders[$folderId] ?? null) ? 'folder' : null;
+    $kept = filesOfflineKept($coveredFolders[$folderId] ?? null);
+    if ($marks && isset($marks['exclude']['item'][$itemId])) return $kept ? 'excluded' : null;
+    return $kept ? 'folder' : null;
 }
 
 /**
@@ -178,10 +181,37 @@ function filesOfflineDisplayMarks(PDO $conn): ?array
     return filesOfflineApplies($conn) ? filesOfflineMarks($conn) : null;
 }
 
-/** Where offline copies live: <storage root>/offline. Not created here. */
+/**
+ * Where offline copies live: <storage root>/offline. Creates nothing - not even the
+ * storage root (every S3 download asks, also on installs that never used this).
+ */
 function filesOfflineRoot(PDO $conn): string
 {
-    return filesStorageRoot($conn) . '/offline';
+    return rtrim(str_replace('\\', '/', filesSetting($conn, 'files_storage_root', filesDefaultStorageRoot())), '/') . '/offline';
+}
+
+/**
+ * True when the offline folder is ALSO the folder of a store on this server (the active
+ * one, or the previous one during a move) - storage moved from <P>/offline to <P>. Its
+ * files are then real stored files, not copies: nothing may be copied there or removed.
+ */
+function filesOfflineOverlapsStore(PDO $conn): bool
+{
+    $norm = function (string $p): string {
+        $p = rtrim(str_replace('\\', '/', $p), '/');
+        $r = @realpath($p);
+        return $r !== false ? rtrim(str_replace('\\', '/', $r), '/') : $p;
+    };
+    $off = $norm(filesOfflineRoot($conn));
+    try {
+        $cfgs = [filesStorageConfig($conn), filesPreviousStorageConfig($conn)];
+    } catch (Throwable $e) {
+        return true;   // cannot tell: treat as overlapping, so nothing is removed
+    }
+    foreach ($cfgs as $cfg) {
+        if ($cfg && ($cfg['driver'] ?? 'local') === 'local' && isset($cfg['root']) && $norm((string)$cfg['root']) === $off) return true;
+    }
+    return false;
 }
 
 /**
@@ -202,7 +232,7 @@ function filesOfflinePath(PDO $conn, string $key): ?string
  */
 function filesOfflineHasAnyCopy(PDO $conn): bool
 {
-    $root = rtrim(str_replace('\\', '/', filesSetting($conn, 'files_storage_root', filesDefaultStorageRoot())), '/') . '/offline';
+    $root = filesOfflineRoot($conn);
     if (!is_dir($root)) return false;
     $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
     foreach ($it as $f) {

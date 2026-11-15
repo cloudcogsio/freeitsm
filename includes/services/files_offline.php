@@ -145,10 +145,16 @@ final class FilesOfflineService
         $before = filesOfflineMarks($conn);
         if ($before === null) throw new InvalidArgumentException('Run System → Database Verification first.');
         $beforeKeys = filesOfflineCoveredKeys($conn, $before);
-        $st = $conn->prepare("DELETE FROM files_offline WHERE target_type = ? AND target_id = ? AND excluded = 0");
-        $st->execute([$type, $id]);
+        try {
+            $st = $conn->prepare("DELETE FROM files_offline WHERE target_type = ? AND target_id = ? AND excluded = 0");
+            $st->execute([$type, $id]);
+        } catch (PDOException $e) {
+            if (($e->errorInfo[1] ?? null) === 1054) throw new InvalidArgumentException('Run System → Database Verification first.');
+            throw $e;
+        }
         if ($st->rowCount() === 0) return ['removed' => 0];
         filesAudit($conn, $analystId, 'offline', self::auditTarget($t), ['on' => false, 'type' => $type]);
+        self::dropUncoveredExclusions($conn);   // "left out" of a folder no longer kept means nothing
         return ['removed' => self::removeUncovered($conn, $beforeKeys)];
     }
 
@@ -170,9 +176,14 @@ final class FilesOfflineService
         if ($state === 'self') throw new InvalidArgumentException('This is kept offline by its own mark - choose Remove offline copy instead.');
         if ($state !== 'folder') throw new InvalidArgumentException('This is not kept offline by a folder above it.');
         $beforeKeys = filesOfflineCoveredKeys($conn, $marks);
-        $conn->prepare("INSERT INTO files_offline (target_type, target_id, excluded, marked_by, marked_datetime) VALUES (?, ?, 1, ?, UTC_TIMESTAMP())
-                        ON DUPLICATE KEY UPDATE excluded = 1, marked_by = VALUES(marked_by), marked_datetime = UTC_TIMESTAMP()")
-             ->execute([$type, $id, $analystId]);
+        try {
+            $conn->prepare("INSERT INTO files_offline (target_type, target_id, excluded, marked_by, marked_datetime) VALUES (?, ?, 1, ?, UTC_TIMESTAMP())
+                            ON DUPLICATE KEY UPDATE excluded = 1, marked_by = VALUES(marked_by), marked_datetime = UTC_TIMESTAMP()")
+                 ->execute([$type, $id, $analystId]);
+        } catch (PDOException $e) {
+            if (($e->errorInfo[1] ?? null) === 1054) throw new InvalidArgumentException('Run System → Database Verification first.');
+            throw $e;
+        }
         filesAudit($conn, $analystId, 'offline', self::auditTarget($t), ['on' => false, 'type' => $type, 'excluded' => true]);
         return ['removed' => self::removeUncovered($conn, $beforeKeys)];
     }
@@ -235,6 +246,39 @@ final class FilesOfflineService
         filesAudit($conn, $analystId, 'offline', ['path' => '(Settings: storage)'], ['on' => false, 'all' => true, 'marks' => (int)$n]);
         self::forgetUsage($conn);
         return ['marks' => (int)$n];
+    }
+
+    /**
+     * Drops "Don't keep offline" marks that nothing covers any more - the mark above was
+     * removed, or the file or folder moved out of it - so they do not show, nor apply
+     * silently if a folder above is marked again later. Things in the recycle bin keep
+     * theirs (as marks do): a restore brings them back as they were.
+     *
+     * @return int exclusions dropped
+     */
+    private static function dropUncoveredExclusions(PDO $conn): int
+    {
+        $marks = filesOfflineMarks($conn);
+        if (!$marks || (!$marks['exclude']['folder'] && !$marks['exclude']['item'])) return 0;
+        $tree = FilesAcl::tree($conn);
+        $folders = filesOfflineCoveredFolders($conn, $marks);
+        $drop = ['folder' => [], 'item' => []];
+        foreach (array_keys($marks['exclude']['folder']) as $id) {
+            if (isset($tree[$id]) && ($folders[$id] ?? null) !== 'excluded') $drop['folder'][] = (int)$id;
+        }
+        if ($marks['exclude']['item']) {
+            $ids = implode(',', array_map('intval', array_keys($marks['exclude']['item'])));
+            foreach ($conn->query("SELECT id, folder_id FROM files_items WHERE deleted_datetime IS NULL AND id IN ($ids)")->fetchAll(PDO::FETCH_NUM) as [$id, $fid]) {
+                if (!isset($tree[(int)$fid])) continue;   // its folder is in the recycle bin
+                if (filesOfflineItemCoverage($folders, $marks, (int)$id, (int)$fid) !== 'excluded') $drop['item'][] = (int)$id;
+            }
+        }
+        $n = 0;
+        foreach ($drop as $type => $ids) {
+            if (!$ids) continue;
+            $n += $conn->exec("DELETE FROM files_offline WHERE excluded = 1 AND target_type = " . $conn->quote($type) . " AND target_id IN (" . implode(',', $ids) . ")");
+        }
+        return $n;
     }
 
     /** Deletes the copies of $beforeKeys that nothing covers any more. */
@@ -329,7 +373,7 @@ final class FilesOfflineService
             $marks = filesOfflineMarks($conn);
             if (!$marks || (!$marks['folder'] && !$marks['item'])) return null;
             $covered = filesOfflineItemCoverage(filesOfflineCoveredFolders($conn, $marks), $marks, $itemId ?? 0, $folderId);
-            if ($covered === null) return null;
+            if (!filesOfflineKept($covered)) return null;   // not kept, or left out
             $final = filesOfflinePath($conn, $key);
             if ($final === null) return null;
             $tmp = self::tmpFor($final);
@@ -423,7 +467,14 @@ final class FilesOfflineService
                                             WHERE o.target_type = 'folder' AND f.id IS NULL")
                             + $conn->exec("DELETE o FROM files_offline o LEFT JOIN files_items i ON i.id = o.target_id
                                             WHERE o.target_type = 'item' AND i.id IS NULL");
+        $r['marks_dropped'] += self::dropUncoveredExclusions($conn);
         if ($r['marks_dropped']) $marks = filesOfflineMarks($conn);
+        if (filesOfflineOverlapsStore($conn)) {
+            // The offline folder is a store's own folder (storage moved from <P>/offline to
+            // <P>): what is in it is real stored files. Do nothing until that is over.
+            error_log('files offline: the offline folder is also a storage folder - nothing copied or removed until that changes.');
+            return $r;
+        }
 
         $applies = filesOfflineApplies($conn);
         $covered = $applies ? self::wanted($conn, $marks) : [];
@@ -530,6 +581,7 @@ final class FilesOfflineService
     {
         $p = filesOfflinePath($conn, $key);
         if ($p === null || !is_file($p)) return false;
+        if (filesOfflineOverlapsStore($conn)) return false;   // a real stored file, not a copy
         if (!@unlink($p)) {
             error_log("files offline: could not delete the copy {$key}");
             return false;

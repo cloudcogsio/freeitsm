@@ -555,6 +555,67 @@ try {
     setSetting($conn, 'files_storage_root', $store);
     useFake($fake);
 
+    // ── Second review ──────────────────────────────────────────────────
+    // An offline folder that IS the previous storage folder (storage moved from <P>/offline
+    // to <P>) holds the real files of a move in progress, not copies: never removed.
+    $conn->exec("DELETE FROM files_offline");
+    $realKey = '2026/11/11/' . bin2hex(random_bytes(16)) . '.bin';
+    $realPath = "$store/offline/$realKey";
+    @mkdir(dirname($realPath), 0777, true);
+    file_put_contents($realPath, 'a real stored file, not a copy');
+    mark($conn, 'item', $x1['id']);   // the table has rows: the job has work
+    setSetting($conn, 'files_storage_previous', encryptValue(json_encode(['driver' => 'local', 'root' => "$store/offline"])));
+    FilesOfflineService::sync($conn, time() + 60);
+    ok('a previous storage folder inside the offline folder: its files are never deleted', is_file($realPath));
+    setSetting($conn, 'files_storage_previous', null);
+    @unlink($realPath);
+    $conn->exec("DELETE FROM files_offline");
+    useFake($fake);
+    // Exclusions nothing covers any more: not shown as "left out", dropped when the mark
+    // above goes, and by the job when the file has moved out.
+    $SA = folder($conn, null, 'ZZ Off SA');
+    $SB = folder($conn, null, 'ZZ Off SB');
+    grant($conn, $SA, $V, FilesAcl::VIEW);
+    $sf = item($conn, $s3dir, $SA, 'zz-sf.txt');
+    $exRows = function (int $itemId) use ($conn): int {
+        $q = $conn->prepare("SELECT COUNT(*) FROM files_offline WHERE target_type = 'item' AND target_id = ? AND excluded = 1");
+        $q->execute([$itemId]);
+        return (int)$q->fetchColumn();
+    };
+    FilesOfflineService::mark($conn, $V, 'folder', $SA);
+    FilesOfflineService::exclude($conn, $V, 'item', $sf['id']);
+    FilesOfflineService::unmark($conn, $V, 'folder', $SA);
+    ok('removing the mark above drops the exclusions under it', $exRows($sf['id']) === 0);
+    FilesOfflineService::mark($conn, $V, 'folder', $SA);
+    FilesOfflineService::exclude($conn, $V, 'item', $sf['id']);
+    $conn->prepare("UPDATE files_items SET folder_id = ? WHERE id = ?")->execute([$SB, $sf['id']]);
+    FilesAcl::reset();
+    $sm = filesOfflineMarks($conn);
+    ok('a left-out file moved where nothing keeps it is not shown as "left out"', filesOfflineItemCoverage(filesOfflineCoveredFolders($conn, $sm), $sm, $sf['id'], $SB) === null);
+    FilesOfflineService::sync($conn, time() + 60);
+    ok('...and the job drops that exclusion', $exRows($sf['id']) === 0);
+    // A new version of a left-out file gets no offline copy.
+    $conn->prepare("UPDATE files_items SET folder_id = ? WHERE id = ?")->execute([$SA, $sf['id']]);
+    FilesAcl::reset();
+    FilesOfflineService::exclude($conn, $V, 'item', $sf['id']);
+    $nk = '2026/11/11/' . bin2hex(random_bytes(16)) . '.bin';
+    ok('a new version of a left-out file keeps no upload copy', FilesOfflineService::keepUploadCopy($conn, $SA, $sf['id'], $part, $nk) === null);
+    $conn->exec("DELETE FROM files_offline");
+    // Reading an offline path creates no folder (every S3 download asks).
+    $nowhere2 = sys_get_temp_dir() . '/zz-off-nowhere2-' . bin2hex(random_bytes(4));
+    setSetting($conn, 'files_storage_root', $nowhere2);
+    useFake($fake);
+    filesOfflinePath($conn, $nk);
+    filesOfflineHasCopy($conn, $nk, 1);
+    ok('looking for an offline copy creates no folder', !is_dir($nowhere2));
+    setSetting($conn, 'files_storage_root', $store);
+    // The job is not needed for marks while Files is in a server folder (they mean nothing there).
+    useFake(null);
+    mark($conn, 'folder', $SA);
+    ok('marks with Files in a server folder (and no copies left): the job is not needed', jobRegistry()['files_offline_sync']['needed']($conn) === false);
+    $conn->exec("DELETE FROM files_offline");
+    useFake($fake);
+
     mark($conn, 'folder', $X);   // copies again, for the next section
     FilesOfflineService::sync($conn, time() + 60);
 

@@ -911,7 +911,7 @@ final class FilesRecycleService
         if (!filesStorageKeyIsValid($key)) return;
         require_once __DIR__ . '/../files/offline.php';
         $copy = filesOfflinePath($conn, $key);
-        if ($copy !== null && is_file($copy) && !@unlink($copy)) error_log("files: could not delete the offline copy of {$key}");
+        if ($copy !== null && is_file($copy) && !filesOfflineOverlapsStore($conn) && !@unlink($copy)) error_log("files: could not delete the offline copy of {$key}");
     }
 
     /**
