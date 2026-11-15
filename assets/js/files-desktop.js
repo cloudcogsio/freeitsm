@@ -229,26 +229,15 @@
     }
     /**
      * The entry menu's offline item, or null when it does not apply here. Kept by a folder
-     * above: "Offline >" with "Don't keep offline" (left out here, back to S3 only) and,
-     * when the person can see that folder, "Remove offline copy from <folder>".
+     * above: "Don't keep offline" (left out here, back to S3 only). The folder's own mark is
+     * removed on the folder itself, as OneDrive does.
      */
     function offlineMenu(ex, e, many) {
         if (!ex.data || !ex.data.offline_enabled) return null;
         if (many) return { label: L('ex.offline_on', 'Make available offline'), action: function () { setOffline(ex, ex.selected(), 'on'); } };
         if (e.offline === 'self') return { label: L('ex.offline_off', 'Remove offline copy'), action: function () { setOffline(ex, [e], 'off'); } };
         if (e.offline === 'excluded') return { label: L('ex.offline_include', 'Keep offline again'), action: function () { setOffline(ex, [e], 'include'); } };
-        if (e.offline === 'folder') {
-            var sub = [{ label: L('ex.offline_exclude', "Don't keep offline"), action: function () { setOffline(ex, [e], 'exclude'); } }];
-            var from = e.offline_from;
-            if (from) sub.push({ label: L('ex.offline_off_from', 'Remove offline copy from "{path}"', { path: from.path }), action: function () {
-                WM.dialog({
-                    title: L('ex.offline_off', 'Remove offline copy'),
-                    message: L('ex.offline_off_from_q', 'Remove the offline copy of "{path}"? Everything in it goes back to S3 only, not just this.', { path: from.path }),
-                    buttons: [{ label: L('ex.offline_off', 'Remove offline copy'), value: true, primary: true }, { label: L('btn.cancel', 'Cancel'), value: false, cancel: true }]
-                }).then(function (ok) { if (ok) setOffline(ex, [{ type: 'folder', id: from.id }], 'off'); });
-            } });
-            return { label: L('ex.offline_menu', 'Offline'), sub: sub };
-        }
+        if (e.offline === 'folder') return { label: L('ex.offline_exclude', "Don't keep offline"), action: function () { setOffline(ex, [e], 'exclude'); } };
         return { label: L('ex.offline_on', 'Make available offline'), action: function () { setOffline(ex, [e], 'on'); } };
     }
 

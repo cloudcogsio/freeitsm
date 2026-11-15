@@ -249,9 +249,9 @@
         };
         // "Remove all offline copies": every mark goes, so everything is read from S3 only again.
         $('stoOfflineClear').addEventListener('click', function () {
-            confirmThen(L('settings.offline_clear', 'Remove all offline copies'),
+            confirmThen(L('settings.offline_clear_title', 'Remove all offline copies'),
                 L('settings.offline_clear_q', 'Remove every "Make available offline" mark, for everyone? Files are then read from S3 only, and the Files offline copies job deletes the copies on this server.'),
-                L('settings.offline_clear', 'Remove all offline copies'),
+                L('settings.offline_clear', 'Clear'),
                 function () {
                     api('offline.php', { action: 'clear_all' }).then(function (r) {
                         $('stoOfflineMsg').textContent = L('settings.offline_cleared', 'Marks removed: {n}. The copies are deleted within a few minutes.', { n: r.marks });

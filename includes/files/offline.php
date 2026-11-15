@@ -116,25 +116,6 @@ function filesOfflineItemCoverage(array $coveredFolders, ?array $marks, int $ite
 }
 
 /**
- * The folder that keeps something offline: the nearest marked folder at or above
- * $folderId, as ['id' => int, 'name' => string] - or null when none does (an exclusion
- * on the way up stops the search: nothing above it keeps what is under it).
- *
- * @param ?array $marks  from filesOfflineMarks()
- */
-function filesOfflineKeeper(PDO $conn, ?array $marks, int $folderId): ?array
-{
-    if (!$marks || !$marks['folder']) return null;
-    $tree = FilesAcl::tree($conn);
-    for ($id = $folderId, $guard = 0; $id !== null && isset($tree[$id]) && $guard < 200; $guard++) {
-        if (isset($marks['folder'][$id])) return ['id' => $id, 'name' => (string)$tree[$id]['name']];
-        if (isset($marks['exclude']['folder'][$id])) return null;
-        $id = $tree[$id]['parent_id'] !== null ? (int)$tree[$id]['parent_id'] : null;
-    }
-    return null;
-}
-
-/**
  * The stored files that should have an offline copy: [storage_path => ['size' => int,
  * 'sha256' => ?string]] - the current version of every live, covered file.
  *
