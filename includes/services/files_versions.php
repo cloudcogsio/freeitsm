@@ -207,7 +207,7 @@ function filesPurgeBytesIfUnused(PDO $conn, string $key): string
     // Its offline copy ("Make available offline") goes too: nothing uses the key any more.
     require_once __DIR__ . '/../files/offline.php';
     $copy = filesOfflinePath($conn, $key);
-    if ($copy !== null && is_file($copy) && !@unlink($copy)) error_log("files: could not delete the offline copy of {$key}");
+    if ($copy !== null && is_file($copy) && !filesOfflineOverlapsStore($conn) && !@unlink($copy)) error_log("files: could not delete the offline copy of {$key}");
     $stores = [filesActiveStore($conn)];
     try { if (($prev = filesPreviousStore($conn)) !== null) $stores[] = $prev; } catch (Throwable) {}
     $result = 'deleted';
