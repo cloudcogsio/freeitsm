@@ -36,22 +36,9 @@ return [
         'storage_unavailable' => 'File storage can\'t be reached right now. Try again in a few minutes, or tell your administrator.',
     ],
     'ex' => [
-        // "Make available offline" (S3-compatible storage only)
-        'offline_on' => 'Make available offline',
-        'offline_off' => 'Remove offline copy',
-        'offline_self' => 'Available offline',
-        'offline_folder' => 'Available offline (from a folder)',
-        'offline_pending' => 'Being made available offline',
-        'offline_bg' => 'Copies are being made in the background.',
         'new_version' => 'Upload new version',   // GH #303
         'version_history' => 'Version history',
         'versions_n' => '{n} versions - right-click for Version history',
-        'offline_menu' => 'Offline',
-        'offline_exclude' => "Don't keep offline",
-        'offline_include' => 'Keep offline again',
-        'offline_excluded' => 'Not kept offline (left out of a folder kept offline)',
-        'offline_off_from' => 'Remove offline copy from "{path}"',
-        'offline_off_from_q' => 'Remove the offline copy of "{path}"? Everything in it goes back to S3 only, not just this.',
         'back' => 'Back',
         'copy' => 'Copy',
         'count' => '{n} items',
@@ -142,7 +129,6 @@ return [
         'note' => 'These choices are yours alone. The logo on the desktop is set by an administrator.',
     ],
     'props' => [
-        'offline' => 'Offline',
         'restore' => 'Restore',   // GH #303
         'restored' => 'Restored - it is now version {n}.',
         'restored_from' => 'Restored from version {n}',
@@ -223,11 +209,6 @@ return [
         'storage_now' => 'Files are stored in',
         'storage_usage' => '{n} stored files, {size} in all.',
         'storage_in_bin' => 'In the recycle bin (freed when it is emptied): {n}, {size}.',
-        'storage_offline' => 'Offline copies on this server: {n}, {size}.',
-        'offline_marks' => 'Kept offline: folders {folders}, files {files}, left out {excluded} (marked by {people} people).',
-        'offline_clear' => 'Remove all offline copies',
-        'offline_clear_q' => 'Remove every "Make available offline" mark, for everyone? Files are then read from S3 only, and the Files offline copies job deletes the copies on this server.',
-        'offline_cleared' => 'Marks removed: {n}. The copies are deleted within a few minutes.',
         'recycle_title' => 'Recycle bin',
         'recycle_days' => 'Keep deleted items for',
         'recycle_days_desc' => 'Deleted files and folders stay in the recycle bin this long, then they are deleted permanently, with their stored files. 0 keeps them until someone deletes them.',
@@ -245,7 +226,6 @@ return [
         'take_ok' => 'Take',
         'tab_folders' => 'Folders',
         'tab_storage' => 'Storage',
-        'tab_recycle' => 'Recycle bin',
         // Sharing tab (GH #303)
         'tab_sharing' => 'Sharing',
         'sharing_title' => 'Attaching to tasks and tickets',
@@ -562,16 +542,6 @@ return [
             'p5' => 'Deleting permanently removes every version of the file too. A link to the file from a ticket, a task or any other record says the file has been deleted while it is in the bin, and works again once it is restored; after a permanent delete the link stays on the record, so it still shows something was there, but it can never be opened.',
             'p6' => 'If a folder of yours went into the bin with a folder above it that you cannot open, it shows in your bin on its own as **Deleted along with a folder above it** - without the other folder\'s name. **Restore** brings it back by itself, to where that folder was, and exactly the same people can open it as before.',
             'p7' => 'The background job never deletes a folder holding anything the person who deleted it could not have deleted themselves. Such a folder stays in the bin past its date, and an administrator sees it in System -> Maintenance -> Deleted folders kept, with what to do.',
-        ],
-        'offline' => [
-            'nav' => 'Offline copies',
-            'title' => 'Make available offline',
-            'intro' => 'Keep a copy of chosen files on the server, for when S3 cannot be reached.',
-            'p1' => 'When files are stored in S3-compatible storage, right-click a file or folder and choose **Make available offline**. A copy is kept on the FreeITSM server as well, and opening or downloading it uses that copy first - so it opens faster, and still opens while the storage provider cannot be reached. The copy in S3 stays the master.',
-            'p2' => 'Anyone who can see the folder can do this, and **Remove offline copy** undoes it. Both are recorded in the audit trail. The option is not shown when files are stored in a folder on the server, because everything is local already.',
-            'p3' => 'Marking a **folder** covers everything in it, including subfolders and files added later. A file up to 64 MB is copied straight away (while S3 can be reached); a bigger one, and the files in a folder, are copied by the Files offline copies background job, every few minutes. A green tick on the icon shows a file or folder is available offline (a hollow one: still being copied). Only the current version of each file is kept offline.',
-            'p4' => 'Removing it deletes the copy unless something else still keeps it offline - a folder above it, or another file sharing the same stored file. Files in the recycle bin are not kept offline (they are again if restored). Files -> Settings -> Storage shows how much disk the offline copies use.',
-            'p5' => 'To leave something out of a folder that is kept offline, right-click it and choose **Offline > Don\'t keep offline**: it goes back to S3 only (the nearest mark wins, so a folder kept offline further down is kept again). **Keep offline again** undoes it, and **Offline > Remove offline copy from ...** removes the folder\'s own mark instead. An administrator can clear every mark at once with **Remove all offline copies** on Files -> Settings -> Storage.',
         ],
         'audit' => [
             'nav' => 'Audit trail',
