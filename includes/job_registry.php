@@ -226,14 +226,6 @@ function jobRegistry(): array
             'needed'  => fn(PDO $c) => jobSettingStrict($c, 'files_storage_previous') !== ''
                                      || jobNeedOne($c, "SELECT 1 FROM system_settings WHERE setting_key LIKE 'storage\\\\_%\\\\_previous' AND setting_value <> '' LIMIT 1"),
         ],
-        // Backups (System -> Backups). Off until an administrator sets a target, a passphrase
-        // and a schedule. Weekly runs as a daily schedule that is only needed on its day.
-        // A first backup of a large install can take hours: it runs to completion.
-        'backup' => [
-            'command' => 'php cron/backup.php', 'web' => false,
-            'interval' => 1440, 'grace' => 360, 'max_runtime' => 1440,
-            'needed'  => fn(PDO $c) => jobBackupScheduledToday($c),
-        ],
         // The Files recycle bin: deletes for good what has been in the bin longer than
         // Files -> Settings -> Recycle bin allows, and retries stored bytes whose
         // deletion found storage unreachable. Never needed until that tab is saved.
@@ -249,6 +241,14 @@ function jobRegistry(): array
             'command' => 'php cron/files_offline_sync.php', 'web' => false,
             'interval' => 5, 'grace' => 15, 'max_runtime' => 15,
             'needed'  => fn(PDO $c) => jobNeedOne($c, "SELECT 1 FROM files_offline LIMIT 1") || jobOfflineCopiesLeft($c),
+        ],
+        // Backups (System -> Backups). Off until an administrator sets a target, a passphrase
+        // and a schedule. Weekly runs as a daily schedule that is only needed on its day.
+        // A first backup of a large install can take hours: it runs to completion.
+        'backup' => [
+            'command' => 'php cron/backup.php', 'web' => false,
+            'interval' => 1440, 'grace' => 360, 'max_runtime' => 1440,
+            'needed'  => fn(PDO $c) => jobBackupScheduledToday($c),
         ],
         'lms_reminders' => [
             'command' => 'php cron/lms_reminders.php', 'web' => true,

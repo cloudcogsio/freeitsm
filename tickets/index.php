@@ -64,7 +64,7 @@ $translationNamespaces = ['common', 'tickets'];
     <link rel="stylesheet" href="../checklists/ticket_checklist.css?v=4">
     <link rel="stylesheet" href="../assets/css/inbox.css?v=91">
     <link rel="stylesheet" href="../assets/css/address-suggest.css?v=1">   <!-- GH #307 -->
-    <link rel="stylesheet" href="../assets/css/save-to-files.css?v=15">
+    <link rel="stylesheet" href="../assets/css/save-to-files.css?v=1">
     <link rel="stylesheet" href="../assets/css/files-picker.css?v=1">
     <link rel="stylesheet" href="../assets/css/float-window.css?v=1">
     <link rel="stylesheet" href="../assets/css/ticket-fields.css?v=1">
