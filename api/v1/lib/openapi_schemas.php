@@ -28,6 +28,21 @@ return array (
         ]]],
       ],
     ],
+    // GH #328 (the task half): what hangs off a task - on GET /tasks/{id}, GET /tasks?include=related and the Full record webhook.
+    'TaskRelated' => [
+      'type' => 'object',
+      'description' => 'Counts of what is on the task (only those whose sub-endpoint the key may read) and links to what it is linked with (only records the key may read). The same shape as TicketRelated.',
+      'properties' => [
+        'counts' => ['type' => 'object', 'properties' => ['comments' => ['type' => 'integer'], 'forms' => ['type' => 'integer'], 'checklists' => ['type' => 'integer']]],
+        'links' => ['type' => 'array', 'items' => ['type' => 'object', 'required' => ['type', 'id'], 'properties' => [
+          'type' => ['type' => 'string', 'enum' => ['ticket', 'change', 'contract', 'project', 'task']],
+          'id' => ['type' => 'integer'],
+          'reference' => ['type' => 'string', 'nullable' => true, 'description' => 'A ticket number'],
+          'name' => ['type' => 'string', 'nullable' => true, 'description' => 'Not on ticket links - a linked ticket may be confidential'],
+          'relation' => ['type' => 'string', 'enum' => ['child_of', 'parent_of', 'waits_on', 'blocks'], 'description' => 'task links only, from this task\'s point of view: its parent (child_of), its subtasks (parent_of), what it waits for (waits_on) and what waits for it (blocks)'],
+        ]]],
+      ],
+    ],
     // GH #328: GET /tickets/{id}/attachments
     'TicketAttachment' => [
       'type' => 'object',
@@ -3846,6 +3861,8 @@ return array (
         'ticket_code' => ['type' => 'string', 'nullable' => true, 'description' => 'The prefix on this company\'s ticket numbers, when ticket numbering uses one. Unique when set.'],
         'external_ref' => ['type' => 'string', 'nullable' => true, 'description' => 'The company\'s key in your ERP or CRM. Unique when set, ignoring case. POST /companies/upsert matches on it.'],
         'tax_id' => ['type' => 'string', 'nullable' => true, 'description' => 'Tax number (VAT, AFM ...). Unique when set, ignoring case.'],
+        // GH #279: custom fields (System -> Custom fields).
+        'custom_fields' => ['type' => 'object', 'additionalProperties' => true, 'description' => 'Every company field: each field key with its value, or null when not answered. Written the same way.'],
       ),
     ),
     // GH #279: POST /companies/upsert - the company, and whether it was just made.
@@ -3971,6 +3988,12 @@ return array (
           'type' => 'string',
           'nullable' => true,
         ),
+        // GH #311: The site it covers - one of the record's company's locations or a shared one.
+        'location' => ['type' => 'object', 'nullable' => true, 'description' => 'The site it covers (System -> Locations). Written as location_id.', 'properties' => [
+          'id' => ['type' => 'integer'],
+          'name' => ['type' => 'string'],
+          'path' => ['type' => 'string', 'description' => 'The full path, e.g. UK > London > Floor 2.'],
+        ]],
         'dms_link' => 
         array (
           'type' => 'string',
@@ -8814,6 +8837,14 @@ return array (
         ),
         // GH #279
         'employee_id' => ['type' => 'string', 'nullable' => true, 'description' => 'Payroll / HR number - the key an HR or ERP system knows them by. Not unique.'],
+        // GH #311: Where they sit - one of the record's company's locations or a shared one.
+        'location' => ['type' => 'object', 'nullable' => true, 'description' => 'Where they sit (System -> Locations). Written as location_id.', 'properties' => [
+          'id' => ['type' => 'integer'],
+          'name' => ['type' => 'string'],
+          'path' => ['type' => 'string', 'description' => 'The full path, e.g. UK > London > Floor 2.'],
+        ]],
+        // GH #279: custom fields (System -> Custom fields).
+        'custom_fields' => ['type' => 'object', 'additionalProperties' => true, 'description' => 'The shared person fields and their company\'s own: each field key with its value, or null when not answered. Written the same way.'],
         // GH #160: the cost centre they are charged to.
         'cost_centre' =>
         array (
@@ -10506,6 +10537,7 @@ return array (
       ),
       'properties' => 
       array (
+        'related' => ['$ref' => '#/components/schemas/TaskRelated'],   // GH #328: only with ?include=related on the list; always on GET /tasks/{id}
         'collaborators' => ['type' => 'array', 'items' => ['type' => 'object', 'properties' => [   // 5.2.0 docs tidy
           'id' => ['type' => 'integer'], 'name' => ['type' => 'string', 'nullable' => true],
           'is_completed' => ['type' => 'boolean'], 'completed_at' => ['type' => 'string', 'nullable' => true]]]],
@@ -10917,6 +10949,7 @@ return array (
           ),
           'properties' => 
           array (
+            'related' => ['$ref' => '#/components/schemas/TaskRelated'],   // GH #328
             'parent' => 
             array (
               'type' => 'object',
@@ -11377,6 +11410,12 @@ return array (
         array (
           '$ref' => '#/components/schemas/IdNameRef',
         ),
+        // GH #311: What the ticket is about - one of the record's company's locations or a shared one.
+        'location' => ['type' => 'object', 'nullable' => true, 'description' => 'What the ticket is about (System -> Locations). Written as location_id.', 'properties' => [
+          'id' => ['type' => 'integer'],
+          'name' => ['type' => 'string'],
+          'path' => ['type' => 'string', 'description' => 'The full path, e.g. UK > London > Floor 2.'],
+        ]],
         'assigned_analyst' => 
         array (
           '$ref' => '#/components/schemas/IdNameRef',
@@ -13066,6 +13105,12 @@ return array (
           ),
           'description' => '3.3.0. Where a proposal\'s approval stands; null when the project needed none.',
         ),
+        // GH #311: The site it is about - one of the record's company's locations or a shared one.
+        'location' => ['type' => 'object', 'nullable' => true, 'description' => 'The site it is about (System -> Locations). Written as location_id.', 'properties' => [
+          'id' => ['type' => 'integer'],
+          'name' => ['type' => 'string'],
+          'path' => ['type' => 'string', 'description' => 'The full path, e.g. UK > London > Floor 2.'],
+        ]],
         'project_manager' => 
         array (
           'type' => 'object',

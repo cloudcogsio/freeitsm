@@ -107,6 +107,8 @@ return [
         'visibility' => 'Visibility',
         'always'     => 'Always visible',
         'hover'      => 'Show on hover',
+        // Discussion #292: a thin strip you click (or press [) to open. Tickets only, for now.
+        'click'      => 'Click to open',
     ],
 
     // Shared AI provider/model/key panel (includes/ai_settings_panel.php),
@@ -649,6 +651,10 @@ return [
             'help' => [
                 'unanswered' => 'The help assistant could not answer a question',
             ],
+            // Storage series N1 - administrators only.
+            'storage' => [
+                'changed' => 'Where stored files are kept has changed',
+            ],
             'hyperv' => [
                 'collector' => 'A Hyper-V collector needs your attention',
             ],
@@ -712,6 +718,9 @@ return [
             // The help assistant (wiki Help-Assistant-Design) - administrators only.
             'help' => [
                 'unanswered' => 'The help assistant cannot answer a question someone asked (administrators)',
+            ],
+            'storage' => [
+                'changed' => 'Where stored files are kept changes, or a move between storage locations starts or ends (administrators)',
             ],
             'hyperv' => [
                 'collector' => 'A Hyper-V collector stops reporting, or a cluster\'s storage cannot be read (people who manage Hyper-V connections)',
@@ -908,5 +917,32 @@ return [
         'label' => 'Price',
         'month' => '{price} a month',
         'free'  => 'Free',
+    ],
+    // GH #355: FreeITSM's own date and time picker (assets/js/date-input.js).
+    'date_input' => [
+        'invalid'    => 'Type a date like {example}, or pick one.',
+        'invalid_time' => 'Type a time like {example}, or pick one.',
+        'today'      => 'Today',
+        'now'        => 'Now',
+        'clear'      => 'Clear',
+        'prev_month' => 'Previous month',
+        'next_month' => 'Next month',
+        'open'       => 'Choose from a calendar',
+        'hour'       => 'Hour',
+        'minute'     => 'Minute',
+    ],
+    // The company switcher in the header (includes/tenancy-switcher.php) - it was English only.
+    'tenant_switcher' => [
+        'title'  => 'Switch company',
+        'head'   => 'Company',
+        'all'    => 'All companies',
+        'triage' => 'Triage queue',
+        'failed' => 'Could not switch company',
+    ],
+    // GH #358: a long company list becomes a search box (assets/js/select-search.js).
+    'select_search' => [
+        'search' => 'Type to search',
+        'none'   => 'No matches.',
+        'more'   => 'Showing {n} of {total} - type to narrow.',
     ],
 ];

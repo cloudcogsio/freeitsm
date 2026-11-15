@@ -106,6 +106,53 @@ try {
     ok('...Files -> Storage alone may not', systemPageAllowed($conn, $tabOnly, 'storage', $grant) === false);
     $api = (string)file_get_contents("$root/api/system/storage.php");
     ok('its API checks the same permission, not administrator-only', str_contains($api, 'requireCapabilityJson(Cap::FILES_STORAGE_BACKUPS') && !str_contains($api, "admin_api_guard.php"));
+
+    // PR #353 review: analyst 0 is what (int) of a missing session id gives, so it must never
+    // mean "the system, no checks". The system is null; a person's id below 1 is refused.
+    echo "\nWho acts: a person, or the system - never analyst 0\n";
+    require_once "$root/includes/services/storage.php";
+    $e = threw(fn() => FilesStorageService::save($conn, 0, $moveTo));
+    ok('Files -> Storage: analyst 0 cannot change the location', $e instanceof InvalidArgumentException, $e ? $e->getMessage() : 'saved');
+    $e = threw(fn() => FilesStorageService::save($conn, 0, $sizeOnly));
+    ok('...nor anything else on the tab', $e instanceof InvalidArgumentException, $e ? $e->getMessage() : 'saved');
+    foreach (['migrationAction' => fn() => FilesStorageService::migrationAction($conn, 0, 'finish_keep'),
+              'testAudited'     => fn() => FilesStorageService::testAudited($conn, 0, ['endpoint' => 'http://127.0.0.1:9', 'bucket' => 'zz'])] as $m => $fn) {
+        $e = threw($fn);
+        ok("Files -> Storage $m(): analyst 0 is refused as not signed in", $e instanceof InvalidArgumentException && str_contains($e->getMessage(), 'Not signed in'), $e ? $e->getMessage() : 'ran');
+    }
+    ok('canChangeLocation(0) is no, canChangeLocation(null) - the system - is yes',
+       FilesStorageService::canChangeLocation($conn, 0) === false && FilesStorageService::canChangeLocation($conn, null) === true);
+    foreach ([
+        'saveConnection' => fn() => StorageService::saveConnection($conn, ['endpoint' => 'http://127.0.0.1:9', 'bucket' => 'zz'], 0),
+        'setLocation'    => fn() => StorageService::setLocation($conn, 'warroom', 's3', 0),
+        'moveAction'     => fn() => StorageService::moveAction($conn, 'warroom', 'finish_keep', 0),
+        'test'           => fn() => StorageService::test($conn, ['endpoint' => 'http://127.0.0.1:9', 'bucket' => 'zz'], 0),
+    ] as $m => $fn) {
+        $e = threw($fn);
+        ok("System -> Storage $m(): analyst 0 is refused as not signed in", $e instanceof InvalidArgumentException && str_contains($e->getMessage(), 'Not signed in'), $e ? $e->getMessage() : 'ran');
+    }
+    echo "
+System -> Storage: lookups and transactions
+";
+    $usage = new ReflectionMethod('StorageService', 'usage');
+    ok('a table not created yet holds nothing: 0 files', $usage->invoke(null, $conn, 'SELECT COUNT(*), 0 FROM zz_no_such_table_284') === [0, 0]);
+    ok('any other failed count is unknown (null), never "empty"', $usage->invoke(null, $conn, 'SELECT COUNT(*), 0 FROM analysts WHERE zz_no_such_column = 1') === [null, null]);
+    // A store going to S3 on the connection Files was given adopts it - inside the caller's
+    // transaction when there is one (this test runs in one), never a second BEGIN.
+    foreach (['endpoint' => 'http://zz.invalid', 'bucket' => 'zzadopt', 'access_key_id' => 'k', 'secret' => 'x', 'region' => 'us-east-1', 'prefix' => '', 'path_style' => '1'] as $k => $v) {
+        $conn->prepare("DELETE FROM system_settings WHERE setting_key IN (?, ?)")->execute(["storage_s3_$k", "files_s3_$k"]);
+        $conn->prepare("INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?)")->execute(["files_s3_$k", $v]);
+    }
+    storeReset(); filesStorageReset();
+    $adopt = new ReflectionMethod('StorageService', 'adoptFilesConnection');
+    $e = threw(fn() => $adopt->invoke(null, $conn));
+    ok('adopting the Files connection joins the open transaction', $e === null && $conn->inTransaction() && storeSetting($conn, 'storage_s3_bucket') === 'zzadopt', $e ? $e->getMessage() : '');
+    storeReset(); filesStorageReset();
+
+    foreach (['storageMigrateEnd' => 3, 'storeMoveEnd' => 3, 'storageNotifyAdmins' => 4, 'storeMoveAudit' => 1] as $fn => $i) {
+        $p = (new ReflectionFunction($fn))->getParameters()[$i];
+        ok("$fn(): the system is null, not 0", $p->allowsNull() && (!$p->isOptional() || $p->getDefaultValue() === null));
+    }
 } catch (Throwable $e) {
     ok('no unexpected error', false, get_class($e) . ': ' . $e->getMessage() . ' @' . basename($e->getFile()) . ':' . $e->getLine());
 } finally {

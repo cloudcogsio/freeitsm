@@ -3421,6 +3421,16 @@ function displayEmail(email, recordings) {
                             ${originOptions}
                         </select>
                     </div>`,
+        // GH #311: where the ticket is about - the company's own locations or a
+        // shared one. Drawn with just the current one; loadTicketLocationOptions()
+        // fills the rest after the pane is drawn.
+        location: `<div class="toolbar-field">
+                        <label class="toolbar-label">${escapeHtml(t('tickets.reading_pane.field_location'))}</label>
+                        <select class="toolbar-select" id="locationSelect" onchange="assignLocation()">
+                            <option value=""></option>
+                            ${email.location_id ? `<option value="${Number(email.location_id)}" selected>${escapeHtml(email.location_path || '')}</option>` : ''}
+                        </select>
+                    </div>`,
         firstTimeFix: `<div class="toolbar-field">
                         <label class="toolbar-label">${escapeHtml(t('tickets.reading_pane.field_first_time_fix'))}</label>
                         <select class="toolbar-select" id="firstTimeFixSelect" onchange="assignFirstTimeFix()">
@@ -3447,7 +3457,7 @@ function displayEmail(email, recordings) {
     const propertyFieldsHtml = workspace
         ? TicketWorkspace.fieldGroup('classification', [propertyFields.department,propertyFields.type,propertyFields.classification,propertyFields.status,propertyFields.priority].join('')) +
           TicketWorkspace.fieldGroup('responsibility', [propertyFields.team,propertyFields.owner,propertyFields.company,propertyFields.sensitivity].join('')) +
-          TicketWorkspace.fieldGroup('other', [propertyFields.origin,propertyFields.firstTimeFix,propertyFields.training,propertyFields.custom].join(''))
+          TicketWorkspace.fieldGroup('other', [propertyFields.origin,propertyFields.location,propertyFields.firstTimeFix,propertyFields.training,propertyFields.custom].join(''))
         : Object.values(propertyFields).join('');
     const summaryHtml = `                <div class="ticket-properties-summary">
                     ${buildWorkspaceBadge(email)}
@@ -3619,6 +3629,7 @@ function displayEmail(email, recordings) {
     loadTimeEntries(email.ticket_id);
     loadSlaState(email.ticket_id);
     loadTicketCustomFields(email.ticket_id);
+    loadTicketLocationOptions(email);
 
     // Announce ourselves on this ticket, and start listening for anyone else
     // (#934). Moving between tickets stops the old announcement first, so a
@@ -4071,7 +4082,7 @@ function buildLinksSection(email, workspace = false) {
             <span class="strip-pill-group" id="stripCmdbPills"></span>
             <span class="strip-pill-group" id="stripDomainPills"></span>
             <span class="strip-pill-group" id="stripProjectPills"></span>
-            ${workspace ? '' : '<span class="strip-pill-group" id="stripTaskPills"></span>'}
+            <span class="strip-pill-group" id="stripTaskPills"></span>
         </span>
         ${workspace ? '' : '<button type="button" class="links-strip-more" hidden onclick="toggleLinksStripMore(this)"></button>'}
         ${workspace ? '' : buildLinkActions()}
@@ -4210,8 +4221,7 @@ let tasksForTicket = [];
  */
 async function loadTicketTasks(ticketId) {
     const isCurrent = ticketReadGuard(ticketId);
-    const host = document.getElementById('twTaskList') || document.getElementById('stripTaskPills');
-    if (!host) return;
+    if (!taskPillHosts().length) return;
     // Clear FIRST. Otherwise a failed fetch leaves the previous ticket's tasks in
     // place, and the close warning then reports a count belonging to a ticket the
     // analyst is no longer looking at.
@@ -4233,13 +4243,25 @@ async function loadTicketTasks(ticketId) {
 }
 
 /**
+ * Where task pills go: the Links strip always, and in the workspace also the Work
+ * tab's list (where a click opens the task beside the ticket).
+ *
+ * TRAP: GH #354 - the workspace once drew them ONLY in the Work tab, so its Links
+ * tab showed a Jira issue but not the ticket's tasks, and the ticket looked
+ * unlinked. A task is a link; it belongs in Links in both layouts.
+ */
+function taskPillHosts() {
+    return ['twTaskList', 'stripTaskPills'].map(id => document.getElementById(id)).filter(Boolean);
+}
+
+/**
  * Draws tasksForTicket as task pills (done box, subtask progress, unlink cross) and hides the strip's empty note when there are any.
  */
 function renderTicketTasks(ticketId) {
-    const host = document.getElementById('twTaskList') || document.getElementById('stripTaskPills');
-    if (!host) return;
+    const hosts = taskPillHosts();
+    if (!hosts.length) return;
 
-    host.innerHTML = (tasksForTicket || []).map(tk => {
+    const html = (tasksForTicket || []).map(tk => {
         // ☑ / ☐ carries the state at a glance; the fraction is the subtask
         // progress #83 asked for, and is omitted entirely when there are no
         // subtasks rather than showing a meaningless 0/0.
@@ -4262,6 +4284,7 @@ function renderTicketTasks(ticketId) {
                   onclick="event.preventDefault();event.stopPropagation();unlinkTicketTask(event, ${tk.id}, ${ticketId});">&#10005;</span>
         </a>`;
     }).join('');
+    hosts.forEach(host => { host.innerHTML = html; });
 
     // The strip's "nothing yet" note is drawn before these arrive, so it has to
     // get out of the way once there is something to show.
@@ -5818,6 +5841,46 @@ async function assignOrigin() {
     } catch (error) {
         console.error('Error:', error);
         showToast('Failed to assign origin', 'error');
+    }
+}
+
+/**
+ * GH #311: fill the Location dropdown with the ticket's company's locations and
+ * the shared ones. The current one stays selectable even if the list no longer
+ * offers it (LocationPicker), so opening a ticket never changes it.
+ */
+function loadTicketLocationOptions(email) {
+    const select = document.getElementById('locationSelect');
+    if (!select || !window.LocationPicker) return;
+    LocationPicker.fill(select, email.tenant_id ? Number(email.tenant_id) : null, email.location_id, email.location_path, '../');
+}
+
+/** GH #311: save the ticket's location, then record it in the history as the other properties are. */
+async function assignLocation() {
+    const select = document.getElementById('locationSelect');
+    if (!select || !currentEmail) return;
+    const locationId = select.value;
+    const oldValue = currentEmail.location_path || null;
+    const newValue = locationId ? (select.options[select.selectedIndex]?.text || null) : null;
+    try {
+        const response = await fetch(API_BASE + 'assign_ticket.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticket_id: currentEmail.ticket_id, location_id: locationId || null })
+        });
+        const data = await response.json();
+        if (data.success) {
+            await logAudit(currentEmail.ticket_id, 'Location', oldValue, newValue);
+            currentEmail.location_id = locationId ? Number(locationId) : null;
+            currentEmail.location_path = newValue;
+        } else {
+            select.value = currentEmail.location_id || '';
+            showToast(t('tickets.reading_pane.location_failed', { error: data.error || '' }), 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        select.value = currentEmail.location_id || '';
+        showToast(t('tickets.reading_pane.location_failed', { error: '' }), 'error');
     }
 }
 
@@ -11313,6 +11376,8 @@ function populateContextCompanySubmenu() {
             <span class="ctx-status-swatch" style="background:#ede7f6; border:none;"></span><span class="ctx-status-name">${escapeHtml(c.name)}</span>${isCurrent ? '<span class="ctx-status-check">&#10003;</span>' : ''}
         </div>`;
     }).join('');
+    // GH #358: with many companies, a search box and the first 10 (assets/js/select-search.js).
+    if (window.FreeitsmSelectSearch) FreeitsmSelectSearch.filterList(sub, '.ticket-context-submenu-item', { cap: 10 });
 }
 
 // Move a ticket to another company from the right-click menu. The endpoint writes

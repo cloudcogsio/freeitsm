@@ -66,6 +66,7 @@ function personEditorRender(): void
         'company_auto'       => $m('company_auto'),
         'company_none'       => $m('company_none'),
         'cost_centre_none'   => $m('cost_centre_none'),
+        'location_none'      => $m('location_none'),
         'cost_centre_inactive' => $m('cost_centre_inactive'),
         'manager_none'       => $m('manager_none'),
         'manager_search'     => $m('manager_search'),
@@ -186,6 +187,19 @@ function personEditorRender(): void
                         <select id="peCostCentre"></select>
                     </div>
 
+                    <!-- GH #311: where this person sits - one of their company's locations or a
+                         shared one (System -> Locations). Separate from Office, which a
+                         directory may fill in. Hidden while there are no locations at all. -->
+                    <div class="form-group" id="peLocationGroup" hidden>
+                        <label for="peLocation"><?php echo htmlspecialchars($m('location')); ?></label>
+                        <select id="peLocation"></select>
+                        <small class="pe-help"><?php echo htmlspecialchars($m('location_help')); ?></small>
+                    </div>
+
+                    <!-- GH #279: custom fields (System -> Custom fields) - the shared ones and the
+                         person's company's own, drawn by assets/js/ticket-fields.js. -->
+                    <div id="peCustomFields" class="pe-custom-fields"></div>
+
                     <div class="form-group">
                         <label for="pePassword"><?php echo htmlspecialchars($m('password')); ?></label>
                         <input type="password" id="pePassword" autocomplete="new-password" minlength="8" placeholder="<?php echo htmlspecialchars($m('password_placeholder')); ?>">
@@ -201,6 +215,8 @@ function personEditorRender(): void
         </div>
     </div>
 
+    <?php /* GH #279: the shared field renderer (also loaded by the Tickets page). */ ?>
+    <script src="<?php echo htmlspecialchars($base); ?>assets/js/ticket-fields.js?v=2"></script>
     <script>
     window.PersonEditor = (function () {
         const API = <?php echo json_encode($base . 'api/'); ?>;
@@ -261,6 +277,50 @@ function personEditorRender(): void
             } catch (e) { group.hidden = true; }
         }
         $('peCompany').addEventListener('change', () => paintCostCentres(true));
+
+        // ── Location (GH #311) ──────────────────────────────────────────────
+        // Same shape as the cost centre: the company decides the list, changing
+        // it refills it, and a location the new company cannot use is dropped.
+        let locCurrent = null, locCurrentPath = null;
+        async function paintLocations(keepChoice) {
+            const group = $('peLocationGroup'), sel = $('peLocation');
+            const want = keepChoice ? (sel.value || '') : (locCurrent || '');
+            const company = (companies && companies.length >= 2) ? $('peCompany').value : '';
+            try {
+                const d = await getJson(API + 'locations/options.php?' + new URLSearchParams({ company_id: company }));
+                const list = d.success ? d.locations : [];
+                sel.innerHTML = '<option value="">' + esc(T.location_none) + '</option>'
+                    + list.map(l => '<option value="' + l.id + '">' + esc(l.path) + '</option>').join('');
+                sel.value = list.some(l => String(l.id) === String(want)) ? String(want) : '';
+                group.hidden = list.length === 0 && !locCurrent;
+            } catch (e) { group.hidden = true; }
+        }
+        $('peCompany').addEventListener('change', () => paintLocations(true));
+
+        // ── Custom fields (GH #279) ─────────────────────────────────────────
+        // The shared person fields plus the company's own. A different company
+        // means a different set, so changing it fetches them again - keeping what
+        // was typed into any field the two companies share - and the save sends
+        // exactly the fields it will accept.
+        function paintCustom(fields) {
+            const box = $('peCustomFields');
+            if (!box) return;
+            box.innerHTML = (window.TicketFields && fields && fields.length)
+                ? TicketFields.render(fields, { inputClass: '', groupClass: 'form-group' }) : '';
+        }
+        async function refetchCustom() {
+            const box = $('peCustomFields');
+            if (!box || !window.TicketFields) return;
+            const typed = TicketFields.collect(box);
+            const company = (companies && companies.length >= 2) ? $('peCompany').value : '';
+            try {
+                const d = await getJson(API + 'people/person_fields.php?' + new URLSearchParams({ company_id: company }));
+                const fields = d.success ? d.fields : [];
+                fields.forEach(f => { if (Object.prototype.hasOwnProperty.call(typed, f.key) && typed[f.key] !== '') f.value = f.type === 'boolean' ? (typed[f.key] === '1' ? true : typed[f.key] === '0' ? false : null) : typed[f.key]; });
+                paintCustom(fields);
+            } catch (e) { /* the form keeps what it had */ }
+        }
+        $('peCompany').addEventListener('change', refetchCustom);
 
         // ── Manager type-ahead ──────────────────────────────────────────────
         // Searched on get_users.php, which is scoped to the people THIS analyst
@@ -415,6 +475,10 @@ function personEditorRender(): void
             paintCompanies(person.tenant_id ?? null);
             ccCurrent = person.cost_centre_id || null;
             await paintCostCentres(false);
+            locCurrent = person.location_id || null;
+            locCurrentPath = person.location_path || null;
+            await paintLocations(false);
+            if (isNew) await refetchCustom(); else paintCustom(person.custom_fields || []);
             $('pePassword').value = '';
             $('personEditor').classList.add('active');
             $('peEmail').focus();
@@ -455,6 +519,13 @@ function personEditorRender(): void
 
             // The cost centre, whenever the box is in play (GH #160).
             if (!$('peCostCentreGroup').hidden) payload.cost_centre_id = $('peCostCentre').value || null;
+            // Custom fields, whenever there are any (GH #279). An empty box is sent as
+            // '' - clear it - never left out.
+            if (window.TicketFields && $('peCustomFields') && $('peCustomFields').querySelector('[data-tf-key]')) {
+                payload.custom_fields = TicketFields.collect($('peCustomFields'));
+            }
+            // The location, whenever the box is in play (GH #311).
+            if (!$('peLocationGroup').hidden) payload.location_id = $('peLocation').value || null;
 
             const btn = $('peSave');
             btn.disabled = true;

@@ -90,6 +90,7 @@ return [
         'visibility' => 'Visibilidad',
         'always' => 'Siempre visible',
         'hover' => 'Mostrar al pasar el cursor',
+        'click' => 'Abrir con un clic',
     ],
     'ai' => [
         'provider' => 'Proveedor',
@@ -851,5 +852,29 @@ return [
         'label' => 'Precio',
         'month' => '{price} al mes',
         'free' => 'Gratis',
+    ],
+    'date_input' => [
+        'invalid' => 'Escriba una fecha como {example} o elija una.',
+        'invalid_time' => 'Escriba una hora como {example} o elija una.',
+        'today' => 'Hoy',
+        'now' => 'Ahora',
+        'clear' => 'Borrar',
+        'prev_month' => 'Mes anterior',
+        'next_month' => 'Mes siguiente',
+        'open' => 'Elegir en un calendario',
+        'hour' => 'Hora',
+        'minute' => 'Minuto',
+    ],
+    'tenant_switcher' => [
+        'title' => 'Cambiar de empresa',
+        'head' => 'Empresa',
+        'all' => 'Todas las empresas',
+        'triage' => 'Cola de triaje',
+        'failed' => 'No se pudo cambiar de empresa',
+    ],
+    'select_search' => [
+        'search' => 'Escriba para buscar',
+        'none' => 'Sin coincidencias.',
+        'more' => 'Mostrando {n} de {total} - escriba para acotar.',
     ],
 ];

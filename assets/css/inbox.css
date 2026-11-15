@@ -3169,9 +3169,9 @@ body .tox-tinymce-aux {
 .modal .form-group input[type="url"],
 .modal .form-group input[type="search"],
 .modal .form-group input[type="tel"],
-.modal .form-group input[type="date"],
-.modal .form-group input[type="datetime-local"],
-.modal .form-group input[type="time"],
+.modal .form-group input[type="date"], .modal .form-group .di-type-date,
+.modal .form-group input[type="datetime-local"], .modal .form-group .di-type-datetime-local,
+.modal .form-group input[type="time"], .modal .form-group .di-type-time,
 .modal .form-group select,
 .modal .form-group textarea {
     width: 100%;
@@ -4993,3 +4993,121 @@ body .tox-tinymce-aux {
 /* GH #308 */
 .req-change-link { margin-left: 8px; font-size: 12px; color: var(--accent); text-decoration: none; }
 .req-change-link:hover { text-decoration: underline; }
+
+/* ── Modal polish (Ed, 16 Nov 2026: "Modern compact") ─────────────────────
+   Tinted header and footer bands, rounder corners, a softer shadow and a focus
+   ring in the module's accent. LOOKS ONLY: no size, padding or layout changes.
+   Scoped to the canonical 3-pane layout (header + body + footer) - a modal that
+   puts its form straight into .modal-content keeps its own look - and a page's
+   own .modal-header rules still win where they are more specific.
+   The System dialogs get the same in assets/css/system-page.css (.sys-modal). */
+.modal-content:has(> .modal-body),
+.modal-content:has(> form > .modal-body) {
+    border-radius: 10px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28), 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+.modal-content:has(> .modal-body) > .modal-header,
+.modal-content:has(> form > .modal-body) > .modal-header,
+.modal-content:has(> form > .modal-body) > form > .modal-header {
+    /* The dialog colour nudged towards the text and the module accent: a visible
+       band in light and dark alike (--surface-2 is all but the same as --surface). */
+    background: color-mix(in srgb, color-mix(in srgb, var(--surface, #fff) 94%, var(--text, #333) 6%) 90%, var(--accent, #2563eb) 10%);
+    border-radius: 10px 10px 0 0;
+}
+.modal-content:has(> .modal-body) .modal-footer,
+.modal-content:has(> form > .modal-body) .modal-footer {
+    /* The dialog colour nudged towards the text and the module accent: a visible
+       band in light and dark alike (--surface-2 is all but the same as --surface). */
+    background: color-mix(in srgb, color-mix(in srgb, var(--surface, #fff) 94%, var(--text, #333) 6%) 90%, var(--accent, #2563eb) 10%);
+    border-radius: 0 0 10px 10px;
+}
+.modal-body input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),
+.modal-body select,
+.modal-body textarea {
+    border-radius: 7px;
+}
+.modal-body input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]):focus,
+.modal-body select:focus,
+.modal-body textarea:focus {
+    border-color: var(--accent, #2563eb);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #2563eb) 18%, transparent);
+}
+
+/* A button straight after a paragraph in a dialog had no gap above it (Ed, 16 Nov
+   2026: Schedule Work's "Currently scheduled: ..." then Clear schedule). A little
+   room, in every dialog body. Paragraph-then-button only: a button BESIDE another
+   control in a row is not touched, nor the footer. */
+.modal-body p + button,
+.modal-body p + .btn,
+.modal-body p + a.btn {
+    margin-top: 8px;
+}
+/* And a field straight after a paragraph (Schedule Work's ticket line, then Date).
+   Vertical margins collapse, so where the paragraph already has a gap, nothing changes. */
+.modal-body p + .form-group {
+    margin-top: 12px;
+}
+
+/* ===== The Folders column, collapsible (discussion #292) =====================
+   Preferences -> Left panels -> Tickets: Always shown, Click to open, or Show on
+   hover; [ and the « / » buttons do the same for this visit. Collapsed, the
+   column is a thin strip and opens OVER the list - the list never jumps about.
+   Desktop only: phones keep their sliding panes (mobile.css), so every rule is
+   inside the media query and the buttons are hidden below it.
+   Behaviour: assets/js/ticket-folders-pane.js. */
+.folder-strip-btn, .folder-collapse-btn { display: none; }
+@media (min-width: 769px) {
+    .main-container { position: relative; }
+    .folder-header { position: relative; }
+    .folder-collapse-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        position: absolute; top: 14px; right: 12px;
+        width: 26px; height: 26px; border-radius: 6px;
+        border: 1px solid transparent; background: transparent;
+        color: var(--text-dim, #888); font-size: 16px; line-height: 1; cursor: pointer;
+    }
+    .folder-collapse-btn:hover, .folder-collapse-btn:focus-visible {
+        background: var(--surface-2, #f3f3f3); border-color: var(--border, #ddd); color: var(--text, #333);
+    }
+
+    .main-container.folders-collapsed { padding-left: 28px; }
+    .main-container.folders-hover { padding-left: 16px; }
+    .main-container.folders-collapsed .folder-container {
+        position: absolute; top: 0; left: 0; bottom: 0;
+        width: 28px; min-width: 0; flex: none;
+        z-index: 30;
+        overflow: hidden;
+        transition: width 0.18s ease;
+        box-shadow: 2px 0 8px var(--shadow, rgba(0, 0, 0, 0.12));
+    }
+    .main-container.folders-hover .folder-container { width: 16px; }
+    .main-container.folders-collapsed .folder-container > :not(.folder-strip-btn) {
+        opacity: 0; pointer-events: none; transition: opacity 0.12s ease 0s;
+    }
+    /* The strip: click mode shows », hover mode a small grip, as in Knowledge. */
+    .main-container.folders-collapsed .folder-strip-btn {
+        display: flex; align-items: flex-start; justify-content: center;
+        position: absolute; inset: 0; width: 100%;
+        padding-top: 16px; border: 0; background: transparent;
+        color: var(--text-dim, #888); font-size: 16px; cursor: pointer;
+    }
+    .main-container.folders-collapsed .folder-strip-btn:hover,
+    .main-container.folders-collapsed .folder-strip-btn:focus-visible { background: var(--surface-2, #f3f3f3); color: var(--text, #333); }
+    .main-container.folders-hover .folder-strip-btn { align-items: center; padding-top: 0; }
+    .main-container.folders-hover .folder-strip-btn span { display: none; }
+    .main-container.folders-hover .folder-strip-btn::before {
+        content: ''; width: 3px; height: 36px; border-radius: 2px; background: var(--text-faint, #bbb);
+    }
+
+    /* Open: full width, over the list. Hover mode opens on the pointer too. */
+    .main-container.folders-collapsed.folders-open .folder-container,
+    .main-container.folders-hover .folder-container:hover { width: 280px; overflow-y: auto; }
+    .main-container.folders-collapsed.folders-open .folder-container > :not(.folder-strip-btn),
+    .main-container.folders-hover .folder-container:hover > :not(.folder-strip-btn) {
+        opacity: 1; pointer-events: auto; transition-delay: 0.08s;
+    }
+    .main-container.folders-collapsed.folders-open .folder-strip-btn,
+    .main-container.folders-hover .folder-container:hover .folder-strip-btn { display: none; }
+    /* Collapsed, the « in the header closes the overlay rather than collapsing. */
+    .main-container.folders-hover .folder-collapse-btn { display: none; }
+}

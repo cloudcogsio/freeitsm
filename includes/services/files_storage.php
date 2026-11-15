@@ -165,6 +165,7 @@ final class FilesStorageService
      */
     public static function save(PDO $conn, int $analystId, array $in): void
     {
+        if ($analystId < 1) throw new InvalidArgumentException('Not signed in.');
         $driver = ($in['driver'] ?? 'local') === 's3' ? 's3' : 'local';
         $mb = (int)($in['max_upload_mb'] ?? 0);
         if ($mb < 1 || $mb > 1024 * 1024) throw new InvalidArgumentException('The largest upload must be between 1 MB and 1 TB.');
@@ -253,7 +254,7 @@ final class FilesStorageService
                 require_once __DIR__ . '/../storage/notify.php';
                 storageNotifyAdmins($conn, 'Files storage location changed',
                     'Files are now stored in ' . self::label($next) . ' (were in ' . self::label($current) . ').'
-                    . ($queued > 0 ? " $queued stored files are being copied there in the background; until each is, it is read from the old place." : ''),
+                    . ($queued > 0 ? " Stored files being copied there in the background: $queued. Until each is, it is read from the old place." : ''),
                     'files_storage', $analystId);
             }
         } catch (Throwable $e) {
@@ -316,6 +317,7 @@ final class FilesStorageService
      */
     public static function migrationAction(PDO $conn, int $analystId, string $action): void
     {
+        if ($analystId < 1) throw new InvalidArgumentException('Not signed in.');
         $m = self::migrationSummary($conn);
         if ($m === null) throw new InvalidArgumentException('No move between storage locations is running.');
         $copiedAll = $m['pending'] === 0 && $m['failed'] === 0;
@@ -389,19 +391,18 @@ final class FilesStorageService
         ];
     }
 
-    /** What identifies a location: moving between two different ones moves the files. */
     /**
      * Changing WHERE Files is stored - another folder or bucket, or other S3 credentials -
      * needs Storage and backups (Cap::FILES_STORAGE_BACKUPS) beside Files -> Storage: it can
      * send every file somewhere new, past the folder permissions (PR #318 review). The rest
-     * of the tab (the largest upload) does not. Analyst 0 (the system) is never refused.
+     * of the tab (the largest upload) does not. save() has already refused an id below 1.
      *
      * @param array $next  the location the save would leave in place
      * @throws InvalidArgumentException
      */
     private static function requireLocationPermission(PDO $conn, int $analystId, array $next): void
     {
-        if ($analystId <= 0 || self::canChangeLocation($conn, $analystId)) return;
+        if (self::canChangeLocation($conn, $analystId)) return;
         $cur = filesStorageConfig($conn);
         $same = self::locationKey($cur) === self::locationKey($next);
         if ($same && ($next['driver'] ?? 'local') === 's3') {
@@ -421,6 +422,7 @@ final class FilesStorageService
      */
     public static function testAudited(PDO $conn, int $analystId, array $s): array
     {
+        if ($analystId < 1) throw new InvalidArgumentException('Not signed in.');
         $stored = settingGetDecrypted($conn, 'files_s3_secret');
         if (self::secretUnchanged((string)($s['secret'] ?? ''), $stored)) $s['secret'] = $stored;
         $t = self::test($s);
@@ -433,15 +435,21 @@ final class FilesStorageService
         return $t;
     }
 
-    /** May this analyst change where Files is stored (Storage and backups)? */
+    /**
+     * May this analyst change where Files is stored (Storage and backups)? null is the system
+     * (no person, no check); an id below 1 is what (int) of a missing session id gives, so it
+     * is refused - never "the system" (PR #353 review).
+     */
     public static function canChangeLocation(PDO $conn, ?int $analystId): bool
     {
-        if ($analystId === null || $analystId <= 0) return true;
+        if ($analystId === null) return true;
+        if ($analystId < 1) return false;
         require_once __DIR__ . '/../rbac.php';
         try { return analystHasCapability($conn, $analystId, Cap::FILES_STORAGE_BACKUPS); }
         catch (Throwable $e) { return false; }
     }
 
+    /** What identifies a location: moving between two different ones moves the files. */
     private static function locationKey(array $cfg): string
     {
         if (($cfg['driver'] ?? 'local') === 's3') {

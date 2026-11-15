@@ -102,8 +102,13 @@ class Tz {
      */
     public static function scriptTag() {
         $flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE;
+        // GH #355: FreeITSM's own date and time picker, which upgrades every date box
+        // on the page to the formats above - riding this tag so no page has to add it.
+        $base = defined('BASE_URL') ? BASE_URL : '/';
+        $v = @filemtime(dirname(__DIR__) . '/assets/js/date-input.js') ?: 1;
         return '<script>window.USER_TIMEZONE = ' . json_encode(self::current(), $flags) . ';'
-             . 'window.DATE_FORMAT = ' . json_encode(DateFmt::jsPayload(), $flags) . ';</script>';
+             . 'window.DATE_FORMAT = ' . json_encode(DateFmt::jsPayload(), $flags) . ';</script>'
+             . '<script src="' . htmlspecialchars($base, ENT_QUOTES) . 'assets/js/date-input.js?v=' . $v . '" defer></script>';
     }
 }
 
@@ -175,6 +180,16 @@ class DateFmt {
         'iso'       => 'YYYY-MM-DD',
     ];
 
+    /**
+     * GH #355: the day a week starts on in the date picker's calendar
+     * (assets/js/date-input.js). Ed, 16 Nov 2026: a setting, Monday unless changed,
+     * resolved like the formats - the analyst's own, then the install's.
+     */
+    const WEEK_STARTS = ['monday', 'sunday'];
+    const DEFAULT_WEEK = 'monday';
+    // GH #358: a company list with more entries than this becomes a search box.
+    const DEFAULT_LIST_AFTER = 15;
+
     /** Tokens: HH 2-digit 24h hour | h 12h hour | mi 2-digit minute | A AM/PM. */
     const TIME_TEMPLATES = [
         '24h' => 'HH:mi',
@@ -195,6 +210,9 @@ class DateFmt {
     ];
 
     private static $date = null;
+
+    private static $week = null;   // GH #355: 'monday' | 'sunday'
+    private static $listAfter = 15;   // GH #358: company_list_search_after
     private static $time = null;
 
     /**
@@ -211,6 +229,8 @@ class DateFmt {
 
         self::$date = self::DEFAULT_DATE;
         self::$time = self::DEFAULT_TIME;
+        self::$week = self::DEFAULT_WEEK;
+        self::$listAfter = self::DEFAULT_LIST_AFTER;
         if ($existing === null && !function_exists('connectToDatabase')) return;
 
         try {
@@ -219,17 +239,22 @@ class DateFmt {
             // Level 2 first, so a level-1 hit overwrites it.
             $stmt = $conn->prepare(
                 "SELECT setting_key, setting_value FROM system_settings
-                 WHERE setting_key IN ('date_format','time_format')"
+                 WHERE setting_key IN ('date_format','time_format','week_start','company_list_search_after')"
             );
             $stmt->execute();
             foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                // GH #358: rides this read, the one every page already makes.
+                if ($row['setting_key'] === 'company_list_search_after') {
+                    if (is_numeric($row['setting_value'])) self::$listAfter = max(0, min(1000, (int)$row['setting_value']));
+                    continue;
+                }
                 self::apply($row['setting_key'], $row['setting_value']);
             }
 
             if (!empty($_SESSION['analyst_id'])) {
                 $stmt = $conn->prepare(
                     "SELECT preference_key, preference_value FROM user_preferences
-                     WHERE analyst_id = ? AND preference_key IN ('date_format','time_format')"
+                     WHERE analyst_id = ? AND preference_key IN ('date_format','time_format','week_start')"
                 );
                 $stmt->execute([(int)$_SESSION['analyst_id']]);
                 foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
@@ -253,6 +278,13 @@ class DateFmt {
         if ($value === null || $value === '') return;
         if ($key === 'date_format' && isset(self::DATE_TEMPLATES[$value])) self::$date = $value;
         if ($key === 'time_format' && isset(self::TIME_TEMPLATES[$value])) self::$time = $value;
+        if ($key === 'week_start' && in_array($value, self::WEEK_STARTS, true)) self::$week = $value;
+    }
+
+    /** GH #355: the effective first day of the week - 'monday' or 'sunday'. */
+    public static function weekStart() {
+        if (self::$week === null) self::init();
+        return self::$week ?? self::DEFAULT_WEEK;
     }
 
     /**
@@ -415,7 +447,45 @@ class DateFmt {
             'monthsShort'      => self::months(true),
             'weekdays'         => self::weekdays(false),
             'weekdaysShort'    => self::weekdays(true),
+            'weekStart'        => self::weekStart(),   // GH #355: the date picker's calendar
+            'picker'           => self::pickerText(),
         ];
+    }
+
+    /**
+     * GH #355: the date picker's own words, resolved here for the same reason as
+     * the month names - a page need not export the 'common' namespace to JS.
+     */
+    /**
+     * GH #358: when a company list becomes a search box (System -> Companies), and
+     * the words it uses - for assets/js/select-search.js, loaded by the header's company
+     * switcher (includes/tenancy-switcher.php).
+     */
+    public static function listAfter(): int {
+        return self::$listAfter;
+    }
+    public static function selectSearchPayload(): array {
+        $en = ['search' => 'Type to search', 'none' => 'No matches.', 'more' => 'Showing {n} of {total} - type to narrow.'];
+        if (!function_exists('t') && is_file(__DIR__ . '/i18n.php')) require_once __DIR__ . '/i18n.php';
+        $text = [];
+        foreach ($en as $k => $fallback) {
+            $v = function_exists('t') ? t('common.select_search.' . $k) : '';
+            $text[$k] = ($v === '' || $v === 'common.select_search.' . $k) ? $fallback : $v;
+        }
+        return ['after' => self::$listAfter, 'text' => $text];
+    }
+
+    private static function pickerText() {
+        $en = ['invalid' => 'Type a date like {example}, or pick one.', 'invalid_time' => 'Type a time like {example}, or pick one.',
+               'today' => 'Today', 'now' => 'Now', 'clear' => 'Clear', 'prev_month' => 'Previous month',
+               'next_month' => 'Next month', 'open' => 'Choose from a calendar', 'hour' => 'Hour', 'minute' => 'Minute'];
+        if (!function_exists('t') && is_file(__DIR__ . '/i18n.php')) require_once __DIR__ . '/i18n.php';
+        $out = [];
+        foreach ($en as $k => $fallback) {
+            $v = function_exists('t') ? t('common.date_input.' . $k) : '';
+            $out[$k] = ($v === '' || $v === 'common.date_input.' . $k) ? $fallback : $v;
+        }
+        return $out;
     }
 }
 

@@ -43,6 +43,7 @@ const PREF_TEMPLATE_SECTIONS = [
     'timezone'       => ['system.preferences.timezone_heading',        ['timezone']],
     'date-format'    => ['system.preferences.dateformat_heading',      ['date_format']],
     'time-format'    => ['system.preferences.timeformat_heading',      ['time_format']],
+    'week-start'     => ['system.preferences.weekstart_heading',       ['week_start']],   // GH #355
     'money'          => ['system.preferences.money_heading',           ['currency_format', 'currency_formats']],
     'task-view'      => ['system.preferences.task_view_heading',       ['tasks_detail_view', 'tasks_open_panel']],
     'ticket-list'    => ['system.preferences.ticket_list_heading',     ['tickets_list_layout']],
@@ -61,7 +62,7 @@ const PREF_TEMPLATE_SECTIONS = [
     'animation'      => ['system.preferences.animation_heading',       ['toast_animation']],
     'module-order'   => ['system.preferences.modorder_heading',        ['module_order']],
     'app-sidebar'    => ['system.preferences.sidebar_heading',         ['app_sidebar', 'app_sidebar_modules', 'app_sidebar_names', 'app_sidebar_waffle']],
-    'left-panels'    => ['system.preferences.panels_heading',          ['knowledge_sidebar_mode', 'process_mapper_sidebar_mode', 'contracts_sidebar_mode',
+    'left-panels'    => ['system.preferences.panels_heading',          ['tickets_sidebar_mode', 'knowledge_sidebar_mode', 'process_mapper_sidebar_mode', 'contracts_sidebar_mode',
                                                                          'calendar_sidebar_mode', 'tasks_sidebar_mode', 'cmdb_sidebar_mode',
                                                                          'change_management_sidebar_mode', 'asset_management_sidebar_mode',
                                                                          'system_wiki_sidebar_mode']],

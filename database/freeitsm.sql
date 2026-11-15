@@ -870,6 +870,7 @@ CREATE TABLE IF NOT EXISTS `users` (
     -- a company's domains never silently re-files an existing person.
     `tenant_id`       INT NULL,
     `cost_centre_id`  INT NULL,   -- GH #160: the cost centre this person is charged to (fk added by db_verify)
+    `location_id`     INT NULL,   -- GH #311: System -> Locations, the record's company's or a shared one (fk added by db_verify)
     `created_at`      DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
 
     -- ---------------------------------------------------------------------
@@ -940,6 +941,7 @@ CREATE TABLE IF NOT EXISTS `users` (
     UNIQUE KEY `uq_users_dir_username` (`auth_provider_id`, `directory_username`),
     KEY `idx_users_tenant` (`tenant_id`),
     KEY `idx_users_cost_centre` (`cost_centre_id`),
+    KEY `idx_users_location` (`location_id`),
     KEY `idx_users_manager` (`manager_id`),
     KEY `idx_users_active` (`is_active`),
     KEY `idx_users_department` (`department`),
@@ -1040,6 +1042,111 @@ CREATE TABLE IF NOT EXISTS `user_audit` (
     KEY `idx_user_audit_user` (`user_id`, `created_datetime`),
     CONSTRAINT `fk_user_audit_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_user_audit_analyst` FOREIGN KEY (`analyst_id`) REFERENCES `analysts` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Custom fields on companies and people (GH #279, 5.4.0) - includes/services/record_fields.php,
+-- on the shared TypedFields engine (includes/typed_fields.php) as ticket fields are.
+-- Company fields are one list for the whole install; people fields are shared
+-- (tenant_id NULL) or a company's own. Designed in System -> Custom fields.
+-- ⚠️ SOFT delete on the definitions: values point at them.
+CREATE TABLE IF NOT EXISTS `company_fields` (
+    `id`               INT NOT NULL AUTO_INCREMENT,
+    `field_key`        VARCHAR(100) NOT NULL,   -- stable, used by the REST API; never changes
+    `label`            VARCHAR(150) NOT NULL,
+    `field_type`       VARCHAR(20) NOT NULL,    -- TypedFields type except 'ref'; locked once answered
+    `config`           LONGTEXT NULL,
+    `help_text`        VARCHAR(500) NULL,
+    `is_required`      TINYINT(1) NOT NULL DEFAULT 0,
+    `display_order`    INT NOT NULL DEFAULT 0,
+    `is_deleted`       TINYINT(1) NOT NULL DEFAULT 0,
+    `created_datetime` DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_company_fields_key` (`field_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `company_field_options` (
+    `id`            INT NOT NULL AUTO_INCREMENT,
+    `field_id`      INT NOT NULL,
+    `option_value`  VARCHAR(255) NOT NULL,
+    `display_order` INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `ix_company_field_options_field` (`field_id`),
+    CONSTRAINT `fk_company_field_options_field` FOREIGN KEY (`field_id`) REFERENCES `company_fields` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `company_field_values` (
+    `id`            INT NOT NULL AUTO_INCREMENT,
+    `tenant_id`     INT NOT NULL,
+    `field_id`      INT NOT NULL,
+    `seq`           INT NOT NULL DEFAULT 0,
+    `value_text`    TEXT NULL,
+    `value_number`  DECIMAL(20,4) NULL,
+    `value_date`    DATETIME NULL,
+    `value_boolean` TINYINT(1) NULL,
+    `value_ref_id`  INT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_company_field_value` (`tenant_id`, `field_id`, `seq`),
+    KEY `ix_cfv_field_text` (`field_id`, `value_text`(64)),
+    CONSTRAINT `fk_cfv_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_cfv_field` FOREIGN KEY (`field_id`) REFERENCES `company_fields` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- A company's history: its custom field changes (GH #279). People's go to user_audit.
+CREATE TABLE IF NOT EXISTS `company_audit` (
+    `id`               INT NOT NULL AUTO_INCREMENT,
+    `tenant_id`        INT NOT NULL,
+    `analyst_id`       INT NULL,
+    `field_name`       VARCHAR(100) NOT NULL,
+    `old_value`        VARCHAR(1000) NULL,
+    `new_value`        VARCHAR(1000) NULL,
+    `source`           VARCHAR(20) NOT NULL DEFAULT 'app',   -- app | api
+    `created_datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_company_audit_tenant` (`tenant_id`, `created_datetime`),
+    CONSTRAINT `fk_company_audit_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `person_fields` (
+    `id`               INT NOT NULL AUTO_INCREMENT,
+    `field_key`        VARCHAR(100) NOT NULL,
+    `label`            VARCHAR(150) NOT NULL,
+    `field_type`       VARCHAR(20) NOT NULL,
+    `config`           LONGTEXT NULL,
+    `help_text`        VARCHAR(500) NULL,
+    `is_required`      TINYINT(1) NOT NULL DEFAULT 0,
+    `display_order`    INT NOT NULL DEFAULT 0,
+    `tenant_id`        INT NULL,                -- NULL = every company's; set = that company's own
+    `is_deleted`       TINYINT(1) NOT NULL DEFAULT 0,
+    `created_datetime` DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_person_fields_tenant_key` (`tenant_id`, `field_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `person_field_options` (
+    `id`            INT NOT NULL AUTO_INCREMENT,
+    `field_id`      INT NOT NULL,
+    `option_value`  VARCHAR(255) NOT NULL,
+    `display_order` INT NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `ix_person_field_options_field` (`field_id`),
+    CONSTRAINT `fk_person_field_options_field` FOREIGN KEY (`field_id`) REFERENCES `person_fields` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `person_field_values` (
+    `id`            INT NOT NULL AUTO_INCREMENT,
+    `user_id`       INT NOT NULL,
+    `field_id`      INT NOT NULL,
+    `seq`           INT NOT NULL DEFAULT 0,
+    `value_text`    TEXT NULL,
+    `value_number`  DECIMAL(20,4) NULL,
+    `value_date`    DATETIME NULL,
+    `value_boolean` TINYINT(1) NULL,
+    `value_ref_id`  INT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_person_field_value` (`user_id`, `field_id`, `seq`),
+    KEY `ix_pfv_field_text` (`field_id`, `value_text`(64)),
+    CONSTRAINT `fk_pfv_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_pfv_field` FOREIGN KEY (`field_id`) REFERENCES `person_fields` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Password reset for SELF-SERVICE PORTAL users (GH #134).
@@ -1440,10 +1547,12 @@ CREATE TABLE IF NOT EXISTS `tickets` (
     -- only if it would suggest a DIFFERENT company. No FK: a deleted company
     -- just means the warning can never match it again.
     `company_warning_dismissed_tenant_id` INT NULL,
+    `location_id`           INT NULL,   -- GH #311: System -> Locations, the record's company's or a shared one (fk added by db_verify)
     `is_demo`           TINYINT(1) NOT NULL DEFAULT 0,   -- set by the demo data importer (#1297)
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_tickets_number` (`ticket_number`),
     KEY `ix_tickets_merged_into_id` (`merged_into_id`),
+    KEY `ix_tickets_location` (`location_id`),
     KEY `ix_tickets_snoozed_until` (`snoozed_until`),
     KEY `ix_tickets_status_id` (`status_id`),
     KEY `ix_tickets_priority_id` (`priority_id`),
@@ -6995,6 +7104,7 @@ CREATE TABLE IF NOT EXISTS `contracts` (
     `payment_schedule_id`       INT NULL,
     `cost_centre`               VARCHAR(100) NULL,
     `cost_centre_id`            INT NULL,            -- GH #160: the cost centre it is charged to (fk added by db_verify); cost_centre above is free text from before 3.5.0
+    `location_id`               INT NULL,            -- GH #311: System -> Locations, the record's company's or a shared one (fk added by db_verify)
     `dms_link`                  VARCHAR(500) NULL,
     `terms_status`              VARCHAR(20) NULL,
     `personal_data_transferred` TINYINT(1) NULL,
@@ -7011,6 +7121,7 @@ CREATE TABLE IF NOT EXISTS `contracts` (
     KEY `ix_contracts_contract_end` (`contract_end`),
     KEY `ix_contracts_tenant` (`tenant_id`),
     KEY `ix_contracts_cost_centre` (`cost_centre_id`),
+    KEY `ix_contracts_location` (`location_id`),
     CONSTRAINT `fk_contracts_supplier` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON DELETE SET NULL,
     CONSTRAINT `fk_contracts_customer_tenant` FOREIGN KEY (`customer_tenant_id`) REFERENCES `tenants` (`id`) ON DELETE SET NULL,
     CONSTRAINT `fk_contracts_customer_user` FOREIGN KEY (`customer_user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
@@ -9864,6 +9975,7 @@ CREATE TABLE IF NOT EXISTS `photo_album` (
 CREATE TABLE IF NOT EXISTS `projects` (
     `id`                INT NOT NULL AUTO_INCREMENT,
     `tenant_id`         INT NULL,
+    `location_id`       INT NULL,   -- GH #311: System -> Locations, the record's company's or a shared one (fk added by db_verify)
     `name`              VARCHAR(200) NOT NULL,
     `summary`           TEXT NULL,                        -- a paragraph: what and why
     `goal`              VARCHAR(500) NULL,                -- one sentence: what "done" means
@@ -9931,6 +10043,7 @@ CREATE TABLE IF NOT EXISTS `projects` (
     KEY `idx_projects_approval` (`approval_status`),
     KEY `idx_projects_status` (`status`),
     KEY `idx_projects_owner` (`owner_analyst_id`),
+    KEY `idx_projects_location` (`location_id`),
     CONSTRAINT `fk_projects_tenant` FOREIGN KEY (`tenant_id`) REFERENCES `tenants` (`id`) ON DELETE SET NULL,
     CONSTRAINT `fk_projects_owner` FOREIGN KEY (`owner_analyst_id`) REFERENCES `analysts` (`id`) ON DELETE SET NULL,
     CONSTRAINT `fk_projects_created_by` FOREIGN KEY (`created_by_id`) REFERENCES `analysts` (`id`) ON DELETE SET NULL,

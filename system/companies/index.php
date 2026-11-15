@@ -101,6 +101,8 @@ $translationNamespaces = ['common', 'system'];
         .form-field .hint { font-size: 12px; color: var(--text-faint, #999); font-weight: 400; margin-bottom: 6px; }
         .form-field input[type=text] { width: 100%; padding: 9px 11px; border: 1px solid var(--border, #ddd); border-radius: 5px; font-size: 13px; font-family: inherit; box-sizing: border-box; background: var(--surface, #fff); color: var(--text, #333); }
         .form-field input:focus { outline: none; border-color: var(--sys-accent, #546e7a); }
+        /* GH #279: custom fields - the same look for every kind of control. */
+        #coCustomFields input, #coCustomFields select, #coCustomFields textarea { width: 100%; max-width: 420px; padding: 9px 11px; border: 1px solid var(--border, #ddd); border-radius: 5px; font-size: 13px; font-family: inherit; box-sizing: border-box; background: var(--surface, #fff); color: var(--text, #333); } #coCustomFields .tf-hint { display: block; font-size: 12px; color: var(--text-faint, #999); margin-top: 4px; }
         .checkbox-field { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; }
         .checkbox-field input { margin-top: 3px; }
         .checkbox-field .cb-label { font-size: 13px; color: var(--text, #444); }
@@ -204,6 +206,19 @@ $translationNamespaces = ['common', 'system'];
             </table>
         </div>
 
+        <!-- Company lists (GH #358): when a company dropdown becomes a search box.
+             Only meaningful once there's more than one company. -->
+        <div class="settings-card" id="companyListsCard" style="display: none;">
+            <h2 id="company-lists" class="card-title"><?php echo htmlspecialchars(t('system.companies.lists_title')); ?></h2>
+            <p class="card-hint"><?php echo htmlspecialchars(t('system.companies.lists_hint')); ?></p>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                <label for="listAfterInput"><?php echo htmlspecialchars(t('system.companies.lists_after')); ?></label>
+                <input type="number" id="listAfterInput" min="0" max="1000" step="1" style="width: 90px;">
+                <button type="button" class="btn btn-primary" id="listAfterSave"><?php echo htmlspecialchars(t('system.companies.lists_save')); ?></button>
+                <span id="listAfterMsg" class="card-hint" style="margin: 0;"></span>
+            </div>
+        </div>
+
         <!-- Public email domains (global). Only meaningful once there's more
              than one company (shared-intake routing), so hidden at N=1. -->
         <div class="settings-card" id="freemailCard" style="display: none;">
@@ -257,6 +272,9 @@ $translationNamespaces = ['common', 'system'];
                     <div class="hint"><?php echo htmlspecialchars(t('system.companies.field_tax_id_hint')); ?></div>
                     <input type="text" id="fTaxId" maxlength="50" autocomplete="off" spellcheck="false" style="max-width: 320px;">
                 </div>
+                <?php /* GH #279: the company's custom fields (System -> Custom fields), drawn by
+                         assets/js/ticket-fields.js; empty when there are none. */ ?>
+                <div id="coCustomFields"></div>
                 <?php /* The company's own logo - shown on the Files desktop for people
                          working in this company. Existing companies only: it saves
                          straight away through api/system/tenant_logo.php. */ ?>
@@ -327,6 +345,7 @@ $translationNamespaces = ['common', 'system'];
     <?php echo Tz::scriptTag(); ?>
     <script src="../../assets/js/tz.js?v=5"></script>
     <script src="../../assets/js/i18n.js?v=4"></script>
+    <script src="../../assets/js/ticket-fields.js?v=2"></script>   <!-- GH #279: custom fields -->
     <script>
     const API = '<?php echo $path_prefix; ?>api/';
     let companies = [];
@@ -347,7 +366,27 @@ $translationNamespaces = ['common', 'system'];
         const multi = companies.length > 1;
         document.getElementById('freemailCard').style.display = multi ? '' : 'none';
         if (multi && !freemailLoaded) { freemailLoaded = true; loadFreemail(); }
+        document.getElementById('companyListsCard').style.display = multi ? '' : 'none';
+        if (multi) loadListAfter();
     }
+
+    // ---------- Company lists (GH #358) ----------
+    async function loadListAfter() {
+        try {
+            const d = await (await fetch(API + 'system/company_list_settings.php')).json();
+            if (d.success) document.getElementById('listAfterInput').value = d.after;
+        } catch (e) { /* the box stays empty; Save still works */ }
+    }
+    document.getElementById('listAfterSave').addEventListener('click', async function () {
+        const msg = document.getElementById('listAfterMsg');
+        try {
+            const d = await (await fetch(API + 'system/company_list_settings.php', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ after: document.getElementById('listAfterInput').value })
+            })).json();
+            msg.textContent = d.success ? window.t('system.companies.lists_saved') : (d.error || '');
+        } catch (e) { msg.textContent = e.message; }
+    });
 
     function renderDomainCell(domains) {
         if (!domains || !domains.length) {
@@ -532,10 +571,23 @@ $translationNamespaces = ['common', 'system'];
             document.getElementById('routingPanel').innerHTML = '';
         }
 
+        loadCompanyCustomFields(c ? c.id : 0);
         modal.classList.add('open');
         document.getElementById('fName').focus();
     }
     function closeModal() { modal.classList.remove('open'); }
+
+    // GH #279: the company's custom fields with their answers (none for a new one).
+    async function loadCompanyCustomFields(id) {
+        const box = document.getElementById('coCustomFields');
+        box.innerHTML = '';
+        if (!window.TicketFields) return;
+        try {
+            const r = await fetch(API + 'system/custom_fields.php?entity=company&record=' + encodeURIComponent(id || 0), { credentials: 'same-origin' });
+            const d = await r.json();
+            if (d.success && d.fields && d.fields.length) box.innerHTML = TicketFields.render(d.fields, { groupClass: 'form-field' });
+        } catch (e) { /* the dialog still saves everything else */ }
+    }
 
     // ---------- Company email domains ----------
     let currentDomains = [];
@@ -762,6 +814,8 @@ $translationNamespaces = ['common', 'system'];
                 <td class="tick"><input type="checkbox" data-tick="quiet_warning" aria-label="${esc(window.t('system.companies.support_col_quiet') + ': ' + c.name)}" ${c.quiet_warning ? 'checked' : ''}></td>
                 <td class="tick"><input type="checkbox" data-tick="portal_raise" aria-label="${esc(window.t('system.companies.support_col_portal') + ': ' + c.name)}" ${c.portal_raise ? 'checked' : ''}></td>
             </tr>`).join('')}</tbody></table>`;
+        // GH #358: a search box once there are many companies.
+        if (window.FreeitsmSelectSearch) FreeitsmSelectSearch.filterList(list, 'tbody tr');
     }
     document.getElementById('supportList').addEventListener('change', async function (e) {
         const row = e.target.closest('tr[data-supported]');
@@ -827,6 +881,9 @@ $translationNamespaces = ['common', 'system'];
             external_ref: document.getElementById('fExternalRef').value.trim(),
             tax_id: document.getElementById('fTaxId').value.trim()
         };
+        // GH #279: custom fields, whenever there are any. An empty box is sent as '' - clear it.
+        const cfBox = document.getElementById('coCustomFields');
+        if (window.TicketFields && cfBox.querySelector('[data-tf-key]')) payload.custom_fields = TicketFields.collect(cfBox);
         if (!payload.name) {
             showToast(window.t('system.companies.required_name'), 'error');
             return;

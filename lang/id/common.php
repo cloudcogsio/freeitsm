@@ -90,6 +90,7 @@ return [
         'visibility' => 'Visibilitas',
         'always' => 'Selalu terlihat',
         'hover' => 'Tampilkan saat ditunjuk',
+        'click' => 'Klik untuk membuka',
     ],
     'ai' => [
         'provider' => 'Penyedia',
@@ -851,5 +852,29 @@ return [
         'label' => 'Harga',
         'month' => '{price} per bulan',
         'free' => 'Gratis',
+    ],
+    'date_input' => [
+        'invalid' => 'Ketik tanggal seperti {example}, atau pilih satu.',
+        'invalid_time' => 'Ketik waktu seperti {example}, atau pilih satu.',
+        'today' => 'Hari ini',
+        'now' => 'Sekarang',
+        'clear' => 'Bersihkan',
+        'prev_month' => 'Bulan sebelumnya',
+        'next_month' => 'Bulan berikutnya',
+        'open' => 'Pilih dari kalender',
+        'hour' => 'Jam',
+        'minute' => 'Menit',
+    ],
+    'tenant_switcher' => [
+        'title' => 'Ganti perusahaan',
+        'head' => 'Perusahaan',
+        'all' => 'Semua perusahaan',
+        'triage' => 'Antrean triase',
+        'failed' => 'Tidak dapat mengganti perusahaan',
+    ],
+    'select_search' => [
+        'search' => 'Ketik untuk mencari',
+        'none' => 'Tidak ada yang cocok.',
+        'more' => 'Menampilkan {n} dari {total} - ketik untuk mempersempit.',
     ],
 ];

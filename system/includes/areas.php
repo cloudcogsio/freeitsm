@@ -334,6 +334,16 @@ function getSystemAreas() {
             'desc'     => 'system.landing.locations_desc',
             'keywords' => 'system.landing.locations_keywords',
         ],
+        // Custom fields (GH #279): fields an administrator makes up for companies
+        // and people, on the same engine as ticket fields.
+        [
+            'icon'     => 'custom_fields',
+            'url'      => 'custom-fields/',
+            'group'    => 'organisation',
+            'title'    => 'system.landing.custom_fields_title',
+            'desc'     => 'system.landing.custom_fields_desc',
+            'keywords' => 'system.landing.custom_fields_keywords',
+        ],
         // Cost centres (GH #160). Beside Companies: every cost centre belongs to
         // one, and both are the organisation's own shape rather than a setting.
         [
@@ -534,6 +544,7 @@ function systemAreaIcon($key) {
         // A camera: the Photo Album.
         'photo_album' => '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle>',
         'locations' => '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>',
+        'custom_fields' => '<rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 9h6"></path><path d="M7 13h10"></path><path d="M7 17h4"></path>',
         'cost_centres' => '<circle cx="12" cy="6" r="4"></circle><path d="M12 4.5v3"></path><path d="M12 10v4"></path><path d="M5 20v-3a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v3"></path><circle cx="5" cy="20" r="1"></circle><circle cx="19" cy="20" r="1"></circle><circle cx="12" cy="20" r="1"></circle><path d="M12 14v5"></path>',
         // A ledger: a book with ruled lines and a column - the chart of accounts.
         'accounts'    => '<rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M9 3v18"></path><path d="M12 8h5"></path><path d="M12 12h5"></path><path d="M12 16h5"></path>',
@@ -551,6 +562,8 @@ function systemAreaIcon($key) {
         'imported_people' => '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="17" y1="8" x2="22" y2="13"></line><line x1="22" y1="8" x2="17" y2="13"></line>',
         // A laptop with two people: Assets whose Intune user differs (GH #335).
         'intune_mismatch' => '<rect x="2" y="4" width="14" height="10" rx="1.5"></rect><path d="M1 17h16"></path><circle cx="19.5" cy="9" r="2"></circle><path d="M16.5 18a3 3 0 0 1 6 0"></path>',
+        // A folder with a padlock: Deleted folders kept, under Maintenance (GH #293).
+        'files_held'  => '<path d="M14 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2v3"></path><rect x="15" y="15" width="7" height="6" rx="1"></rect><path d="M16.5 15v-2a2 2 0 0 1 4 0v2"></path>',
         'orphaned'    => '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>',
         'search'      => '<circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>',
     ];

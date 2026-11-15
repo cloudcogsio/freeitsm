@@ -199,6 +199,11 @@ function storeMoveBatch(PDO $conn, string $store, int $deadlineUnix, int $limit 
             $active->putFile($key, $tmp, true);
             $there = $active->size($key);
             if ($there !== $size) throw new RuntimeException('The new copy is ' . var_export($there, true) . " bytes, expected $size.");
+            // Deleted while it was being copied (storeDelete forgets the row first): this copy
+            // is the only one left and nothing records it - remove it.
+            $still = $conn->prepare('SELECT 1 FROM storage_migration_items WHERE id = ?');
+            $still->execute([$row['id']]);
+            if (!$still->fetchColumn()) { $active->delete($key); continue; }
             $mark("UPDATE storage_migration_items SET state = 'verified', sha256 = ?, last_error = NULL, updated_datetime = UTC_TIMESTAMP() WHERE id = ?", [$sha, $row['id']]);
             $r['copied']++;
         } catch (StorageUnavailable $e) {
@@ -326,7 +331,7 @@ function storesMoving(PDO $conn): array
  *
  * TRAP: never DELETE every row of the store to end a move (PR #318 review).
  */
-function storeMoveEnd(PDO $conn, string $store, string $how, int $by = 0): void
+function storeMoveEnd(PDO $conn, string $store, string $how, ?int $by = null): void
 {
     // Files set aside as missing are named in the record, so one skipped because of a
     // passing permission error can still be found afterwards.
@@ -349,7 +354,7 @@ function storeMoveEnd(PDO $conn, string $store, string $how, int $by = 0): void
     $what = ['old_copies_removed' => 'the old copies were removed', 'finished_old_copies_kept' => 'the old copies were kept',
              'ended_same_location_nothing_deleted' => 'the old and new places turned out to be one, so nothing was deleted'][$how] ?? $how;
     storageNotifyAdmins($conn, storeName($store) . ': move finished', storeName($store) . " finished moving: $what."
-        . ($unfinished ? " $unfinished files are still to copy." : ''), 'storage', $by);
+        . ($unfinished ? " Files still to copy: $unfinished." : ''), 'storage', $by);
 }
 
 /** A store's name for people. */
@@ -365,7 +370,7 @@ function storeNotifyMoved(PDO $conn, string $store, string $to, int $files, int 
     require_once __DIR__ . '/notify.php';
     $where = $to === 's3' ? 'S3-compatible storage' : 'the server folder';
     storageNotifyAdmins($conn, storeName($store) . ' now kept in ' . $where,
-        storeName($store) . " are now kept in $where." . ($files > 0 ? " $files files are being copied there in the background; until each is, it is read from the old place." : ''),
+        storeName($store) . " are now kept in $where." . ($files > 0 ? " Files being copied there in the background: $files. Until each is, it is read from the old place." : ''),
         'storage', $by);
 }
 
@@ -380,12 +385,12 @@ function storeMoveTempDir(string $store): string
 }
 
 /** A line in the system log: who moved which store where. */
-function storeMoveAudit(PDO $conn, int $by, string $store, array $detail): void
+function storeMoveAudit(PDO $conn, ?int $by, string $store, array $detail): void
 {
-    error_log('[storage] ' . $store . ' ' . json_encode($detail) . ($by > 0 ? " (analyst $by)" : ''));
+    error_log('[storage] ' . $store . ' ' . json_encode($detail) . ($by !== null ? " (analyst $by)" : ''));
     try {
         $conn->prepare("INSERT INTO system_logs (log_type, analyst_id, details, created_datetime) VALUES ('storage', ?, ?, UTC_TIMESTAMP())")
-             ->execute([$by > 0 ? $by : null, json_encode(['store' => $store] + $detail)]);
+             ->execute([$by, json_encode(['store' => $store] + $detail)]);
     } catch (Throwable $e) {
         // the error_log line above is the record
     }

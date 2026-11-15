@@ -3834,7 +3834,19 @@ class WorkflowEngine
             self::assertRecordInRunCompany($conn, 'form_submissions', $submissionId, 'form submission');
             if ($assignedAnalystId) self::assertAnalystReachesRunCompany($conn, $assignedAnalystId);
             $mailboxId = self::mailboxForNewTicket($conn, $mailboxId, $payload);
+            // TRAP: a second "Create a ticket" in the SAME run must raise a new ticket.
+            //   catalogueRaiseTicketFromSubmissionId() hands back the submission's
+            //   ticket once it has one - right across runs (a rule on .approved after
+            //   the approval raised it), wrong within one: the shipped "New starter
+            //   onboarding fan-out" raised IT and then got IT back for HR and
+            //   Facilities. An earlier step of this run raised it => a fresh one.
+            $raisedThisRun = [];
+            foreach ((array)($payload['steps'] ?? []) as $st) {
+                if (is_array($st) && !empty($st['ticket_id'])) $raisedThisRun[(int)$st['ticket_id']] = true;
+            }
+            $subTicket = (int)($conn->query("SELECT ticket_id FROM form_submissions WHERE id = " . (int)$submissionId)->fetchColumn() ?: 0);
             return catalogueRaiseTicketFromSubmissionId($conn, $submissionId, [
+                '_new_ticket'         => $subTicket > 0 && isset($raisedThisRun[$subTicket]),
                 // Blank means "not configured", so it must not reach the shared
                 // path as an override — that is what lets the submission supply
                 // the sensible default instead.
@@ -3958,6 +3970,9 @@ class WorkflowEngine
                 $departmentId, $typeId, $assignedTeamId, $assignedAnalystId, $assignedAnalystId, $userId, $ticketTenant,
             ]);
             $newTicketId = (int)$conn->lastInsertId();
+            // GH #311: the requester's location, if Tickets -> Settings says so.
+            require_once __DIR__ . '/../../includes/record_locations.php';
+            ticketApplyRequesterLocation($conn, (int)$newTicketId);
             ticketDepartmentNote($conn, $newTicketId, $departmentNote);
             if ($typePick) ticketTypeAutoRecord($conn, $newTicketId, $typePick);
             // Confidential defaults (discussion #62) - the rule may have put it in a
@@ -4390,7 +4405,8 @@ class WorkflowEngine
             'ticket'           => $one('tickets.php',        'apiTicketSelect',         ' WHERE t.id = ? LIMIT 1',  fn($c, $r) => apiSerializeTicket($r) + ['related' => apiTicketRelated($c, (int)$r['id'], null)]),
             'change'           => $one('changes.php',        'apiChangeSelect',         ' WHERE c.id = ? LIMIT 1',  fn($c, $r) => apiSerializeChange($r)),
             'problem'          => $one('problems.php',        'apiProblemSelect',        ' WHERE p.id = ? LIMIT 1',  fn($c, $r) => apiSerializeProblem($r)),
-            'task'             => $one('tasks.php',          'apiTaskSelect',           ' WHERE t.id = ? LIMIT 1',  fn($c, $r) => apiSerializeTask($c, $r)),
+            // GH #328: with `related` (counts and links), as GET /tasks/{id} has it
+            'task'             => $one('tasks.php',          'apiTaskSelect',           ' WHERE t.id = ? LIMIT 1',  fn($c, $r) => apiSerializeTask($c, $r) + ['related' => apiTaskRelated($c, (int)$r['id'], null)]),
             'asset'            => $one('assets.php',          'apiAssetSelect',          ' WHERE a.id = ? LIMIT 1',  fn($c, $r) => apiSerializeAsset($c, $r)),
             'article'          => $one('knowledge.php',       'apiKnowledgeSelect',      ' WHERE a.id = ? LIMIT 1',  fn($c, $r) => apiSerializeArticle($c, $r, true)),
             'contract'         => $one('contracts.php',       'apiContractSelect',       ' WHERE c.id = ? LIMIT 1',  fn($c, $r) => apiSerializeContract($r)),

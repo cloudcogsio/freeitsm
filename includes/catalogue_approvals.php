@@ -780,6 +780,9 @@ function catalogueCreateTicketFromSubmission(PDO $conn, array $sub, array $overr
         $userId, $tenantId,
     ]);
     $ticketId = (int)$conn->lastInsertId();
+    // GH #311: the requester's location, if Tickets -> Settings says so.
+    require_once __DIR__ . '/record_locations.php';
+    ticketApplyRequesterLocation($conn, (int)$ticketId);
     ticketDepartmentNote($conn, $ticketId, $departmentNote);
     if ($typePick) ticketTypeAutoRecord($conn, $ticketId, $typePick);
     // Confidential defaults (discussion #62). Every path that creates a ticket
@@ -863,7 +866,10 @@ function catalogueRaiseTicketFromSubmissionId(PDO $conn, int $submissionId, arra
             'cancelled' => 'That request was cancelled by the requester, so no ticket was raised',
         });
     }
-    if (!empty($sub['ticket_id'])) {
+    // _new_ticket: a workflow that already raised this submission's ticket earlier in
+    // the same run wants ANOTHER (IT, then HR, then Facilities). The submission keeps
+    // pointing at the first; the UPDATE below only ever sets an empty ticket_id.
+    if (!empty($sub['ticket_id']) && empty($overrides['_new_ticket'])) {
         $tn = $conn->prepare("SELECT ticket_number FROM tickets WHERE id = ?");
         $tn->execute([(int)$sub['ticket_id']]);
         $num = $tn->fetchColumn();

@@ -58,6 +58,23 @@ class AssetsService
     }
 
     /**
+     * Is this person (users.id) in a company the caller may reach? NULL tenant is the
+     * Default company's, as everywhere. True when the caller is not company-limited.
+     */
+    private static function personInScope(PDO $conn, ActorContext $ctx, int $userId): bool
+    {
+        if ($ctx->companyScope === null) {
+            return true;
+        }
+        $st = $conn->prepare('SELECT tenant_id FROM users WHERE id = ?');
+        $st->execute([$userId]);
+        $t = $st->fetchColumn();
+        if ($t === false) return false;
+        $tid = $t === null ? getDefaultTenantId($conn) : (int)$t;
+        return in_array($tid, $ctx->companyScope, true);
+    }
+
+    /**
      * The editable columns, their audit field keys (the SAME stable keys the UI
      * history view localises via t('asset-management.field.<key>')), and how to
      * validate/resolve each. 'lookup'/'supplier' fields audit display NAMES.
@@ -392,7 +409,8 @@ class AssetsService
      */
     public static function assignAnalyst(PDO $conn, ActorContext $ctx, int $assetId, array $in): array
     {
-        self::loadRow($conn, $assetId);   // 404 if gone
+        // The asset's company, as updateFields() checks it: 404 if gone or out of reach.
+        self::assertScope($conn, $ctx, self::loadRow($conn, $assetId));
         $actorId = $ctx->actorId;
 
         if (isset($in['analyst_id']) && $in['analyst_id'] !== '') {
@@ -487,7 +505,8 @@ class AssetsService
      */
     public static function assignUser(PDO $conn, ActorContext $ctx, int $assetId, array $in): array
     {
-        self::loadRow($conn, $assetId);   // 404 if gone
+        // The asset's company, as updateFields() checks it: 404 if gone or out of reach.
+        self::assertScope($conn, $ctx, self::loadRow($conn, $assetId));
         $actorId = $ctx->actorId;
 
         // Accept user_id or user_email (must be an existing requester).
@@ -502,7 +521,9 @@ class AssetsService
             throw new ServiceError('validation', 'missing_field', "Provide 'user_id' or 'user_email'.");
         }
         $userRow = $u->fetch(PDO::FETCH_ASSOC);
-        if (!$userRow) {
+        // A person in a company the caller cannot reach reads exactly like one that
+        // does not exist - same message, so the answer says nothing about them.
+        if (!$userRow || !self::personInScope($conn, $ctx, (int)$userRow['id'])) {
             throw new ServiceError('validation', 'invalid_field', 'Unknown requester. Create them first with POST /users.');
         }
         $userId   = (int)$userRow['id'];
@@ -565,7 +586,8 @@ class AssetsService
      */
     public static function unassignUser(PDO $conn, ActorContext $ctx, int $assetId, int $userId, bool $skipAudit = false): array
     {
-        self::loadRow($conn, $assetId);   // 404 if gone
+        // The asset's company, as updateFields() checks it: 404 if gone or out of reach.
+        self::assertScope($conn, $ctx, self::loadRow($conn, $assetId));
         $actorId = $ctx->actorId;
 
         // Snapshot holder + due-back before removal, for the custody trail + audit.
@@ -612,7 +634,8 @@ class AssetsService
      */
     public static function unassignAnalyst(PDO $conn, ActorContext $ctx, int $assetId, int $analystId, bool $skipAudit = false): array
     {
-        self::loadRow($conn, $assetId);   // 404 if gone
+        // The asset's company, as updateFields() checks it: 404 if gone or out of reach.
+        self::assertScope($conn, $ctx, self::loadRow($conn, $assetId));
         $actorId = $ctx->actorId;
 
         $snap = $conn->prepare(
@@ -1047,7 +1070,7 @@ class AssetsService
      */
     public static function usersHoldingAssets(PDO $conn, ActorContext $ctx, string $search = '', int $limit = 200): array
     {
-        [$tenantSql, $tenantArgs] = activeTenantFilter($conn, $ctx->actorId, 'a');
+        [$tenantSql, $tenantArgs] = activeTenantReadFilter($conn, $ctx->actorId, 'a');
 
         $where = '';
         $args  = [];
@@ -1116,7 +1139,7 @@ class AssetsService
      */
     public static function people(PDO $conn, ActorContext $ctx, string $search = '', string $scope = 'current', int $limit = 500, string $source = ''): array
     {
-        [$tenantSql, $tenantArgs] = activeTenantFilter($conn, $ctx->actorId, 'u');
+        [$tenantSql, $tenantArgs] = activeTenantReadFilter($conn, $ctx->actorId, 'u');
 
         // 🔴 The manager's NAME needs its own scope, and it belongs in the JOIN.
         //
@@ -1131,7 +1154,7 @@ class AssetsService
         // entirely, so a person whose manager is out of scope would vanish from
         // the list rather than simply showing no manager. Same lesson as the
         // Watchtower scoping fix.
-        [$mgrTenantSql, $mgrTenantArgs] = activeTenantFilter($conn, $ctx->actorId, 'm');
+        [$mgrTenantSql, $mgrTenantArgs] = activeTenantReadFilter($conn, $ctx->actorId, 'm');
 
         $where = '';
         $args  = [];
@@ -1225,7 +1248,7 @@ class AssetsService
         // Same scope on the manager's name as the list above, for the same
         // reason — and in the ON clause, so a manager out of scope means "no
         // manager shown" rather than "this person does not exist".
-        [$mgrTenantSql, $mgrTenantArgs] = activeTenantFilter($conn, $ctx->actorId, 'm');
+        [$mgrTenantSql, $mgrTenantArgs] = activeTenantReadFilter($conn, $ctx->actorId, 'm');
         $u = $conn->prepare(
             "SELECT u.id, u.email, u.username, u.display_name, u.preferred_name,
                     u.job_title, u.department, u.office, u.phone, u.mobile,
@@ -1263,7 +1286,7 @@ class AssetsService
         // a leaver who still has people pointed at them.
         // Scoped like the list: a report in a company the reader cannot see is
         // not shown (a manager can have reports in more than one company).
-        [$repTenantSql, $repTenantArgs] = activeTenantFilter($conn, $ctx->actorId, 'r');
+        [$repTenantSql, $repTenantArgs] = activeTenantReadFilter($conn, $ctx->actorId, 'r');
         $r = $conn->prepare(
             "SELECT r.id, r.display_name, r.email, r.is_active
                FROM users r
@@ -1279,7 +1302,7 @@ class AssetsService
             ];
         }, $r->fetchAll(PDO::FETCH_ASSOC));
 
-        [$tenantSql, $tenantArgs] = activeTenantFilter($conn, $ctx->actorId, 'a');
+        [$tenantSql, $tenantArgs] = activeTenantReadFilter($conn, $ctx->actorId, 'a');
 
         $sql = "SELECT a.id, a.hostname, a.manufacturer, a.model, a.service_tag, a.asset_tag,
                        a.operating_system, a.purchase_date, a.warranty_expiry,

@@ -393,4 +393,88 @@ final class FilesAcl
         }
         return array_keys($out);
     }
+
+    /**
+     * A folder and every live folder beneath it, top first, each with its depth
+     * (0 = the folder itself) - breadth-first, children by name, so "the first one"
+     * is always the same one and the nearest to the top.
+     *
+     * @param int $folderId  the files_folders id at the top; a deleted or unknown folder gives []
+     * @return list<array{id:int, depth:int}>
+     */
+    public static function subtreeTopFirst(PDO $conn, int $folderId): array
+    {
+        $tree = self::tree($conn);
+        if (!isset($tree[$folderId])) return [];
+        $kids = [];
+        foreach ($tree as $f) {
+            if ($f['parent_id'] !== null) $kids[$f['parent_id']][] = $f['id'];
+        }
+        foreach ($kids as &$k) usort($k, fn($a, $b) => strnatcasecmp($tree[$a]['name'], $tree[$b]['name']) ?: $a <=> $b);
+        unset($k);
+        $out = [];
+        $seen = [];
+        $queue = [[$folderId, 0]];
+        while ($queue) {
+            [$id, $d] = array_shift($queue);
+            if (isset($seen[$id])) continue;   // cycle guard
+            $seen[$id] = true;
+            $out[] = ['id' => $id, 'depth' => $d];
+            foreach ($kids[$id] ?? [] as $c) $queue[] = [$c, $d + 1];
+        }
+        return $out;
+    }
+
+    /**
+     * The folders INSIDE a folder (not the folder itself) this analyst holds less
+     * than Modify on, nearest the top first, however deep. Deleting or moving a
+     * folder takes everything in it along, so both need Modify on all of them - as
+     * Windows refuses to delete or move a folder holding something you have no
+     * right to change. A subfolder that stopped inheriting and was never shared with
+     * this person is the usual one. Files have no permissions of their own - a file
+     * is controlled by its folder - so checking every folder covers every file.
+     *
+     * @return list<int>  folder ids; empty when nothing inside stands in the way
+     */
+    public static function blockersInside(PDO $conn, int $analystId, int $folderId): array
+    {
+        $levels = self::levels($conn, $analystId);
+        $out = [];
+        foreach (self::subtreeTopFirst($conn, $folderId) as $s) {
+            if ($s['depth'] > 0 && ($levels[$s['id']] ?? 0) < self::MODIFY) $out[] = $s['id'];
+        }
+        return $out;
+    }
+
+    /**
+     * Why this analyst may not delete or move the folder because of what is inside
+     * it, as the sentence they are shown - or null when nothing inside stands in the
+     * way. (Modify on the folder itself is checked first, by the caller.)
+     *
+     * @param string $verb  'delete' or 'move', for the sentence
+     *
+     * TRAP: this message must never tell anyone something they cannot already see.
+     * It names ONE blocking folder, and only one they can view; when every blocker
+     * is hidden from them it names none and gives no count - otherwise trying to
+     * delete a parent would be a way to list the names of folders kept from you.
+     * No list either: a folder with 300 locked subfolders is one sentence. System ->
+     * Debug Tools -> D020 shows an administrator the whole picture.
+     */
+    public static function refusalInside(PDO $conn, int $analystId, int $folderId, string $verb = 'delete'): ?string
+    {
+        $blockers = self::blockersInside($conn, $analystId, $folderId);
+        if (!$blockers) return null;
+        $tree = self::tree($conn);
+        $levels = self::levels($conn, $analystId);
+        $name = $tree[$folderId]['name'] ?? '';
+        $verb = $verb === 'move' ? 'move' : 'delete';
+        foreach ($blockers as $b) {
+            if (($levels[$b] ?? 0) >= self::VIEW) {
+                return 'You cannot ' . $verb . ' "' . $name . '": you do not have permission to change "' . $tree[$b]['name'] . '"'
+                     . (count($blockers) > 1 ? ', and other items inside it' : ' inside it')
+                     . '. Ask whoever manages it.';
+            }
+        }
+        return 'You cannot ' . $verb . ' "' . $name . '": it contains folders you do not have access to. Ask whoever manages this folder.';
+    }
 }

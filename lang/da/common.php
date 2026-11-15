@@ -90,6 +90,7 @@ return [
         'visibility' => 'Synlighed',
         'always' => 'Altid synligt',
         'hover' => 'Vis ved markørover',
+        'click' => 'Klik for at åbne',
     ],
     'ai' => [
         'provider' => 'Udbyder',
@@ -851,5 +852,29 @@ return [
         'label' => 'Pris',
         'month' => '{price} om måneden',
         'free' => 'Gratis',
+    ],
+    'date_input' => [
+        'invalid' => 'Skriv en dato som {example}, eller vælg en.',
+        'invalid_time' => 'Skriv et klokkeslæt som {example}, eller vælg et.',
+        'today' => 'I dag',
+        'now' => 'Nu',
+        'clear' => 'Ryd',
+        'prev_month' => 'Forrige måned',
+        'next_month' => 'Næste måned',
+        'open' => 'Vælg fra en kalender',
+        'hour' => 'Time',
+        'minute' => 'Minut',
+    ],
+    'tenant_switcher' => [
+        'title' => 'Skift virksomhed',
+        'head' => 'Virksomhed',
+        'all' => 'Alle virksomheder',
+        'triage' => 'Triagekø',
+        'failed' => 'Kunne ikke skifte virksomhed',
+    ],
+    'select_search' => [
+        'search' => 'Skriv for at søge',
+        'none' => 'Ingen resultater.',
+        'more' => 'Viser {n} af {total} - skriv for at begrænse.',
     ],
 ];

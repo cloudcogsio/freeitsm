@@ -372,8 +372,10 @@ function getHelpTopics() {
                 ['id' => 'summary',  'label' => 'How email reaches a company'],
                 ['id' => 'references', 'label' => 'Outside reference, tax ID and ERP sync'],
                 ['id' => 'support',  'label' => 'One company supporting another'],
+                ['id' => 'lists',    'label' => 'Many companies: searching the lists'],   // GH #358
             ],
-            'terms' => 'tenant msp client customer multi-tenancy separate organisation domain logo files desktop'
+            'terms' => 'tenant msp client customer search box dropdown long list thousands switch company'
+                     . ' msp client customer multi-tenancy separate organisation domain logo files desktop'
                      . ' external reference erp crm sync upsert api tax id vat afm search'
                      . ' supports support provider outsourced raise with wrong company warning looks like dismiss',
         ],
@@ -388,7 +390,7 @@ function getHelpTopics() {
                 ['id' => 'used',      'label' => 'Where locations are used'],
                 ['id' => 'assets',    'label' => 'The same list in Assets'],
             ],
-            'terms' => 'location locations site sites building buildings floor floors room rooms office offices campus branch data centre datacenter'
+            'terms' => 'location locations site sites building buildings floor floors room rooms office offices campus branch data centre datacenter people person ticket tickets contract contracts project projects requester in use'
                      . ' hierarchy tree parent child sub-location shared every company form forms lookup portal asset assets moved where',
         ],
         // Cost centres (GH #160).
@@ -603,8 +605,9 @@ function getHelpTopics() {
                 ['id' => 'choices',    'label' => 'The choices'],
                 ['id' => 'scope',      'label' => 'What it does not change'],
                 ['id' => 'per-person', 'label' => 'When somebody wants their own'],
+                ['id' => 'typing',     'label' => 'Typing a date'],
             ],
-            'terms' => 'date format time format 24 hour 12 hour am pm ddmmyyyy mmddyyyy iso 8601'
+            'terms' => 'date format time format 24 hour 12 hour am pm ddmmyyyy mmddyyyy iso 8601 date picker calendar first day of the week monday sunday typing'
                      . ' dd/mm/yyyy mm/dd/yyyy yyyy-mm-dd european american british locale regional'
                      . ' month name timezone preferences per analyst default',
         ],
@@ -640,6 +643,37 @@ function getHelpTopics() {
                 ['id' => 'fixing',   'label' => 'Settling them'],
             ],
             'terms' => 'intune primary user holder mismatch differs handed on reassigned laptop custody follow entra',
+        ],
+        'custom-fields' => [
+            'hero' => 'Custom fields',
+            'sub'  => 'Make up the fields your companies and people need - an account manager, a support tier, a badge number - and fill them in on the company and the person, or through the REST API.',
+            'sections' => [
+                ['id' => 'overview', 'label' => 'Overview'],
+                ['id' => 'kinds',    'label' => 'Kinds of field'],
+                ['id' => 'people',   'label' => 'People and companies'],
+                ['id' => 'api',      'label' => 'The REST API'],
+            ],
+            'terms' => 'custom fields field extra attributes company companies people person erp crm api required dropdown',
+        ],
+        'files-held' => [
+            'hero' => 'Deleted folders kept',
+            'sub'  => 'The Files recycle bin only deletes a folder for good when whoever deleted it could have deleted all of it. The rest are kept, past their date, and listed here with what to do.',
+            'sections' => [
+                ['id' => 'overview', 'label' => 'Overview'],
+                ['id' => 'why',      'label' => 'Why a folder is kept'],
+                ['id' => 'resolve',  'label' => 'Resolving one'],
+            ],
+            'terms' => 'files recycle bin deleted folder kept held retention purge permanently subfolder permission restore',
+        ],
+        'locations-in-use' => [
+            'hero' => 'Locations in use',
+            'sub'  => 'Assets, people, tickets, contracts and projects can each have a location. A location something points at cannot be deleted - this is where you move them all to another one first, or clear it.',
+            'sections' => [
+                ['id' => 'overview', 'label' => 'Overview'],
+                ['id' => 'moving',   'label' => 'Moving or clearing'],
+                ['id' => 'notes',    'label' => 'Good to know'],
+            ],
+            'terms' => 'location delete refused in use move clear people tickets contracts projects site office room',
         ],
         'orphaned-tickets' => [
             'hero' => 'Orphaned tickets',

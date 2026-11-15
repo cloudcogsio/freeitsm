@@ -3501,6 +3501,14 @@ try {
         ['user_email_addresses', 'fk_uea_analyst',        "ALTER TABLE user_email_addresses ADD CONSTRAINT fk_uea_analyst FOREIGN KEY (added_by_analyst_id) REFERENCES analysts (id) ON DELETE SET NULL"],
         ['user_email_claims',    'fk_uec_user',           "ALTER TABLE user_email_claims ADD CONSTRAINT fk_uec_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE"],
         ['user_audit',           'fk_user_audit_user',    "ALTER TABLE user_audit ADD CONSTRAINT fk_user_audit_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE"],
+        // Custom fields on companies and people (GH #279): values and history go with their company / person.
+        ['company_field_options', 'fk_company_field_options_field', "ALTER TABLE company_field_options ADD CONSTRAINT fk_company_field_options_field FOREIGN KEY (field_id) REFERENCES company_fields (id) ON DELETE CASCADE"],
+        ['company_field_values',  'fk_cfv_tenant',          "ALTER TABLE company_field_values ADD CONSTRAINT fk_cfv_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE"],
+        ['company_field_values',  'fk_cfv_field',           "ALTER TABLE company_field_values ADD CONSTRAINT fk_cfv_field FOREIGN KEY (field_id) REFERENCES company_fields (id)"],
+        ['company_audit',         'fk_company_audit_tenant', "ALTER TABLE company_audit ADD CONSTRAINT fk_company_audit_tenant FOREIGN KEY (tenant_id) REFERENCES tenants (id) ON DELETE CASCADE"],
+        ['person_field_options',  'fk_person_field_options_field', "ALTER TABLE person_field_options ADD CONSTRAINT fk_person_field_options_field FOREIGN KEY (field_id) REFERENCES person_fields (id) ON DELETE CASCADE"],
+        ['person_field_values',   'fk_pfv_user',            "ALTER TABLE person_field_values ADD CONSTRAINT fk_pfv_user FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE"],
+        ['person_field_values',   'fk_pfv_field',           "ALTER TABLE person_field_values ADD CONSTRAINT fk_pfv_field FOREIGN KEY (field_id) REFERENCES person_fields (id)"],
         ['user_audit',           'fk_user_audit_analyst', "ALTER TABLE user_audit ADD CONSTRAINT fk_user_audit_analyst FOREIGN KEY (analyst_id) REFERENCES analysts (id) ON DELETE SET NULL"],
     ] as [$tbl, $name, $sql]) {
         if (!$tableExists($tbl) || $fkExists($tbl, $name)) continue;
@@ -3971,6 +3979,12 @@ try {
     foreach ([
         ['asset_locations', 'fk_asset_locations_parent', "ALTER TABLE asset_locations ADD CONSTRAINT fk_asset_locations_parent FOREIGN KEY (parent_id) REFERENCES asset_locations (id)"],
         ['assets', 'fk_assets_location', "ALTER TABLE assets ADD CONSTRAINT fk_assets_location FOREIGN KEY (location_id) REFERENCES asset_locations (id) ON DELETE SET NULL"],
+        // GH #311: a location on people, tickets, contracts and projects. SET NULL is only the
+        // backstop - deleting a location in use is refused (api/assets/delete_asset_location.php).
+        ['users',     'fk_users_location',     "ALTER TABLE users ADD CONSTRAINT fk_users_location FOREIGN KEY (location_id) REFERENCES asset_locations (id) ON DELETE SET NULL"],
+        ['tickets',   'fk_tickets_location',   "ALTER TABLE tickets ADD CONSTRAINT fk_tickets_location FOREIGN KEY (location_id) REFERENCES asset_locations (id) ON DELETE SET NULL"],
+        ['contracts', 'fk_contracts_location', "ALTER TABLE contracts ADD CONSTRAINT fk_contracts_location FOREIGN KEY (location_id) REFERENCES asset_locations (id) ON DELETE SET NULL"],
+        ['projects',  'fk_projects_location',  "ALTER TABLE projects ADD CONSTRAINT fk_projects_location FOREIGN KEY (location_id) REFERENCES asset_locations (id) ON DELETE SET NULL"],
         ['assets', 'fk_assets_supplier', "ALTER TABLE assets ADD CONSTRAINT fk_assets_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers (id) ON DELETE SET NULL"],
         ['asset_checkout_log', 'fk_acl_asset', "ALTER TABLE asset_checkout_log ADD CONSTRAINT fk_acl_asset FOREIGN KEY (asset_id) REFERENCES assets (id) ON DELETE CASCADE"],
     ] as [$tbl, $name, $sql]) {

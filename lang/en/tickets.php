@@ -167,6 +167,9 @@ return [
         // #149. Your own analyst folder, pinned to the top of the Analyst
         // grouping under this name instead of your own.
         'my_tickets'       => 'My tickets',
+        // Discussion #292: the collapsed column's buttons. [ does the same.
+        'show'             => 'Show folders',
+        'hide'             => 'Hide folders',
     ],
 
     'list' => [
@@ -234,6 +237,8 @@ return [
         'sensitivity_help'    => 'Confidential tickets are kept from the requester\'s managers. The service desk sees them as usual.',
         'sensitivity_failed'  => 'Could not change the sensitivity',
         'field_origin'        => 'Origin',
+        'field_location'      => 'Location',
+        'location_failed'     => 'The location was not saved. {error}',
         'field_first_time_fix'=> 'First Time Fix',
         'field_it_training'   => 'IT Training',
         // #1566. Which queue owns the ticket, as distinct from who is doing it.
@@ -2457,6 +2462,9 @@ return [
             'ai_confidential_help'  => 'Covers every AI feature that reads a ticket: the summary, Read it, reply clean-up, Ask AI, merge summaries, knowledge write-ups, channel summaries, problem analysis and the war room bot. A confidential ticket is either not sent, or - where many tickets are read at once - left out or shown by number only.',
             'ai_read_help' => 'A button that reads the whole ticket and briefs you on it: what happened, what is unresolved, and what it would do next. Asked for and read once, stored nowhere.',
             'reopen_help'         => 'Applies wherever a requester comes back — the self-service portal, a reply to your notification email, WhatsApp or web chat. The ticket returns to your first open status. Only tickets in a status marked as closed are affected (set which those are under Statuses).',
+            'location_label'  => 'Location of a new ticket',
+            'location_toggle' => 'Take the requester\'s location',
+            'location_help'   => 'A new ticket starts with its requester\'s location (from their record), by every route - email, the portal, chat, the API. Analysts can change it on the ticket. Later moves of the requester do not change old tickets.',
         ],
 
         'privacy' => [
@@ -2825,6 +2833,9 @@ return [
             'cost_centre'                => 'Cost centre',
             'cost_centre_none'           => 'None',
             'cost_centre_inactive'       => 'inactive',
+            'location'                   => 'Location',
+            'location_none'              => 'None',
+            'location_help'              => 'Where this person sits, from System -> Locations. Separate from Office, which a directory may fill in. New tickets they raise can take it.',
             'company_auto'               => 'Work it out from their email address',
             'company_help'               => 'Which company this person belongs to. Tickets they raise in the self-service portal are filed here; without one they land in triage.',
             'password'                   => 'Password',
@@ -3446,6 +3457,8 @@ return [
             'field_dept'     => '<strong>Department folders</strong> &mdash; tickets grouped by department (e.g. IT, HR, Finance). Departments are configured in Settings and appear as sub-folders automatically.',
             'switch_heading' => '<strong>Switching between Department and Analyst grouping</strong>',
             'switch_body'    => 'A small two-button toggle at the top of the folder panel switches between two views of the same data. <strong>Department</strong> grouping (default) lists tickets under each department with status sub-folders inside; <strong>Analyst</strong> grouping flips it so each top-level folder represents an analyst\'s personal queue with status sub-folders inside. The <strong>Unassigned</strong> folder is context-aware in each view &mdash; in Department view it lists tickets with no department set; in Analyst view it lists tickets with no assignee &mdash; so you can always see what needs picking up. Once your install has teams, a third choice, <strong>Team</strong>, lists the queue each ticket has been handed to. Your choice is saved per-analyst so each team member keeps the view they prefer across sessions. On an install with several companies, the Analyst folders list only people who can work in the company you are viewing, and the <strong>Assign</strong> lists offer only people who can work in that ticket&rsquo;s company. <strong>Tickets &rarr; Settings &rarr; General &rarr; Team folders</strong> can limit the Team folders to the teams each analyst belongs to; it only changes the folder list, never which tickets anyone can open.',
+            // Discussion #292
+            'folders_hide'   => '<strong>Need more room?</strong> Press <strong>[</strong> (when you are not typing), or the <strong>&laquo;</strong> at the top of the folder panel, to fold it into a thin strip; press <strong>[</strong> or click the strip to bring it back. To have it folded every time, choose <strong>Click to open</strong> or <strong>Show on hover</strong> for <em>Tickets - folders</em> in Preferences &rarr; Display &rarr; Left panels. Folded, the folders open over the ticket list and close again when you pick one. On a phone the folders work as before.',
             'p_actions'      => 'Above the ticket list, you have four action buttons: <strong>New</strong> to create a ticket, <strong>Search</strong> to find tickets by keyword, reference, or requester, <strong>Filter</strong> to narrow what you see, and <strong>Refresh</strong> to reload the current folder.',
             // #149
             'filter_body'    => 'The <strong>Filter</strong> button (the funnel) narrows the folders and the list together, whichever way they are grouped. <strong>Mine</strong> shows only tickets assigned to you, and <strong>Hide closed</strong> leaves out every ticket whose status is marked as closed. While a filter is on, the funnel carries a dot and a label appears beside the list title, so you always know you are not seeing everything. When folders are grouped by <strong>Analyst</strong>, your own folder sits at the top as <strong>My tickets</strong> instead. Search has its own <strong>Include closed tickets</strong> switch, on by default, because a search is usually a hunt for an old ticket. Both choices are saved for you alone.',
@@ -3891,7 +3904,7 @@ return [
             'allview_rule_reply'     => 'Replies still go out from the mailbox the ticket arrived at &mdash; that follows the ticket, not the view, so a combined board cannot send from the wrong address.',
             'allview_rule_knowledge' => '<strong>Ask AI</strong> searches every company you can see while the combined view is on, instead of just one. Articles shared with all companies are included either way.',
             'allview_rule_trash'     => '<strong>Emptying the trash never spans companies.</strong> It always applies to the single company you last chose, because "delete everything in the bin" across several entities at once is not what anyone means by it.',
-            'allview_rule_other'     => 'Only the ticket list widens. Assets, changes, tasks and the CMDB still show one company at a time &mdash; switch to that company to work in them.',
+            'allview_rule_other'     => 'The ticket list, Users, the Tasks board and the People list in Assets widen. The asset list, changes and the CMDB still show one company at a time &mdash; switch to that company to work in them.',
 
             'privacy_heading' => 'Each company\'s tickets stay private',
             'privacy_body'    => 'When you\'re working in a company\'s context you only ever see <strong>that</strong> company\'s tickets &mdash; in the list, in search, on dashboards, and on every ticket you open (including its emails, attachments, notes and history). A staff member can only reach a ticket if they\'ve been given access to its company (you choose each analyst\'s companies under System &rarr; Analysts, or grant a whole team on System &rarr; Teams), so there\'s no way to stray into another client\'s data. This separation is enforced everywhere behind the scenes, not just hidden from view. On a single-company install it\'s automatic and invisible &mdash; there\'s only one company, so everything simply belongs to it.',

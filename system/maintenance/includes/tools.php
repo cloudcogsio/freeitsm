@@ -60,7 +60,39 @@ function getMaintenanceTools(): array
             'keywords' => 'system.landing.intune_mismatch_keywords',
             'count'    => 'maintenanceCountIntuneMismatch',
         ],
+        // Locations in use (GH #311): where a refused location delete is resolved -
+        // everything that points at a location, moved or cleared at once. No count:
+        // a location in use is normal, not something left behind.
+        [
+            'url'      => 'locations-in-use/',
+            'icon'     => 'locations',
+            'title'    => 'system.landing.locations_in_use_title',
+            'desc'     => 'system.landing.locations_in_use_desc',
+            'keywords' => 'system.landing.locations_in_use_keywords',
+        ],
+        // Deleted folders kept (GH #293): the Files recycle bin's retention job never
+        // deletes a folder holding anything its deleter could not have deleted by hand.
+        // The count is those past their date - kept only because of that.
+        [
+            'url'      => 'files-held/',
+            'icon'     => 'files_held',
+            'title'    => 'system.landing.files_held_title',
+            'desc'     => 'system.landing.files_held_desc',
+            'keywords' => 'system.landing.files_held_keywords',
+            'count'    => 'maintenanceCountFilesHeld',
+        ],
     ];
+}
+
+/**
+ * Deleted folders kept: the ones past their date in the recycle bin, kept only
+ * because whoever deleted them could not delete everything in them
+ * (FilesRecycleService::heldEntries(), the list the page shows).
+ */
+function maintenanceCountFilesHeld(PDO $conn): int
+{
+    require_once __DIR__ . '/../../../includes/services/files_recycle.php';
+    return count(array_filter(FilesRecycleService::heldEntries($conn), fn($h) => $h['due']));
 }
 
 /**
