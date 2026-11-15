@@ -57,6 +57,28 @@ final class FilesStorageService
         }
         return null;
     }
+    /** The recycle bin's share of stored files, or null when it cannot be worked out. */
+    private static function recycleUsage(PDO $conn): ?array
+    {
+        try {
+            require_once __DIR__ . '/files_recycle.php';
+            return FilesRecycleService::binUsage($conn);
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+
+    /** What "Make available offline" copies use on this server, or null when it cannot be worked out. */
+    private static function offlineUsage(PDO $conn): ?array
+    {
+        try {
+            require_once __DIR__ . '/files_offline.php';
+            return FilesOfflineService::usage($conn);
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+
     /** The Storage tab's data. The S3 secret is reported as set or not, never sent. */
     public static function describe(PDO $conn): array
     {
@@ -74,6 +96,10 @@ final class FilesStorageService
             'max_upload_mb'  => (int)filesSetting($conn, 'files_max_upload_mb', (string)FILES_DEFAULT_MAX_UPLOAD_MB),
             'stored_files'   => (int)$usage['n'],
             'stored_bytes'   => (int)$usage['bytes'],
+            // Of those, what only deleted files use - purging the recycle bin frees it.
+            'recycle'        => self::recycleUsage($conn),
+            // Copies kept on this server by "Make available offline" (in the storage folder).
+            'offline'        => self::offlineUsage($conn),
             'free_bytes'     => $driver === 'local' ? (@disk_free_space(is_dir($root) ? $root : dirname($root)) ?: null) : null,
             's3'             => [
                 'endpoint'      => filesSetting($conn, 'files_s3_endpoint'),
@@ -179,6 +205,7 @@ final class FilesStorageService
         }
 
         $current = filesStorageConfig($conn);
+        $oldRoot = rtrim(str_replace('\\', '/', filesSetting($conn, 'files_storage_root', filesDefaultStorageRoot())), '/');
         $next    = $s3 ?? ['driver' => 'local', 'root' => $rootAbs];
         $moving  = self::locationKey($current) !== self::locationKey($next)
                    // Different settings, same place (another spelling of one folder or bucket):
@@ -217,6 +244,16 @@ final class FilesStorageService
             throw $e;
         }
         filesStorageReset();
+        // Offline copies live under the storage folder: a new one leaves the old copies
+        // where nothing reads or tidies them. The job makes new ones under the new folder.
+        if ($oldRoot !== $rootAbs) {
+            try {
+                require_once __DIR__ . '/files_offline.php';
+                FilesOfflineService::rootChanged($conn, $oldRoot, $rootAbs);
+            } catch (Throwable $e) {
+                error_log('files storage: could not remove the old offline copies: ' . $e->getMessage());
+            }
+        }
 
         filesAudit($conn, $analystId, 'settings', ['path' => '(Settings: storage)'], [
             'storage'        => self::label($next),

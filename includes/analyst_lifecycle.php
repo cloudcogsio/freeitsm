@@ -355,6 +355,8 @@ function analystReferenceRegistry(): array {
         ['status_planned', 'created_by_id', 'history'],
         ['leases', 'created_by', 'history'],
         ['lease_assets', 'created_by', 'history'],
+        ['backup_runs', 'started_by', 'history'],
+        ['backup_runs', 'verified_by', 'history'],
         ['files_folders', 'created_by', 'history'],
         ['files_folders', 'updated_by', 'history'],
         ['files_folders', 'deleted_by', 'history'],
@@ -366,6 +368,7 @@ function analystReferenceRegistry(): array {
         ['files_audit', 'analyst_id', 'history'],
         ['files_shortcuts', 'created_by', 'history'],
         ['report_downloads', 'revoked_by', 'history'],   // 5.3.0: the admin who revoked a report link
+        ['files_offline', 'marked_by', 'history'],
     ];
 }
 
