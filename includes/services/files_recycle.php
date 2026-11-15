@@ -569,6 +569,7 @@ final class FilesRecycleService
                 // Left recorded for the job - storage is down, or this request is out of time.
                 $inUse->execute([$key]);
                 if ($inUse->fetchColumn()) { self::unqueueKey($conn, $key); continue; }   // a copy still uses it
+                self::dropOfflineCopy($conn, $key);   // local: needs no storage
                 $bytes += (int)$size;
                 $pending++;
                 continue;
@@ -622,6 +623,18 @@ final class FilesRecycleService
     }
 
     /**
+     * Deletes the offline copy ("Make available offline") of bytes nothing uses any more.
+     * A leftover would be removed by the files_offline_sync job anyway.
+     */
+    private static function dropOfflineCopy(PDO $conn, string $key): void
+    {
+        if (!filesStorageKeyIsValid($key)) return;
+        require_once __DIR__ . '/../files/offline.php';
+        $copy = filesOfflinePath($conn, $key);
+        if ($copy !== null && is_file($copy) && !filesOfflineOverlapsStore($conn) && !@unlink($copy)) error_log("files: could not delete the offline copy of {$key}");
+    }
+
+    /**
      * Records keys in files_purge_pending (nothing deleted yet). False when the table is
      * missing (before Database Verification): then nothing can be recorded, and the purge
      * deletes what it can at once, as before.
@@ -668,13 +681,7 @@ final class FilesRecycleService
             error_log("files: could not delete stored bytes {$key}: " . $e->getMessage());
             $res = 'failed';
         }
-        if ($res !== 'in_use' && filesStorageKeyIsValid($key)) {
-            // Its offline copy ("Make available offline") goes at once: nothing uses the key
-            // any more. A leftover would be removed by the files_offline_sync job anyway.
-            require_once __DIR__ . '/../files/offline.php';
-            $copy = filesOfflinePath($conn, $key);
-            if ($copy !== null && is_file($copy) && !@unlink($copy)) error_log("files: could not delete the offline copy of {$key}");
-        }
+        if ($res !== 'in_use') self::dropOfflineCopy($conn, $key);
         try {
             if ($res === 'deleted' || $res === 'in_use') {
                 $conn->prepare("DELETE FROM files_purge_pending WHERE storage_path = ?")->execute([$key]);

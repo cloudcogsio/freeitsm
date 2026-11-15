@@ -240,7 +240,10 @@ function jobRegistry(): array
         'files_offline_sync' => [
             'command' => 'php cron/files_offline_sync.php', 'web' => false,
             'interval' => 5, 'grace' => 15, 'max_runtime' => 15,
-            'needed'  => fn(PDO $c) => jobNeedOne($c, "SELECT 1 FROM files_offline LIMIT 1") || jobOfflineCopiesLeft($c),
+            // Marks only matter while Files is (or is moving) in S3; copies left are tidied whatever.
+            'needed'  => fn(PDO $c) => (jobNeedOne($c, "SELECT 1 FROM files_offline LIMIT 1")
+                                        && (jobSettingStrict($c, 'files_storage_driver') === 's3' || jobSettingStrict($c, 'files_storage_previous') !== ''))
+                                     || jobOfflineCopiesLeft($c),
         ],
         // Backups (System -> Backups). Off until an administrator sets a target, a passphrase
         // and a schedule. Weekly runs as a daily schedule that is only needed on its day.
