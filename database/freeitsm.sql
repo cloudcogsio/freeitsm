@@ -10889,6 +10889,8 @@ CREATE TABLE IF NOT EXISTS `files_offline` (
     `id`                    INT NOT NULL AUTO_INCREMENT,
     `target_type`           VARCHAR(10) NOT NULL,                   -- folder | item
     `target_id`             INT NOT NULL,
+    -- 1 = "Don't keep offline": left out of a folder kept offline (the nearest mark wins).
+    `excluded`              TINYINT(1) NOT NULL DEFAULT 0,
     `marked_by`             INT NULL,
     `marked_datetime`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),

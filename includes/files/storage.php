@@ -230,8 +230,8 @@ function filesReadToLocal(PDO $conn, string $key, int $size, string $localPath):
                 (new LocalDriver(filesOfflineRoot($conn)))->readTo($key, $localPath);
                 clearstatcache(true, $localPath);
                 if ((int)@filesize($localPath) === $size) return;
-            } catch (StorageNotFound $e) {
-                // removed between the check and the read: use the store
+            } catch (Throwable $e) {
+                // removed between the check and the read, or could not be read: use the store
             }
         }
     }

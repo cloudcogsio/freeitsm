@@ -41,7 +41,7 @@ if (!JobRun::lock($conn, 'files_offline_sync', $trigger)) exit(0);
 $runId = JobRun::start($conn, 'files_offline_sync', $trigger);
 try {
     $r = FilesOfflineService::sync($conn, time() + 8 * 60);
-    $summary = sprintf('%d copied, %d removed, %d failed%s%s.', $r['copied'], $r['removed'], $r['failed'],
+    $summary = sprintf('%d copied, %d removed, %d failed, %d skipped (retried in a day)%s%s.', $r['copied'], $r['removed'], $r['failed'], $r['skipped'],
                        $r['marks_dropped'] ? ', ' . $r['marks_dropped'] . ' marks on deleted items dropped' : '',
                        $r['disk_full'] ? ' (stopped: not enough free disk on this server)'
                        : ($r['done'] ? '' : ' (more to do, or storage could not be reached: the next run carries on)'));

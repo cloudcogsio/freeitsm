@@ -186,6 +186,8 @@
                 esc(L('settings.storage_usage', '{n} stored files, {size} in all.', { n: r.stored_files, size: fmtSize(r.stored_bytes) })) +
                 (r.recycle && r.recycle.files ? ' ' + esc(L('settings.storage_in_bin', 'In the recycle bin (freed when it is emptied): {n}, {size}.', { n: r.recycle.files, size: fmtSize(r.recycle.bytes) })) : '') +
                 (r.offline && r.offline.files ? ' ' + esc(L('settings.storage_offline', 'Offline copies on this server: {n}, {size}.', { n: r.offline.files, size: fmtSize(r.offline.bytes) })) : '') +
+                (r.offline_marks && (r.offline_marks.folders || r.offline_marks.files || r.offline_marks.excluded)
+                    ? ' ' + esc(L('settings.offline_marks', 'Kept offline: folders {folders}, files {files}, left out {excluded} (marked by {people} people).', r.offline_marks)) : '') +
                 (r.free_bytes ? ' ' + esc(L('settings.storage_free', '{size} free on that disk.', { size: fmtSize(r.free_bytes) })) : '') +
                 (r.writable ? '' : ' <strong>' + esc(L('settings.not_writable', 'The web server cannot write there - uploads will fail.')) + '</strong>');
 
@@ -236,8 +238,22 @@
                     showType();
                 }
                 render(r);
+                var om = r.offline_marks;
+                $('stoOffline').hidden = !(om && (om.folders || om.files || om.excluded)) && !(r.offline && r.offline.files);
             }).catch(function (e) { $('stoState').textContent = e.message; });
         };
+        // "Remove all offline copies": every mark goes, so everything is read from S3 only again.
+        $('stoOfflineClear').addEventListener('click', function () {
+            confirmThen(L('settings.offline_clear', 'Remove all offline copies'),
+                L('settings.offline_clear_q', 'Remove every "Make available offline" mark, for everyone? Files are then read from S3 only, and the Files offline copies job deletes the copies on this server.'),
+                L('settings.offline_clear', 'Remove all offline copies'),
+                function () {
+                    api('offline.php', { action: 'clear_all' }).then(function (r) {
+                        $('stoOfflineMsg').textContent = L('settings.offline_cleared', 'Marks removed: {n}. The copies are deleted within a few minutes.', { n: r.marks });
+                        load(false);
+                    }).catch(function (e) { $('stoOfflineMsg').textContent = e.message; });
+                }, true);
+        });
         /** Asks first (in the app's dialog when there is one), then runs go(). */
         var confirmThen = function (title, msg, ok, go, danger) {
             if (window.showConfirm) window.showConfirm({ title: title, message: msg, okLabel: ok, okClass: danger ? 'danger' : undefined, onConfirm: go });

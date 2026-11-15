@@ -100,6 +100,11 @@ final class FilesStorageService
             'recycle'        => self::recycleUsage($conn),
             // Copies kept on this server by "Make available offline" (in the storage folder).
             'offline'        => self::offlineUsage($conn),
+            // What is marked, and who by: "Remove all offline copies" undoes all of it.
+            'offline_marks'  => (function () use ($conn) {
+                try { require_once __DIR__ . '/files_offline.php'; return FilesOfflineService::summary($conn); }
+                catch (Throwable $e) { return null; }
+            })(),
             'free_bytes'     => $driver === 'local' ? (@disk_free_space(is_dir($root) ? $root : dirname($root)) ?: null) : null,
             's3'             => self::s3ForTab($conn),
             // Saved on System -> Storage (#284): the tab shows it read-only and links there.

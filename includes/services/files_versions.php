@@ -204,6 +204,10 @@ function filesPurgeBytesIfUnused(PDO $conn, string $key): string
     // The move forgets the key FIRST: a copy the move job writes after this point finds
     // its row gone and nothing using the bytes, and removes it (storageMigrateBatch).
     $conn->prepare("DELETE FROM storage_migration_items WHERE store = 'files' AND object_key = ?")->execute([$key]);
+    // Its offline copy ("Make available offline") goes too: nothing uses the key any more.
+    require_once __DIR__ . '/../files/offline.php';
+    $copy = filesOfflinePath($conn, $key);
+    if ($copy !== null && is_file($copy) && !@unlink($copy)) error_log("files: could not delete the offline copy of {$key}");
     $stores = [filesActiveStore($conn)];
     try { if (($prev = filesPreviousStore($conn)) !== null) $stores[] = $prev; } catch (Throwable) {}
     $result = 'deleted';

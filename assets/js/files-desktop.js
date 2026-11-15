@@ -193,8 +193,9 @@
             '<path d="M5 11.5c0-3.5 2-5.5 5.5-5.5M8.5 3.5l2.5 2.5-2.5 2.5" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
     }
     // ── Offline copies ("Make available offline", S3-compatible storage only) ──
-    /** What an entry's offline badge says: kept itself, kept by a folder above, or still being copied. */
+    /** What an entry's offline badge says: kept itself, kept by a folder above, left out, or still being copied. */
     function offlineLabel(e) {
+        if (e.offline === 'excluded') return L('ex.offline_excluded', 'Not kept offline (left out of a folder kept offline)');
         if (e.type === 'item' && !e.offline_ready) return L('ex.offline_pending', 'Being made available offline');
         return e.offline === 'self' ? L('ex.offline_self', 'Available offline') : L('ex.offline_folder', 'Available offline (from a folder)');
     }
@@ -208,28 +209,47 @@
             '<circle cx="8" cy="8" r="7" fill="' + bg + '" stroke="' + fg + '" stroke-width="1.5"/>' +
             '<path d="M4.8 8.2l2.1 2.1 4.3-4.6" fill="none" stroke="' + fg + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
     }
-    /** Marks or unmarks each selected file or folder in turn, then redraws. */
-    function setOffline(ex, sel, on) {
+    /**
+     * Runs an offline action on each selected file or folder in turn, then redraws.
+     *
+     * @param {string} action  'on' (Make available offline), 'off' (Remove offline copy),
+     *                         'exclude' (Don't keep offline), 'include' (Keep offline again)
+     */
+    function setOffline(ex, sel, action) {
         var chain = Promise.resolve(), anyFolder = false;
         sel.forEach(function (e) {
             if (e.type !== 'folder' && e.type !== 'item') return;
             if (e.type === 'folder') anyFolder = true;
-            chain = chain.then(function () { return api('offline.php', { action: on ? 'on' : 'off', type: e.type, id: e.id }).catch(fail); });
+            chain = chain.then(function () { return api('offline.php', { action: action, type: e.type, id: e.id }).catch(fail); });
         });
         chain.then(function () {
-            if (on && anyFolder) WM.notify(L('ex.offline_bg', 'Copies are being made in the background.'));
+            if ((action === 'on' || action === 'include') && anyFolder) WM.notify(L('ex.offline_bg', 'Copies are being made in the background.'));
             ex.reload();
         });
     }
-    /** The entry menu's offline item, or null when it does not apply here. */
+    /**
+     * The entry menu's offline item, or null when it does not apply here. Kept by a folder
+     * above: "Offline >" with "Don't keep offline" (left out here, back to S3 only) and,
+     * when the person can see that folder, "Remove offline copy from <folder>".
+     */
     function offlineMenu(ex, e, many) {
         if (!ex.data || !ex.data.offline_enabled) return null;
-        var sel = many ? ex.selected() : [e];
-        if (!many && e.offline === 'self') {
-            return { label: L('ex.offline_off', 'Remove offline copy'), action: function () { setOffline(ex, sel, false); } };
+        if (many) return { label: L('ex.offline_on', 'Make available offline'), action: function () { setOffline(ex, ex.selected(), 'on'); } };
+        if (e.offline === 'self') return { label: L('ex.offline_off', 'Remove offline copy'), action: function () { setOffline(ex, [e], 'off'); } };
+        if (e.offline === 'excluded') return { label: L('ex.offline_include', 'Keep offline again'), action: function () { setOffline(ex, [e], 'include'); } };
+        if (e.offline === 'folder') {
+            var sub = [{ label: L('ex.offline_exclude', "Don't keep offline"), action: function () { setOffline(ex, [e], 'exclude'); } }];
+            var from = e.offline_from;
+            if (from) sub.push({ label: L('ex.offline_off_from', 'Remove offline copy from "{path}"', { path: from.path }), action: function () {
+                WM.dialog({
+                    title: L('ex.offline_off', 'Remove offline copy'),
+                    message: L('ex.offline_off_from_q', 'Remove the offline copy of "{path}"? Everything in it goes back to S3 only, not just this.', { path: from.path }),
+                    buttons: [{ label: L('ex.offline_off', 'Remove offline copy'), value: true, primary: true }, { label: L('btn.cancel', 'Cancel'), value: false, cancel: true }]
+                }).then(function (ok) { if (ok) setOffline(ex, [{ type: 'folder', id: from.id }], 'off'); });
+            } });
+            return { label: L('ex.offline_menu', 'Offline'), sub: sub };
         }
-        // Already kept by a folder above: nothing to add here (it is removed from that folder).
-        return { label: L('ex.offline_on', 'Make available offline'), disabled: !many && e.offline === 'folder', action: function () { setOffline(ex, sel, true); } };
+        return { label: L('ex.offline_on', 'Make available offline'), action: function () { setOffline(ex, [e], 'on'); } };
     }
 
     /** "Create shortcut >" for a file or folder: beside it, or on my desktop. */
@@ -519,8 +539,8 @@
         var d = this.data, out = [];
         if (!d) return out;
         var lvl = d.folder ? d.folder.level : 0;
-        d.folders.forEach(function (f) { out.push({ key: 'f:' + f.id, type: 'folder', id: f.id, name: f.name, modified: f.modified, level: f.level, path: f.path, offline: f.offline || null, offline_ready: true }); });
-        d.items.forEach(function (i) { out.push({ key: 'i:' + i.id, type: 'item', id: i.id, name: i.name, modified: i.modified, size: i.size, level: lvl, by: i.modified_by, versions: i.versions, offline: i.offline || null, offline_ready: !!i.offline_ready }); });
+        d.folders.forEach(function (f) { out.push({ key: 'f:' + f.id, type: 'folder', id: f.id, name: f.name, modified: f.modified, level: f.level, path: f.path, offline: f.offline || null, offline_from: f.offline_from || null, offline_ready: true }); });
+        d.items.forEach(function (i) { out.push({ key: 'i:' + i.id, type: 'item', id: i.id, name: i.name, modified: i.modified, size: i.size, level: lvl, by: i.modified_by, versions: i.versions, offline: i.offline || null, offline_from: i.offline_from || null, offline_ready: !!i.offline_ready }); });
         // Shortcuts: `level` is THIS folder's (it decides rename/delete); the
         // target's own permissions decide what opening it does.
         (d.shortcuts || []).forEach(function (s) {
@@ -575,7 +595,7 @@
             var px = self.view === 'icons' ? 48 : 18;
             var icon = e.type === 'shortcut' ? shortcutIcon(e.target_type, e.target_name, px)
                      : e.type === 'folder' ? FI.folder(px) : FI.file(e.name, px);
-            if (e.offline) icon = offlineIcon(icon, e, px);
+            if (e.offline && e.offline !== 'excluded') icon = offlineIcon(icon, e, px);   // left out: no tick
             var tip = e.type === 'shortcut' ? L('sc.tip', 'Shortcut to {path}', { path: e.path }) : (e.path ? e.path : e.name);
             var drag = 'true';
             if (self.view === 'icons') {
