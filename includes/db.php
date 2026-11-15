@@ -68,3 +68,9 @@ if (!function_exists('dbConnectionOptions')) {
         ];
     }
 }
+
+// Maintenance mode: while a backup is being restored from System -> Backups, every page,
+// endpoint and background job stops here (503), except the restore's own progress. Here,
+// not in functions.php, because every database connection loads this file - including the
+// endpoints that skip functions.php. See includes/maintenance_gate.php.
+require_once __DIR__ . '/maintenance_gate.php';

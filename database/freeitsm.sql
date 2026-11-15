@@ -10856,7 +10856,7 @@ CREATE TABLE IF NOT EXISTS `files_uploads` (
 CREATE TABLE IF NOT EXISTS `storage_migration_items` (
     `id`                    BIGINT NOT NULL AUTO_INCREMENT,
     `store`                 VARCHAR(20) NOT NULL,                   -- files
-    `object_key`            VARCHAR(255) NOT NULL,
+    `object_key`            VARCHAR(500) COLLATE utf8mb4_bin NOT NULL, -- long (#284); binary: "Report.pdf" and "report.pdf" are two files
     `size_bytes`            BIGINT NOT NULL,
     `sha256`                CHAR(64) NULL,
     `state`                 VARCHAR(10) NOT NULL DEFAULT 'pending', -- pending | verified | failed | removed | skipped
@@ -10893,6 +10893,44 @@ CREATE TABLE IF NOT EXISTS `files_offline` (
     `marked_datetime`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_files_offline_target` (`target_type`, `target_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- The SHA-256 of objects in a store kept in S3 (#284), by size and modified time, so a
+-- backup does not download an unchanged file again just to learn its checksum.
+-- A cache: losing it costs one full read. See includes/backup/runner.php.
+CREATE TABLE IF NOT EXISTS `storage_object_hashes` (
+    `store`                 VARCHAR(20) NOT NULL,
+    `object_key`            VARCHAR(500) COLLATE utf8mb4_bin NOT NULL, -- binary, as in storage_migration_items
+    `size_bytes`            BIGINT NOT NULL,
+    `mtime`                 BIGINT NOT NULL,
+    `sha256`                CHAR(64) NOT NULL,
+    `updated_datetime`      DATETIME NULL,
+    PRIMARY KEY (`store`, `object_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Backups (System -> Backups): one row per backup run, and the last on-demand
+-- verification of it. The backups themselves live on the backup target.
+-- See includes/backup/runner.php.
+CREATE TABLE IF NOT EXISTS `backup_runs` (
+    `id`                    INT NOT NULL AUTO_INCREMENT,
+    `kind`                  VARCHAR(10) NOT NULL,                   -- scheduled | manual
+    `status`                VARCHAR(10) NOT NULL DEFAULT 'running', -- running | ok | failed
+    `set_name`              VARCHAR(20) NULL,                       -- sets/<set_name>/ on the target
+    `started_at`            DATETIME NOT NULL,
+    `finished_at`           DATETIME NULL,
+    `started_by`            INT NULL,                               -- analyst (Back up now); NULL = scheduled
+    `size_bytes`            BIGINT NULL,
+    `files_total`           INT NULL,
+    `files_new`             INT NULL,
+    `db_bytes`              BIGINT NULL,
+    `error_text`            TEXT NULL,
+    `warning_text`          TEXT NULL,
+    `verify_status`         VARCHAR(10) NULL,                       -- running | ok | failed
+    `verified_at`           DATETIME NULL,
+    `verified_by`           INT NULL,
+    `verify_detail`         TEXT NULL,
+    PRIMARY KEY (`id`),
+    KEY `ix_backup_runs_started` (`started_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 SET FOREIGN_KEY_CHECKS = 1;
 

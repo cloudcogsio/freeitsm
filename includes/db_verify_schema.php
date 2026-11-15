@@ -7144,7 +7144,7 @@ return [
     'storage_migration_items' => [
         'id'                  => 'BIGINT NOT NULL AUTO_INCREMENT',
         'store'               => 'VARCHAR(20) NOT NULL',
-        'object_key'          => 'VARCHAR(255) NOT NULL',
+        'object_key'          => 'VARCHAR(500) COLLATE utf8mb4_bin NOT NULL',
         'size_bytes'          => 'BIGINT NOT NULL',
         'sha256'              => 'CHAR(64) NULL',
         'state'               => "VARCHAR(10) NOT NULL DEFAULT 'pending'",
@@ -7168,6 +7168,35 @@ return [
         'target_id'           => 'INT NOT NULL',
         'marked_by'           => 'INT NULL',
         'marked_datetime'     => 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP',
+    ],
+    // Checksums of objects in a store kept in S3, for backups (#284) - see freeitsm.sql.
+    'storage_object_hashes' => [
+        'store'               => 'VARCHAR(20) NOT NULL',
+        'object_key'          => 'VARCHAR(500) COLLATE utf8mb4_bin NOT NULL',
+        'size_bytes'          => 'BIGINT NOT NULL',
+        'mtime'               => 'BIGINT NOT NULL',
+        'sha256'              => 'CHAR(64) NOT NULL',
+        'updated_datetime'    => 'DATETIME NULL',
+    ],
+    // Backups (System -> Backups) - see freeitsm.sql.
+    'backup_runs' => [
+        'id'                  => 'INT NOT NULL AUTO_INCREMENT',
+        'kind'                => 'VARCHAR(10) NOT NULL',
+        'status'              => "VARCHAR(10) NOT NULL DEFAULT 'running'",
+        'set_name'            => 'VARCHAR(20) NULL',
+        'started_at'          => 'DATETIME NOT NULL',
+        'finished_at'         => 'DATETIME NULL',
+        'started_by'          => 'INT NULL',
+        'size_bytes'          => 'BIGINT NULL',
+        'files_total'         => 'INT NULL',
+        'files_new'           => 'INT NULL',
+        'db_bytes'            => 'BIGINT NULL',
+        'error_text'          => 'TEXT NULL',
+        'warning_text'        => 'TEXT NULL',
+        'verify_status'       => 'VARCHAR(10) NULL',
+        'verified_at'         => 'DATETIME NULL',
+        'verified_by'         => 'INT NULL',
+        'verify_detail'       => 'TEXT NULL',
     ],
     // Starters & leavers (4.6.0) - see freeitsm.sql.
     'jml_templates' => [

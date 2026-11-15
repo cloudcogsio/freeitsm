@@ -48,6 +48,30 @@ function getHelpTopics() {
             ],
             'terms' => 'aes key secret credentials at rest cipher rotate',
         ],
+        'backups' => [
+            'hero' => 'Backups',
+            'sub'  => 'Encrypted, scheduled backups of the database, every stored file and the encryption key - and how to put FreeITSM back to one, or rebuild it from them.',
+            'sections' => [
+                ['id' => 'overview',   'label' => 'What is backed up'],
+                ['id' => 'target',     'label' => 'Where backups go'],
+                ['id' => 'passphrase', 'label' => 'The passphrase'],
+                ['id' => 'schedule',   'label' => 'Schedule & retention'],
+                ['id' => 'verify',     'label' => 'Verifying a backup'],
+                ['id' => 'restore',    'label' => 'Restoring'],
+            ],
+            'terms' => 'backup restore rollback roll back undo maintenance mode safety backup recovery disaster rebuild offsite s3 bucket nas passphrase schedule retention verify encryption key',
+        ],
+        'storage' => [
+            'hero' => 'Storage',
+            'sub'  => 'Keep ticket attachments, change attachments, documents, screen recordings and war-room files on this server or in S3-compatible storage - store by store - and move them safely between the two.',
+            'sections' => [
+                ['id' => 'connection', 'label' => 'The S3 connection'],
+                ['id' => 'stores',     'label' => 'Choosing where each store lives'],
+                ['id' => 'moving',     'label' => 'How a move works'],
+                ['id' => 'notes',      'label' => 'Good to know'],
+            ],
+            'terms' => 'storage s3 bucket minio backblaze wasabi cloudflare r2 aws attachments documents recordings war room move offload object storage disk space',
+        ],
         'docker' => [
             'hero' => 'Docker',
             'sub'  => 'Turn on HTTPS for FreeITSM running in its Docker image, with a certificate for the name your people type - no certificate knowledge needed.',
