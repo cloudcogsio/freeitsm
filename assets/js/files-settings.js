@@ -189,6 +189,7 @@
                 (r.offline_marks && (r.offline_marks.folders || r.offline_marks.files || r.offline_marks.excluded)
                     ? ' ' + esc(L('settings.offline_marks', 'Kept offline: folders {folders}, files {files}, left out {excluded} (marked by {people} people).', r.offline_marks)) : '') +
                 (r.free_bytes ? ' ' + esc(L('settings.storage_free', '{size} free on that disk.', { size: fmtSize(r.free_bytes) })) : '') +
+                (r.driver === 's3' && r.s3 && r.s3.insecure ? ' <strong>' + esc(L('settings.storage_insecure', 'The storage endpoint uses plain http:// to an address on the internet: files cross it unencrypted. Use https:// if the provider offers it.')) + '</strong>' : '') +
                 (r.writable ? '' : ' <strong>' + esc(L('settings.not_writable', 'The web server cannot write there - uploads will fail.')) + '</strong>');
 
             var m = r.migration;
