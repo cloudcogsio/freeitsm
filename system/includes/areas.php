@@ -51,6 +51,7 @@ function getSystemAreas() {
         [
             'icon'     => 'backups',
             'url'      => 'backups/',
+            'group'    => 'health',
             'title'    => 'system.landing.backups_title',
             'desc'     => 'system.landing.backups_desc',
             'keywords' => 'system.landing.backups_keywords',
@@ -59,6 +60,7 @@ function getSystemAreas() {
         [
             'icon'     => 'storage',
             'url'      => 'storage/',
+            'group'    => 'health',
             'title'    => 'system.landing.storage_title',
             'desc'     => 'system.landing.storage_desc',
             'keywords' => 'system.landing.storage_keywords',
