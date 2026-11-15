@@ -163,10 +163,14 @@ filesApiRun(function () use ($conn, $analystId) {
             $store->putFile($rel, $part, true);
         } catch (StorageUnavailable $e) {
             // The .part stays where it is, so finishing again works once the store is back.
+            // The offline copy goes: finishing again makes a new one (filesApiFail exits).
+            if ($offlineTmp !== null) @unlink($offlineTmp);
             error_log('files upload: ' . $e->getMessage());
             filesApiFail($store instanceof LocalDriver ? 'The server could not store the file.' : filesStoreUnavailableMessage());
         }
 
+        // From here until the upload is saved, a failure must not leave the offline copy.
+        try {
         $conn->beginTransaction();
         $itemId = $up['item_id'] !== null ? (int)$up['item_id'] : null;
         if ($itemId !== null) {
@@ -194,6 +198,10 @@ filesApiRun(function () use ($conn, $analystId) {
                        " WHERE id = ?")->execute([$versionId, $size, $mime, $itemId]);
         $conn->prepare("DELETE FROM files_uploads WHERE id = ?")->execute([$up['id']]);
         $conn->commit();
+        } catch (Throwable $e) {
+            if ($offlineTmp !== null) @unlink($offlineTmp);
+            throw $e;
+        }
         // Someone may have saved a new storage location while this file was being stored.
         FilesStorageService::queueIfMoved($conn, $usedCfg, $rel, $size, $sha);
         FilesOfflineService::commitUploadCopy($conn, $offlineTmp, $rel);

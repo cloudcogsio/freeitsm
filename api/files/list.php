@@ -22,9 +22,16 @@ filesApiRun(function () use ($conn, $analystId) {
 
     if ($folderId > 0 && !isset($levels[$folderId])) filesApiFail('Folder not found.');
 
-    // "Make available offline" badges: 'self' (marked), 'folder' (a marked folder above), null.
+    // "Make available offline" badges: 'self' (marked), 'folder' (a marked folder above),
+    // 'excluded' (left out of one), null.
     $offMarks   = filesOfflineDisplayMarks($conn);   // null: none, or copies mean nothing here
     $offFolders = filesOfflineCoveredFolders($conn, $offMarks);
+    // The folder that keeps something offline, for "Remove offline copy from ...": only
+    // when the caller can see it - never a folder name they could not see otherwise.
+    $offFrom = function (int $fromFolder) use ($conn, $offMarks, $levels): ?array {
+        $k = filesOfflineKeeper($conn, $offMarks, $fromFolder);
+        return $k && isset($levels[$k['id']]) ? ['id' => $k['id'], 'path' => FilesAcl::path($conn, $k['id'])] : null;
+    };
 
     // Subfolders the caller can see.
     $childIds = [];
@@ -55,7 +62,8 @@ filesApiRun(function () use ($conn, $analystId) {
                 // caller may not see, which is fine: expanding one reveals nothing.
                 'has_children' => (int)$r['sub_count'] > 0,
                 'path'      => $folderId === 0 && $r['parent_id'] !== null ? FilesAcl::path($conn, $id) : null,
-                'offline'   => $offFolders[$id] ?? null,
+                'offline'   => $off = $offFolders[$id] ?? null,
+                'offline_from' => $off === 'folder' ? $offFrom($id) : null,
             ];
         }
         usort($folders, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
@@ -86,8 +94,9 @@ filesApiRun(function () use ($conn, $analystId) {
                 'modified_by' => $r['modified_by'],
                 'versions'    => (int)$r['versions'],
                 'offline'     => $off = filesOfflineItemCoverage($offFolders, $offMarks, (int)$r['id'], $folderId),
+                'offline_from' => $off === 'folder' ? $offFrom($folderId) : null,
                 // Covered but not copied yet: the job is still making it.
-                'offline_ready' => $off !== null && filesOfflineHasCopy($conn, (string)$r['storage_path'], (int)$r['size_bytes']),
+                'offline_ready' => filesOfflineKept($off) && filesOfflineHasCopy($conn, (string)$r['storage_path'], (int)$r['size_bytes']),
             ];
         }
         usort($items, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));

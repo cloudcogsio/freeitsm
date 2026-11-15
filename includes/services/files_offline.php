@@ -26,6 +26,26 @@ final class FilesOfflineService
     /** Leftover temporary copies older than this are removed by the job. */
     const TMP_MAX_AGE = 86400;
 
+    /** A file whose copy failed for a reason of its own is tried again after this long. */
+    const RETRY_FAILED_AFTER = 86400;
+
+    /** [key => unix time of the failure] (setting files_offline_failed). */
+    private static function failedKeys(PDO $conn): array
+    {
+        $v = json_decode(filesSetting($conn, 'files_offline_failed'), true);
+        return is_array($v) ? array_map('intval', $v) : [];
+    }
+
+    private static function saveFailedKeys(PDO $conn, array $bad): void
+    {
+        try {
+            filesSaveSetting($conn, 'files_offline_failed', $bad ? json_encode($bad) : null);
+            FilesStorageCache::$settings['files_offline_failed'] = $bad ? json_encode($bad) : null;
+        } catch (Throwable $e) {
+            error_log('files offline: could not save the failed list: ' . $e->getMessage());
+        }
+    }
+
     /**
      * Marking a single file copies it at once only up to this size; bigger files are
      * left to the job, so a click never waits for a multi-GB download from S3.
@@ -78,10 +98,14 @@ final class FilesOfflineService
             throw new InvalidArgumentException('Offline copies are only used when files are stored in S3-compatible storage.');
         }
         try {
-            $st = $conn->prepare("INSERT IGNORE INTO files_offline (target_type, target_id, marked_by, marked_datetime) VALUES (?, ?, ?, UTC_TIMESTAMP())");
+            // A target left out ("Don't keep offline") becomes a mark: the nearest mark wins.
+            $st = $conn->prepare("INSERT INTO files_offline (target_type, target_id, excluded, marked_by, marked_datetime) VALUES (?, ?, 0, ?, UTC_TIMESTAMP())
+                                  ON DUPLICATE KEY UPDATE marked_by = IF(excluded = 1, VALUES(marked_by), marked_by),
+                                                          marked_datetime = IF(excluded = 1, UTC_TIMESTAMP(), marked_datetime), excluded = 0");
             $st->execute([$type, $id, $analystId]);
         } catch (PDOException $e) {
-            if (filesOfflineMissingTable($e)) throw new InvalidArgumentException('Run System → Database Verification first.');
+            // No table yet, or not the excluded column (both come with Database Verification).
+            if (filesOfflineMissingTable($e) || ($e->errorInfo[1] ?? null) === 1054) throw new InvalidArgumentException('Run System → Database Verification first.');
             throw $e;
         }
         if ($st->rowCount() > 0) filesAudit($conn, $analystId, 'offline', self::auditTarget($t), ['on' => true, 'type' => $type]);
@@ -121,18 +145,108 @@ final class FilesOfflineService
         $before = filesOfflineMarks($conn);
         if ($before === null) throw new InvalidArgumentException('Run System → Database Verification first.');
         $beforeKeys = filesOfflineCoveredKeys($conn, $before);
-        $st = $conn->prepare("DELETE FROM files_offline WHERE target_type = ? AND target_id = ?");
+        $st = $conn->prepare("DELETE FROM files_offline WHERE target_type = ? AND target_id = ? AND excluded = 0");
         $st->execute([$type, $id]);
         if ($st->rowCount() === 0) return ['removed' => 0];
         filesAudit($conn, $analystId, 'offline', self::auditTarget($t), ['on' => false, 'type' => $type]);
+        return ['removed' => self::removeUncovered($conn, $beforeKeys)];
+    }
 
+    /**
+     * "Don't keep offline": leaves a file or folder out of the folder above it that keeps
+     * it offline (the nearest mark wins - a folder marked further down is kept again).
+     * Only for something kept by a folder above; something marked itself is removed
+     * with unmark(). Needs View. Its copies go at once (those nothing else covers).
+     *
+     * @return array ['removed' => copies deleted]
+     */
+    public static function exclude(PDO $conn, int $analystId, string $type, int $id): array
+    {
+        $t = self::target($conn, $analystId, $type, $id);
+        $marks = filesOfflineMarks($conn);
+        if ($marks === null) throw new InvalidArgumentException('Run System → Database Verification first.');
+        $folders = filesOfflineCoveredFolders($conn, $marks);
+        $state = $type === 'folder' ? ($folders[$id] ?? null) : filesOfflineItemCoverage($folders, $marks, $id, $t['folder_id']);
+        if ($state === 'self') throw new InvalidArgumentException('This is kept offline by its own mark - choose Remove offline copy instead.');
+        if ($state !== 'folder') throw new InvalidArgumentException('This is not kept offline by a folder above it.');
+        $beforeKeys = filesOfflineCoveredKeys($conn, $marks);
+        $conn->prepare("INSERT INTO files_offline (target_type, target_id, excluded, marked_by, marked_datetime) VALUES (?, ?, 1, ?, UTC_TIMESTAMP())
+                        ON DUPLICATE KEY UPDATE excluded = 1, marked_by = VALUES(marked_by), marked_datetime = UTC_TIMESTAMP()")
+             ->execute([$type, $id, $analystId]);
+        filesAudit($conn, $analystId, 'offline', self::auditTarget($t), ['on' => false, 'type' => $type, 'excluded' => true]);
+        return ['removed' => self::removeUncovered($conn, $beforeKeys)];
+    }
+
+    /**
+     * "Keep offline again": removes a "Don't keep offline", so the folder above keeps it
+     * offline again. Needs View. The job makes the copies.
+     *
+     * @return array ['ok' => true]
+     */
+    public static function include(PDO $conn, int $analystId, string $type, int $id): array
+    {
+        $t = self::target($conn, $analystId, $type, $id);
+        try {
+            $st = $conn->prepare("DELETE FROM files_offline WHERE target_type = ? AND target_id = ? AND excluded = 1");
+            $st->execute([$type, $id]);
+        } catch (PDOException $e) {
+            if (filesOfflineMissingTable($e) || ($e->errorInfo[1] ?? null) === 1054) throw new InvalidArgumentException('Run System → Database Verification first.');
+            throw $e;
+        }
+        if ($st->rowCount() > 0) {
+            filesAudit($conn, $analystId, 'offline', self::auditTarget($t), ['on' => true, 'type' => $type, 'excluded' => false]);
+            self::forgetUsage($conn);
+        }
+        return ['ok' => true];
+    }
+
+    /**
+     * What is marked, for the Storage tab: ['folders' => kept, 'files' => kept, 'excluded'
+     * => left out, 'people' => who marked them]. null before Database Verification.
+     */
+    public static function summary(PDO $conn): ?array
+    {
+        $marks = filesOfflineMarks($conn);
+        if ($marks === null) return null;
+        try {
+            $people = (int)$conn->query("SELECT COUNT(DISTINCT marked_by) FROM files_offline WHERE marked_by IS NOT NULL")->fetchColumn();
+        } catch (PDOException $e) {
+            $people = 0;
+        }
+        return ['folders' => count($marks['folder']), 'files' => count($marks['item']),
+                'excluded' => count($marks['exclude']['folder']) + count($marks['exclude']['item']), 'people' => $people];
+    }
+
+    /**
+     * "Remove all offline copies" (Files -> Settings -> Storage, Cap::FILES_STORAGE): every
+     * mark and exclusion goes, so everything is read from S3 only again. The job deletes
+     * the copies (a large set would not fit in one request).
+     *
+     * @return array ['marks' => marks removed]
+     */
+    public static function clearAll(PDO $conn, int $analystId): array
+    {
+        try {
+            $n = $conn->exec("DELETE FROM files_offline");
+        } catch (PDOException $e) {
+            if (filesOfflineMissingTable($e)) return ['marks' => 0];
+            throw $e;
+        }
+        filesAudit($conn, $analystId, 'offline', ['path' => '(Settings: storage)'], ['on' => false, 'all' => true, 'marks' => (int)$n]);
+        self::forgetUsage($conn);
+        return ['marks' => (int)$n];
+    }
+
+    /** Deletes the copies of $beforeKeys that nothing covers any more. */
+    private static function removeUncovered(PDO $conn, array $beforeKeys): int
+    {
         $afterKeys = filesOfflineCoveredKeys($conn);
         $removed = 0;
         foreach (array_diff_key($beforeKeys, $afterKeys) as $key => $_) {
             if (self::removeCopy($conn, $key)) $removed++;
         }
         self::forgetUsage($conn);
-        return ['removed' => $removed];
+        return $removed;
     }
 
     /**
@@ -219,6 +333,12 @@ final class FilesOfflineService
             $final = filesOfflinePath($conn, $key);
             if ($final === null) return null;
             $tmp = self::tmpFor($final);
+            // The same floor as the job: copies share the disk with uploads in progress.
+            $free = @disk_free_space(dirname($tmp));
+            if ($free !== false && $free - (int)@filesize($partPath) < self::$minFreeBytes) {
+                error_log("files offline: not enough free disk to keep a copy of the upload {$key} (the job will retry)");
+                return null;
+            }
             if (!@copy($partPath, $tmp)) {
                 @unlink($tmp);
                 error_log("files offline: could not keep a copy of the upload {$key} (the job will retry)");
@@ -244,6 +364,10 @@ final class FilesOfflineService
             $final = filesOfflinePath($conn, $key);
             if ($final === null || (!@rename($tmp, $final) && !is_file($final))) {
                 error_log("files offline: could not keep a copy of the upload {$key} (the job will retry)");
+            } else {
+                // Dated now, not when the part was copied: a job run that started before
+                // the upload was saved must not take it for a stale copy.
+                @touch($final);
             }
             self::forgetUsage($conn);
         } catch (Throwable $e) {
@@ -264,6 +388,7 @@ final class FilesOfflineService
         $oldRoot = rtrim(str_replace('\\', '/', $oldRoot), '/');
         $newRoot = rtrim(str_replace('\\', '/', $newRoot), '/');
         if ($oldRoot === '' || $oldRoot === $newRoot || !is_dir($oldRoot . '/offline')) return 0;
+        if (str_starts_with($newRoot . '/', $oldRoot . '/offline/')) return 0;   // the new folder is inside the old copies
         try {
             // Only when PROVED to be two places; 'same' or 'unknown' keeps them (PR #318 review).
             if (storageLocationRelation(new LocalDriver($oldRoot), new LocalDriver($newRoot)) !== 'different') return 0;
@@ -289,7 +414,7 @@ final class FilesOfflineService
      */
     public static function sync(PDO $conn, int $deadlineUnix): array
     {
-        $r = ['copied' => 0, 'removed' => 0, 'failed' => 0, 'marks_dropped' => 0, 'done' => true, 'disk_full' => false];
+        $r = ['copied' => 0, 'removed' => 0, 'failed' => 0, 'skipped' => 0, 'marks_dropped' => 0, 'done' => true, 'disk_full' => false];
         $started = time();
         $marks = filesOfflineMarks($conn);
         if ($marks === null) return $r;   // before Database Verification: nothing was ever marked
@@ -304,11 +429,18 @@ final class FilesOfflineService
         $covered = $applies ? self::wanted($conn, $marks) : [];
 
         if ($applies) {
+            // Files whose copy failed for a reason of their own (missing in S3, not matching
+            // its checksum) wait a day before they are tried again: one bad object must not
+            // make every run fail, nor be downloaded again every few minutes.
+            $bad = self::failedKeys($conn);
+            $badBefore = $bad;
             foreach ($covered as $key => $c) {
                 if (time() >= $deadlineUnix) { $r['done'] = false; break; }
-                if (filesOfflineHasCopy($conn, $key, $c['size'])) continue;
+                if (filesOfflineHasCopy($conn, $key, $c['size'])) { unset($bad[$key]); continue; }
+                if (isset($bad[$key]) && $bad[$key] > time() - self::RETRY_FAILED_AFTER) { $r['skipped']++; continue; }
                 try {
                     self::copyKey($conn, $key, $c['size'], $c['sha256']);
+                    unset($bad[$key]);
                     $r['copied']++;
                 } catch (StorageUnavailable $e) {
                     // An outage: every other copy would fail the same way. Try next run.
@@ -323,12 +455,16 @@ final class FilesOfflineService
                     $r['disk_full'] = true;
                     break;
                 } catch (Throwable $e) {
-                    error_log("files offline: could not copy {$key}: " . $e->getMessage());
-                    $r['failed']++;
+                    // This file's own problem: logged once, skipped for a day.
+                    error_log("files offline: could not copy {$key} (tried again in a day): " . $e->getMessage());
+                    $bad[$key] = time();
+                    $r['skipped']++;
                 }
             }
             // Copying can take minutes: marks and uploads made meanwhile count too.
             $covered = self::wanted($conn);
+            $bad = array_intersect_key($bad, $covered);   // forget what nothing covers any more
+            if ($bad !== $badBefore) self::saveFailedKeys($conn, $bad);
         }
 
         // Remove what nothing covers, and temporary files left by a crash. A copy written

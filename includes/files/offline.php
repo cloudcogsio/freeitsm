@@ -10,8 +10,11 @@
  * Marks live in files_offline (target_type folder|item). What is COVERED:
  * the current version of every live file that is marked itself or sits, at any
  * depth, under a marked live folder - so files uploaded later and new subfolders
- * are covered too. Things in the recycle bin are not covered (their marks stay and
- * apply again after a restore). Older versions are not kept offline.
+ * are covered too. A mark with excluded = 1 ("Don't keep offline") leaves a file or
+ * a folder out of a folder kept offline: THE NEAREST MARK WINS, as permissions
+ * inherit - a folder marked inside an excluded one is kept again. Things in the
+ * recycle bin are not covered (their marks stay and apply again after a restore).
+ * Older versions are not kept offline.
  *
  * Copies share keys exactly as files_versions rows do (a copied file shares its
  * source's stored bytes), so "is this copy still needed" is always a question about
@@ -25,23 +28,39 @@ require_once __DIR__ . '/storage.php';
 require_once __DIR__ . '/acl.php';
 
 /**
- * Every mark: ['folder' => [id => true], 'item' => [id => true]].
+ * Every mark: ['folder' => [id => true], 'item' => [id => true], 'exclude' =>
+ * ['folder' => [id => true], 'item' => [id => true]]] - 'folder' and 'item' keep things
+ * offline, 'exclude' leaves them out of a folder kept offline.
  * null when files_offline does not exist yet (before Database Verification) - nothing
  * can have been marked then. Any other database error is thrown.
  */
 function filesOfflineMarks(PDO $conn): ?array
 {
     try {
-        $rows = $conn->query("SELECT target_type, target_id FROM files_offline")->fetchAll(PDO::FETCH_NUM);
+        try {
+            $rows = $conn->query("SELECT target_type, target_id, excluded FROM files_offline")->fetchAll(PDO::FETCH_NUM);
+        } catch (PDOException $e) {
+            // The excluded column comes with a later Database Verification: no exclusions yet.
+            if (($e->errorInfo[1] ?? null) !== 1054) throw $e;
+            $rows = $conn->query("SELECT target_type, target_id, 0 FROM files_offline")->fetchAll(PDO::FETCH_NUM);
+        }
     } catch (PDOException $e) {
         if (filesOfflineMissingTable($e)) return null;
         throw $e;
     }
-    $out = ['folder' => [], 'item' => []];
-    foreach ($rows as [$type, $id]) {
-        if (isset($out[$type])) $out[$type][(int)$id] = true;
+    $out = ['folder' => [], 'item' => [], 'exclude' => ['folder' => [], 'item' => []]];
+    foreach ($rows as [$type, $id, $ex]) {
+        if (!isset($out[$type])) continue;
+        if ((int)$ex === 1) $out['exclude'][$type][(int)$id] = true;
+        else $out[$type][(int)$id] = true;
     }
     return $out;
+}
+
+/** True for a coverage state that keeps something offline ('self' or 'folder'). */
+function filesOfflineKept(?string $state): bool
+{
+    return $state === 'self' || $state === 'folder';
 }
 
 /** True when a PDOException means files_offline does not exist. */
@@ -51,14 +70,16 @@ function filesOfflineMissingTable(PDOException $e): bool
 }
 
 /**
- * Live folders that are covered: [folderId => 'self' (marked) | 'folder' (a marked
- * folder above it)].
+ * Live folders with an offline state: [folderId => 'self' (marked) | 'folder' (a marked
+ * folder above it) | 'excluded' (left out itself)]. Only 'self' and 'folder' are kept
+ * offline (filesOfflineKept); a folder under an excluded one has no state - the nearest
+ * mark wins.
  *
  * @param ?array $marks  from filesOfflineMarks()
  */
 function filesOfflineCoveredFolders(PDO $conn, ?array $marks): array
 {
-    if (!$marks || !$marks['folder']) return [];
+    if (!$marks || (!$marks['folder'] && !($marks['exclude']['folder'] ?? []))) return [];
     $tree = FilesAcl::tree($conn);
     $memo = [];
     $state = function (int $id) use (&$state, &$memo, $tree, $marks): ?string {
@@ -66,8 +87,9 @@ function filesOfflineCoveredFolders(PDO $conn, ?array $marks): array
         $memo[$id] = null;   // cycle guard
         if (!isset($tree[$id])) return null;
         if (isset($marks['folder'][$id])) return $memo[$id] = 'self';
+        if (isset($marks['exclude']['folder'][$id])) return $memo[$id] = 'excluded';
         $p = $tree[$id]['parent_id'];
-        return $memo[$id] = ($p !== null && $state($p) !== null) ? 'folder' : null;
+        return $memo[$id] = ($p !== null && filesOfflineKept($state($p))) ? 'folder' : null;
     };
     $out = [];
     foreach ($tree as $id => $f) {
@@ -86,7 +108,27 @@ function filesOfflineCoveredFolders(PDO $conn, ?array $marks): array
 function filesOfflineItemCoverage(array $coveredFolders, ?array $marks, int $itemId, int $folderId): ?string
 {
     if ($marks && isset($marks['item'][$itemId])) return 'self';
-    return isset($coveredFolders[$folderId]) ? 'folder' : null;
+    if ($marks && isset($marks['exclude']['item'][$itemId])) return 'excluded';
+    return filesOfflineKept($coveredFolders[$folderId] ?? null) ? 'folder' : null;
+}
+
+/**
+ * The folder that keeps something offline: the nearest marked folder at or above
+ * $folderId, as ['id' => int, 'name' => string] - or null when none does (an exclusion
+ * on the way up stops the search: nothing above it keeps what is under it).
+ *
+ * @param ?array $marks  from filesOfflineMarks()
+ */
+function filesOfflineKeeper(PDO $conn, ?array $marks, int $folderId): ?array
+{
+    if (!$marks || !$marks['folder']) return null;
+    $tree = FilesAcl::tree($conn);
+    for ($id = $folderId, $guard = 0; $id !== null && isset($tree[$id]) && $guard < 200; $guard++) {
+        if (isset($marks['folder'][$id])) return ['id' => $id, 'name' => (string)$tree[$id]['name']];
+        if (isset($marks['exclude']['folder'][$id])) return null;
+        $id = $tree[$id]['parent_id'] !== null ? (int)$tree[$id]['parent_id'] : null;
+    }
+    return null;
 }
 
 /**
@@ -100,7 +142,7 @@ function filesOfflineCoveredKeys(PDO $conn, ?array $marks = null): array
     $marks ??= filesOfflineMarks($conn);
     if (!$marks || (!$marks['folder'] && !$marks['item'])) return [];
     $tree    = FilesAcl::tree($conn);
-    $folders = array_keys(filesOfflineCoveredFolders($conn, $marks));
+    $folders = array_keys(array_filter(filesOfflineCoveredFolders($conn, $marks), 'filesOfflineKept'));
     $items   = array_keys($marks['item']);
 
     // Ids are written in as integers rather than placeholders: a big tree can cover more
@@ -110,13 +152,15 @@ function filesOfflineCoveredKeys(PDO $conn, ?array $marks = null): array
     if ($items)   $where[] = 'i.id IN (' . implode(',', array_map('intval', $items)) . ')';
     // Every marked folder is in the recycle bin and no file is marked: nothing is covered.
     if (!$where) return [];
-    $st = $conn->query("SELECT i.folder_id, v.storage_path, v.size_bytes, v.sha256
+    $st = $conn->query("SELECT i.id, i.folder_id, v.storage_path, v.size_bytes, v.sha256
                           FROM files_items i
                           JOIN files_versions v ON v.id = i.current_version_id
                          WHERE i.deleted_datetime IS NULL AND (" . implode(' OR ', $where) . ")");
     $out = [];
     foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
         if (!isset($tree[(int)$r['folder_id']])) continue;   // its folder is in the recycle bin
+        $id = (int)$r['id'];
+        if (isset($marks['exclude']['item'][$id]) && !isset($marks['item'][$id])) continue;   // left out of its folder
         $key = (string)$r['storage_path'];
         if (!filesStorageKeyIsValid($key)) continue;
         $out[$key] = ['size' => (int)$r['size_bytes'], 'sha256' => $r['sha256'] !== null ? (string)$r['sha256'] : null];
@@ -151,20 +195,28 @@ function filesOfflinePath(PDO $conn, string $key): ?string
 }
 
 /**
- * True when at least one offline copy is on the server - so the job still has
- * something to tidy after the last mark is removed. Stops at the first one found.
+ * True when at least one offline copy - or a temporary one a failed upload left - is on
+ * the server, so the job still has something to tidy after the last mark is removed.
+ * Stops at the first one found. Creates nothing: it is part of the job's health check,
+ * which runs on installs that never used offline copies.
  */
 function filesOfflineHasAnyCopy(PDO $conn): bool
 {
-    $root = filesOfflineRoot($conn);
+    $root = rtrim(str_replace('\\', '/', filesSetting($conn, 'files_storage_root', filesDefaultStorageRoot())), '/') . '/offline';
     if (!is_dir($root)) return false;
     $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
     foreach ($it as $f) {
         if (!$f->isFile()) continue;
         $rel = substr(str_replace('\\', '/', $f->getPathname()), strlen($root) + 1);
-        if (filesStorageKeyIsValid($rel)) return true;
+        if (filesStorageKeyIsValid($rel) || filesOfflineIsTmp($rel)) return true;
     }
     return false;
+}
+
+/** True for a temporary copy's name: <key>.<12 hex>.tmp (FilesOfflineService::tmpFor). */
+function filesOfflineIsTmp(string $rel): bool
+{
+    return (bool)preg_match('#^(\d{4}/\d{2}/\d{2}/[0-9a-f]{32}\.bin)\.[0-9a-f]{12}\.tmp$#', $rel);
 }
 
 /** True when a complete copy of the key is on the server (the size must match). */

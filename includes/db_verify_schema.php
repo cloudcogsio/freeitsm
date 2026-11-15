@@ -7247,6 +7247,7 @@ return [
         'id'                  => 'INT NOT NULL AUTO_INCREMENT',
         'target_type'         => 'VARCHAR(10) NOT NULL',
         'target_id'           => 'INT NOT NULL',
+        'excluded'            => 'TINYINT(1) NOT NULL DEFAULT 0',
         'marked_by'           => 'INT NULL',
         'marked_datetime'     => 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP',
     ],

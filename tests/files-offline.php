@@ -264,8 +264,10 @@ try {
     unlink(filesOfflinePath($conn, $c1['key']));
     $y = FilesOfflineService::sync($conn, time() + 60);
     $tmps = glob(dirname(filesOfflinePath($conn, $c1['key'])) . '/*.tmp') ?: [];
-    ok('a copy that does not match its SHA-256 is not kept', $y['failed'] === 1 && !is_file(filesOfflinePath($conn, $c1['key'])) && !$tmps, json_encode($y));
+    ok('a copy that does not match its SHA-256 is not kept (skipped, tried again in a day)', $y['failed'] === 0 && $y['skipped'] === 1 && !is_file(filesOfflinePath($conn, $c1['key'])) && !$tmps, json_encode($y));
     $conn->prepare("UPDATE files_versions SET sha256 = ? WHERE storage_path = ?")->execute([hash('sha256', $c1['bytes']), $c1['key']]);
+    setSetting($conn, 'files_offline_failed', null);   // its day of waiting is over, for the next check
+    useFake($fake);
 
     $fake->down = true;
     $y = FilesOfflineService::sync($conn, time() + 60);
@@ -442,6 +444,117 @@ try {
     filesStorageReset(); useFake($fake);
     ok('removing a mark forgets the saved count', filesSetting($conn, 'files_offline_usage') === '' && FilesOfflineService::usage($conn) == ['files' => 0, 'bytes' => 0]);
     ok('no copies left: the job is not needed for them', filesOfflineHasAnyCopy($conn) === false);
+    // ── Back to S3 only: exclusions (the nearest mark wins), the folder that keeps a
+    //    file, and removing every offline copy ─────────────────────────────────
+    $conn->exec("DELETE FROM files_offline");
+    FilesOfflineService::sync($conn, time() + 60);
+    $E  = folder($conn, null, 'ZZ Off E');    // marked
+    $E2 = folder($conn, $E, 'ZZ Off E2');      // excluded
+    $E3 = folder($conn, $E2, 'ZZ Off E3');     // marked again, inside the excluded one
+    grant($conn, $E, $V, FilesAcl::VIEW);
+    $e1  = item($conn, $s3dir, $E, 'zz-e1.txt');
+    $e1x = item($conn, $s3dir, $E, 'zz-e1x.txt');   // excluded on its own
+    $e2  = item($conn, $s3dir, $E2, 'zz-e2.txt');
+    $e3  = item($conn, $s3dir, $E3, 'zz-e3.txt');
+    $copied = fn(array $it) => filesOfflineHasCopy($conn, $it['key'], $it['size']);
+    FilesOfflineService::mark($conn, $V, 'folder', $E);
+    FilesOfflineService::sync($conn, time() + 60);
+    ok('CONTROL: everything under the marked folder has a copy', $copied($e1) && $copied($e1x) && $copied($e2) && $copied($e3));
+    try { FilesOfflineService::exclude($conn, $V, 'folder', $E); ok('excluding what is marked itself is refused (remove it instead)', false); }
+    catch (InvalidArgumentException $ex) { ok('excluding what is marked itself is refused (remove it instead)', true); }
+    try { FilesOfflineService::exclude($conn, $V, 'item', $x1['id']); ok('excluding what no folder keeps is refused', false); }
+    catch (InvalidArgumentException $ex) { ok('excluding what no folder keeps is refused', true); }
+    FilesOfflineService::exclude($conn, $V, 'item', $e1x['id']);
+    FilesOfflineService::exclude($conn, $V, 'folder', $E2);
+    FilesOfflineService::mark($conn, $V, 'folder', $E3);
+    $keys = filesOfflineCoveredKeys($conn);
+    ok('nearest mark wins: an excluded file and an excluded folder\'s files are not covered', !isset($keys[$e1x['key']]) && !isset($keys[$e2['key']]) && isset($keys[$e1['key']]));
+    ok('...and a folder marked inside an excluded one is', isset($keys[$e3['key']]));
+    $em = filesOfflineMarks($conn);
+    $ecf = filesOfflineCoveredFolders($conn, $em);
+    ok('states: excluded shows as excluded; what is under it is not covered', ($ecf[$E2] ?? null) === 'excluded' && ($ecf[$E3] ?? null) === 'self'
+       && filesOfflineItemCoverage($ecf, $em, $e1x['id'], $E) === 'excluded' && filesOfflineItemCoverage($ecf, $em, $e2['id'], $E2) === null, json_encode($ecf));
+    ok('excluding removes the copies at once', !is_file(filesOfflinePath($conn, $e1x['key'])) && !is_file(filesOfflinePath($conn, $e2['key'])) && $copied($e1));
+    FilesOfflineService::sync($conn, time() + 60);
+    ok('...and the job copies what a mark further down keeps again', $copied($e3) && !is_file(filesOfflinePath($conn, $e2['key'])));
+    ok('the folder that keeps something is found (nearest mark, never across an exclusion)',
+       (filesOfflineKeeper($conn, $em, $E)['id'] ?? null) === $E && filesOfflineKeeper($conn, $em, $E2) === null && (filesOfflineKeeper($conn, $em, $E3)['id'] ?? null) === $E3);
+    FilesOfflineService::include($conn, $V, 'item', $e1x['id']);   // "Keep offline again"
+    FilesOfflineService::sync($conn, time() + 60);
+    ok('keep offline again: covered and copied again', $copied($e1x));
+    FilesOfflineService::mark($conn, $V, 'folder', $E2);           // marking an excluded folder keeps it
+    ok('marking an excluded folder keeps it offline', (filesOfflineCoveredFolders($conn, filesOfflineMarks($conn))[$E2] ?? null) === 'self');
+    FilesOfflineService::exclude($conn, $V, 'item', $e1['id']);
+    $sum = FilesOfflineService::summary($conn);
+    ok('the Storage tab\'s summary counts marks and exclusions', $sum['folders'] === 3 && $sum['files'] === 0 && $sum['excluded'] === 1 && $sum['people'] === 1, json_encode($sum));
+    FilesOfflineService::clearAll($conn, 990000103);
+    ok('remove all: every mark and exclusion is gone', (int)$conn->query("SELECT COUNT(*) FROM files_offline")->fetchColumn() === 0);
+    FilesOfflineService::sync($conn, time() + 60);
+    ok('...and the job removes every copy, so files are read from S3 only', filesOfflineHasAnyCopy($conn) === false);
+
+    // ── Review fixes ───────────────────────────────────────────────────
+    // I1: the free-disk floor applies to upload copies; a leftover temporary copy keeps
+    // the job running (so it is tidied), even with no marks left.
+    mark($conn, 'folder', $X);
+    $fk = '2026/11/11/' . bin2hex(random_bytes(16)) . '.bin';
+    FilesOfflineService::$minFreeBytes = PHP_INT_MAX;
+    $ft = FilesOfflineService::keepUploadCopy($conn, $X, null, $part, $fk);
+    FilesOfflineService::$minFreeBytes = 1024 * 1024 * 1024;
+    ok('an upload copy is not kept when it would leave too little free disk', $ft === null);
+    $conn->exec("DELETE FROM files_offline");
+    FilesOfflineService::sync($conn, time() + 60);
+    $stray = filesOfflinePath($conn, $fk) . '.abc123abc123.tmp';
+    @mkdir(dirname($stray), 0777, true);
+    file_put_contents($stray, 'left by a failed upload');
+    ok('a leftover temporary copy keeps the job needed', filesOfflineHasAnyCopy($conn) === true);
+    @unlink($stray);
+    // I2: an object that is missing (or does not match) is skipped and remembered - not a
+    // job failure every run, and not downloaded again on the next one.
+    $bad = item($conn, $s3dir, $X, 'zz-bad.txt');
+    unlink("$s3dir/{$bad['key']}");
+    mark($conn, 'item', $bad['id']);
+    $y1 = FilesOfflineService::sync($conn, time() + 60);
+    ok('a missing object is skipped, not a failure', $y1['failed'] === 0 && ($y1['skipped'] ?? 0) === 1, json_encode($y1));
+    $fake->reads = 0;
+    $y2 = FilesOfflineService::sync($conn, time() + 60);
+    ok('...and not tried again on the next run', $fake->reads === 0 && $y2['failed'] === 0, json_encode($y2) . " reads {$fake->reads}");
+    $conn->exec("DELETE FROM files_offline");
+    // An upload copy is dated when it lands, so a job run that started before cannot take it for a stale copy.
+    mark($conn, 'folder', $X);
+    $dk = '2026/11/11/' . bin2hex(random_bytes(16)) . '.bin';
+    $dt = FilesOfflineService::keepUploadCopy($conn, $X, null, $part, $dk);
+    if ($dt !== null) touch($dt, time() - 3600);
+    FilesOfflineService::commitUploadCopy($conn, $dt, $dk);
+    clearstatcache();
+    ok('an upload copy is dated when it lands', is_file((string)filesOfflinePath($conn, $dk)) && filemtime(filesOfflinePath($conn, $dk)) >= time() - 5);
+    // Bytes deleted through filesPurgeBytesIfUnused (Overwrite, Delete version, the
+    // versions tidy-up) take their offline copy with them.
+    $gone = '2026/11/11/' . bin2hex(random_bytes(16)) . '.bin';
+    $gp = filesOfflinePath($conn, $gone);
+    @mkdir(dirname($gp), 0777, true);
+    file_put_contents($gp, 'copy of a deleted version');
+    require_once "$root/includes/services/files_versions.php";
+    filesPurgeBytesIfUnused($conn, $gone);
+    ok('a version\'s bytes deleted for good take their offline copy too', !is_file($gp));
+    $conn->exec("DELETE FROM files_offline");
+    // A new storage folder INSIDE the old offline folder is not "the old copies".
+    $or2 = sys_get_temp_dir() . '/zz-off-or2-' . bin2hex(random_bytes(4));
+    $ok2 = '2026/11/11/' . bin2hex(random_bytes(16)) . '.bin';
+    @mkdir("$or2/offline/2026/11/11", 0777, true);
+    file_put_contents("$or2/offline/$ok2", 'copy');
+    FilesOfflineService::rootChanged($conn, $or2, "$or2/offline/inner");
+    ok('a new storage folder inside the old offline folder removes nothing', is_file("$or2/offline/$ok2"));
+    @unlink("$or2/offline/$ok2");
+    // The job's health check never creates folders (an install that never used offline copies).
+    require_once "$root/includes/job_registry.php";
+    $nowhere = sys_get_temp_dir() . '/zz-off-nowhere-' . bin2hex(random_bytes(4));
+    setSetting($conn, 'files_storage_root', $nowhere);
+    useFake($fake);
+    $left = jobOfflineCopiesLeft($conn);
+    ok('the job\'s health check creates no folder', $left === false && !is_dir($nowhere));
+    setSetting($conn, 'files_storage_root', $store);
+    useFake($fake);
+
     mark($conn, 'folder', $X);   // copies again, for the next section
     FilesOfflineService::sync($conn, time() + 60);
 
