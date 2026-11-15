@@ -477,8 +477,6 @@ try {
     ok('excluding removes the copies at once', !is_file(filesOfflinePath($conn, $e1x['key'])) && !is_file(filesOfflinePath($conn, $e2['key'])) && $copied($e1));
     FilesOfflineService::sync($conn, time() + 60);
     ok('...and the job copies what a mark further down keeps again', $copied($e3) && !is_file(filesOfflinePath($conn, $e2['key'])));
-    ok('the folder that keeps something is found (nearest mark, never across an exclusion)',
-       (filesOfflineKeeper($conn, $em, $E)['id'] ?? null) === $E && filesOfflineKeeper($conn, $em, $E2) === null && (filesOfflineKeeper($conn, $em, $E3)['id'] ?? null) === $E3);
     FilesOfflineService::include($conn, $V, 'item', $e1x['id']);   // "Keep offline again"
     FilesOfflineService::sync($conn, time() + 60);
     ok('keep offline again: covered and copied again', $copied($e1x));
@@ -640,6 +638,18 @@ try {
         @rmdir($d);
     }
 }
+
+// The menu on something kept by a folder above offers only "Don't keep offline" (the
+// owner's call, 2026-11-15: as OneDrive, the folder's mark is removed on the folder itself).
+echo "\nThe menu, and the Storage tab's button\n";
+$listSrc = (string)file_get_contents("$root/api/files/list.php");
+$deskSrc = (string)file_get_contents("$root/assets/js/files-desktop.js");
+$en = require "$root/lang/en/files.php";
+ok('the list no longer names the folder that keeps something offline', !str_contains($listSrc, 'offline_from') && !function_exists('filesOfflineKeeper'));
+ok('...and the menu has no "Remove offline copy from <folder>"', !str_contains($deskSrc, 'offline_off_from') && !isset($en['ex']['offline_off_from']) && !isset($en['ex']['offline_off_from_q']));
+ok('"Don\'t keep offline" is offered straight away, not under an "Offline >" submenu', !str_contains($deskSrc, "ex.offline_menu") && !isset($en['ex']['offline_menu']));
+$clear = (string)($en['settings']['offline_clear'] ?? '');
+ok('the Storage tab\'s button is one word; its dialog keeps the full title', $clear !== '' && !str_contains($clear, ' ') && ($en['settings']['offline_clear_title'] ?? '') === 'Remove all offline copies', $clear);
 
 echo str_repeat('-', 72) . "\n$pass passed, $fail failed\n";
 exit($fail ? 1 : 0);
