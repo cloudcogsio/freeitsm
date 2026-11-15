@@ -212,6 +212,33 @@ function filesServeBytes(PDO $conn, array $version, int $start, int $end, callab
 }
 
 /**
+ * Copies a whole stored file into a local file - for code that needs the bytes on this
+ * server (Attach as a copy). Like filesServeBytes(), a complete offline copy ("Make
+ * available offline") is used first when the store is not a server folder, so this
+ * works while S3 is unreachable.
+ *
+ * @param int $size  the version's size_bytes - a copy of any other size is not used
+ * @throws StorageNotFound|StorageUnavailable as the store's readTo()
+ */
+function filesReadToLocal(PDO $conn, string $key, int $size, string $localPath): void
+{
+    $store = filesStoreFor($conn, $key);
+    if (!($store instanceof LocalDriver)) {
+        require_once __DIR__ . '/offline.php';
+        if (filesOfflineHasCopy($conn, $key, $size)) {
+            try {
+                (new LocalDriver(filesOfflineRoot($conn)))->readTo($key, $localPath);
+                clearstatcache(true, $localPath);
+                if ((int)@filesize($localPath) === $size) return;
+            } catch (StorageNotFound $e) {
+                // removed between the check and the read: use the store
+            }
+        }
+    }
+    $store->readTo($key, $localPath);
+}
+
+/**
  * Saves one Files setting to system_settings (insert or update).
  *
  * @param string $key     the system_settings.setting_key, e.g. 'files_storage_root'

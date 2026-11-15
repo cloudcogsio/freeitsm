@@ -142,7 +142,8 @@ final class FilesAttach
         }
         $tmp = tempnam(sys_get_temp_dir(), 'fat');
         try {
-            filesStoreFor($conn, (string)$ver['storage_path'])->readTo((string)$ver['storage_path'], $tmp);
+            // The offline copy first, if there is one (works while S3 is unreachable).
+            filesReadToLocal($conn, (string)$ver['storage_path'], (int)$ver['size_bytes'], $tmp);
             // Into the documents store (#284): its server folder, or S3.
             require_once __DIR__ . '/../storage/stores.php';
             $s = storeSaveBytes($conn, 'documents', '', (string)file_get_contents($tmp), $it['name'],
