@@ -718,6 +718,10 @@ return [
             'consumable' => [
                 'low_stock' => 'Running low - time to reorder',
             ],
+            // Storage series N1 - administrators only.
+            'storage' => [
+                'changed' => 'Where stored files are kept has changed',
+            ],
             'hyperv' => [
                 'collector' => 'A Hyper-V collector needs your attention',
             ],
@@ -785,6 +789,9 @@ return [
             ],
             'consumable' => [
                 'low_stock' => 'A consumable falls to its reorder point (who is told is chosen in Assets -> Settings -> Consumables)',
+            ],
+            'storage' => [
+                'changed' => 'Where stored files are kept changes, or a move between storage locations starts or ends (administrators)',
             ],
             'hyperv' => [
                 'collector' => 'A Hyper-V collector stops reporting, or a cluster\'s storage cannot be read (people who manage Hyper-V connections)',
