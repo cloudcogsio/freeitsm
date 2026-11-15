@@ -74,6 +74,6 @@ filesApiRun(function () use ($conn, $analystId) {
         'current_version_id' => (int)$it['current_version_id'],
         'level'      => $lvl,
         'offline'    => ['state' => $off = filesOfflineItemCoverage($offFolders, $offMarks, $id, (int)$it['folder_id']),
-                         'ready' => $off === null ? null : filesOfflineHasCopy($conn, (string)$curKey, (int)$it['size_bytes'])],
+                         'ready' => filesOfflineKept($off) ? filesOfflineHasCopy($conn, (string)$curKey, (int)$it['size_bytes']) : null],
     ]]);
 });
