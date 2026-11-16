@@ -650,6 +650,23 @@ return [
 
         // Landing page (discussion #63).
         'system_name_heading' => 'System name',
+        // Interface: Classic or Modern, the brand colour, the dark-background logo
+        'interface_heading'        => 'Interface',
+        'interface_desc'           => 'Classic is the standard FreeITSM look. Modern gives every module the same header, with your logo and brand colour. Each person\'s Light or Dark choice still applies.',
+        'interface_classic'        => 'Classic',
+        'interface_classic_hint'   => 'Each module has its own coloured header.',
+        'interface_modern'         => 'Modern',
+        'interface_modern_hint'    => 'One header for every module, with your logo. Buttons, links and selections use your brand colour.',
+        'brand_colour'             => 'Brand colour',
+        'brand_colour_hint'        => 'Used by the Modern interface. Leave it blank for the standard blue.',
+        'brand_suggestions'        => 'From your logo',
+        'interface_no_suggestions' => 'No colours found in the logo. Enter one yourself.',
+        'brand_adjusted'           => 'Buttons use a darker shade so their text stays readable.',
+        'interface_preview_module' => 'Tickets',
+        'interface_preview_link'   => 'A link',
+        'interface_preview_selected' => 'Selected',
+        'logo_dark_heading'        => 'Logo for dark backgrounds',
+        'logo_dark_hint'           => 'Optional. Shown in the Modern header in Dark mode. Without one, your logo sits on a small light panel. PNG or JPG, up to 2MB.',
         'back_link_heading'       => 'Link back to your site',
         'back_link_desc'          => 'A link at the top of the screen back to your own site - the intranet or website people reach FreeITSM from. Leave both boxes blank for no link.',
         'back_link_label'         => 'Link text',
