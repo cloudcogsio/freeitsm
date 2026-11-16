@@ -438,3 +438,244 @@ function brandingContrastRatio(string $hexA, string $hexB): float
     $b = $lum($hexB);
     return (max($a, $b) + 0.05) / (min($a, $b) + 0.05);
 }
+
+/* =============================================================================
+ * 3. THE INTERFACE: Classic or Modern, and the brand colour.
+ *
+ * Branding -> Interface. Classic is FreeITSM as it has always looked, and is
+ * what every install gets until an administrator chooses otherwise: with
+ * Classic nothing below prints a byte. Modern gives every module the same
+ * header, with the organisation's logo and colour (renderWaffleMenuButton()
+ * prints it, assets/css/shell.css styles it).
+ *
+ * Same doctrine as the login designer above: the administrator supplies a
+ * VALUE (one of two words, a #rrggbb), never CSS, and the value is checked
+ * again when it is shown, so a row that arrived some other way still cannot
+ * reach the page.
+ * ========================================================================== */
+
+/** The accent Modern uses when no brand colour is set - FreeITSM's own blue. */
+const BRANDING_DEFAULT_BRAND = '#0078d4';
+
+/** The Modern dark raised surface. Dark accents are checked against it. */
+const BRANDING_DARK_SURFACE = '#161b22';
+
+/**
+ * A colour as lower-case #rrggbb, or null when it is anything else.
+ *
+ * @param mixed $v  the submitted or stored value
+ */
+function brandingValidHex($v): ?string
+{
+    return is_string($v) && preg_match('/^#[0-9a-fA-F]{6}$/', $v) ? strtolower($v) : null;
+}
+
+/**
+ * 'modern' only for exactly 'modern'; anything else is Classic.
+ *
+ * @param mixed $v  the submitted or stored value
+ */
+function brandingValidInterface($v): string
+{
+    return $v === 'modern' ? 'modern' : 'classic';
+}
+
+/** brandingInterface()'s per-request cache, by reference so tests can clear it. */
+function &brandingInterfaceCache(): ?array
+{
+    static $cache = null;
+    return $cache;
+}
+
+/** Forget what brandingInterface() read - for tests that change the rows. */
+function brandingInterfaceReset(): void
+{
+    $c = &brandingInterfaceCache();
+    $c = null;
+}
+
+/**
+ * The install's interface choice, read once per request.
+ *
+ * ⚠️ Never throws: the header of every page calls this. A database that cannot
+ * be read is Classic, which is what the page looked like before this existed.
+ *
+ * @return array{mode: string, primary: string, dark_logo: ?string}
+ */
+function brandingInterface(?PDO $conn = null): array
+{
+    $cache = &brandingInterfaceCache();
+    if ($cache !== null) return $cache;
+
+    $out = ['mode' => 'classic', 'primary' => BRANDING_DEFAULT_BRAND, 'dark_logo' => null];
+    try {
+        $conn = $conn ?: connectToDatabase();
+        $s = $conn->prepare(
+            "SELECT setting_key, setting_value FROM system_settings
+              WHERE setting_key IN ('branding_interface', 'branding_brand_primary', 'branding_logo_dark_path')"
+        );
+        $s->execute();
+        $rows = $s->fetchAll(PDO::FETCH_KEY_PAIR);
+        $out['mode'] = brandingValidInterface($rows['branding_interface'] ?? null);
+        $out['primary'] = brandingValidHex($rows['branding_brand_primary'] ?? null) ?? BRANDING_DEFAULT_BRAND;
+        $rel = (string)($rows['branding_logo_dark_path'] ?? '');
+        if ($rel !== '' && brandingPathIsSafe($rel) && file_exists(__DIR__ . '/../' . $rel)) {
+            $out['dark_logo'] = (defined('BASE_URL') ? BASE_URL : '/') . $rel;
+        }
+    } catch (Throwable) {
+        // Classic, as above.
+    }
+    return $cache = $out;
+}
+
+/** The logo for dark backgrounds as a web URL, or null when none is set. */
+function brandingDarkLogoUrl(?PDO $conn = null): ?string
+{
+    return brandingInterface($conn)['dark_logo'];
+}
+
+/**
+ * The interface fields of a Branding save, checked before anything is written.
+ * Only the fields the form sent: an older client leaves them alone.
+ *
+ * @param array $post  the request's POST fields
+ * @return array<string, ?string>  setting_key => value (null clears it)
+ * @throws InvalidArgumentException  on a value that is not one of the allowed ones
+ */
+function brandingInterfaceFromPost(array $post): array
+{
+    $out = [];
+    if (array_key_exists('interface', $post)) {
+        if (!in_array($post['interface'], ['classic', 'modern'], true)) {
+            throw new InvalidArgumentException("'interface' must be classic or modern");
+        }
+        $out['branding_interface'] = $post['interface'];
+    }
+    if (array_key_exists('brand_primary', $post)) {
+        if ($post['brand_primary'] === '') {
+            $out['branding_brand_primary'] = null;
+        } else {
+            $hex = brandingValidHex($post['brand_primary']);
+            if ($hex === null) throw new InvalidArgumentException("'brand_primary' must be a colour like #0078d4");
+            $out['branding_brand_primary'] = $hex;
+        }
+    }
+    return $out;
+}
+
+/**
+ * #rrggbb -> [h 0-360, s 0-100, l 0-100].
+ *
+ * @param string $hex  #rrggbb
+ */
+function brandingHexToHsl(string $hex): array
+{
+    $r = hexdec(substr($hex, 1, 2)) / 255;
+    $g = hexdec(substr($hex, 3, 2)) / 255;
+    $b = hexdec(substr($hex, 5, 2)) / 255;
+    $max = max($r, $g, $b);
+    $min = min($r, $g, $b);
+    $l = ($max + $min) / 2;
+    $h = 0.0; $s = 0.0;
+    if ($max !== $min) {
+        $d = $max - $min;
+        $s = $l > 0.5 ? $d / (2 - $max - $min) : $d / ($max + $min);
+        if ($max === $r)     $h = (($g - $b) / $d + ($g < $b ? 6 : 0));
+        elseif ($max === $g) $h = (($b - $r) / $d + 2);
+        else                 $h = (($r - $g) / $d + 4);
+        $h *= 60;
+    }
+    return [$h, $s * 100, $l * 100];
+}
+
+/** [h, s, l] -> #rrggbb, lightness and saturation clamped to 0-100. */
+function brandingHslToHex(float $h, float $s, float $l): string
+{
+    $s = max(0, min(100, $s)) / 100;
+    $l = max(0, min(100, $l)) / 100;
+    $c = (1 - abs(2 * $l - 1)) * $s;
+    $x = $c * (1 - abs(fmod($h / 60, 2) - 1));
+    $m = $l - $c / 2;
+    [$r, $g, $b] = match (true) {
+        $h < 60  => [$c, $x, 0],
+        $h < 120 => [$x, $c, 0],
+        $h < 180 => [0, $c, $x],
+        $h < 240 => [0, $x, $c],
+        $h < 300 => [$x, 0, $c],
+        default  => [$c, 0, $x],
+    };
+    return sprintf('#%02x%02x%02x', (int)round(($r + $m) * 255), (int)round(($g + $m) * 255), (int)round(($b + $m) * 255));
+}
+
+/** $pct per cent of $hex mixed into $base, as #rrggbb. */
+function brandingMix(string $hex, string $base, float $pct): string
+{
+    $out = '#';
+    foreach ([1, 3, 5] as $i) {
+        $a = hexdec(substr($hex, $i, 2));
+        $b = hexdec(substr($base, $i, 2));
+        $out .= sprintf('%02x', (int)round($b + ($a - $b) * $pct / 100));
+    }
+    return $out;
+}
+
+/** The text colour that reads (>= 4.5:1) on $bg: white, else near-black, else null. */
+function brandingOnColour(string $bg): ?string
+{
+    if (brandingContrastRatio('#ffffff', $bg) >= 4.5) return '#ffffff';
+    if (brandingContrastRatio('#111111', $bg) >= 4.5) return '#111111';
+    return null;
+}
+
+/**
+ * Everything Modern needs from one brand colour, for light and dark.
+ *
+ * Light: the colour as given, with whichever of white or near-black text reads
+ * on it. A colour neither can read on (a mid grey) is darkened in steps until
+ * white reads, and marked `adjusted` so the Branding page can say so. Dark:
+ * lifted until it shows on the dark surface (>= 3:1) and its own text reads.
+ *
+ * @param string $hex  a validated #rrggbb
+ * @return array{light: array, dark: array}  each: accent, hover, soft, on (#rrggbb), adjusted (bool)
+ */
+function brandingDeriveAccent(string $hex): array
+{
+    [$h, $s, $l] = brandingHexToHsl($hex);
+
+    $accent = $hex;
+    $on = brandingOnColour($accent);
+    $adjusted = false;
+    $ll = $l;
+    while ($on === null && $ll > 0) {
+        $ll -= 4;
+        $accent = brandingHslToHex($h, $s, $ll);
+        $on = brandingContrastRatio('#ffffff', $accent) >= 4.5 ? '#ffffff' : null;
+        $adjusted = true;
+    }
+    $light = [
+        'accent'   => $accent,
+        'hover'    => brandingHslToHex($h, $s, $ll - 8),
+        'soft'     => brandingMix($accent, '#ffffff', 12),
+        'on'       => $on ?? '#ffffff',
+        'adjusted' => $adjusted,
+    ];
+
+    $dl = $l;
+    $dAccent = $hex;
+    $dOn = brandingOnColour($dAccent);
+    $dAdjusted = false;
+    while ((brandingContrastRatio($dAccent, BRANDING_DARK_SURFACE) < 3.0 || $dOn === null) && $dl < 100) {
+        $dl += 4;
+        $dAccent = brandingHslToHex($h, $s, $dl);
+        $dOn = brandingOnColour($dAccent);
+        $dAdjusted = true;
+    }
+    $dark = [
+        'accent'   => $dAccent,
+        'hover'    => brandingHslToHex($h, $s, $dl + 8),
+        'soft'     => brandingMix($dAccent, BRANDING_DARK_SURFACE, 22),
+        'on'       => $dOn ?? '#111111',
+        'adjusted' => $dAdjusted,
+    ];
+    return ['light' => $light, 'dark' => $dark];
+}
