@@ -731,7 +731,8 @@ function renderModernShellHead(array $ui): void
     foreach (getModuleColors() as $key => $c) {
         $hex = brandingValidHex($c[0] ?? null);
         if ($hex !== null && preg_match('/^[a-z0-9-]+$/', (string)$key)) {
-            $css .= '.header.' . $key . '-header{--ui-module:' . $hex . '}';
+            $css .= '.header.' . $key . '-header{--ui-module:' . $hex . '}'
+                  . '.waffle-module-icon.' . $key . '{--ui-tile:' . $hex . '}';
         }
     }
     // Every value above is a validated #rrggbb or a fixed key: nothing in $css

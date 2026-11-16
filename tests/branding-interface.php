@@ -128,6 +128,7 @@ if (!$db || !defined('DB_NAME') || $db !== DB_NAME) {
         ok('Modern links the shell stylesheet', (bool)preg_match('/shell\.css\?v=\d+/', $modern));
         ok('Modern carries the brand colour', str_contains($modern, '--accent:#e11d48'));
         ok('Modern gives each module header its colour', str_contains($modern, '.header.tickets-header{--ui-module:'));
+        ok('Modern gives each launcher tile its colour', str_contains($modern, '.waffle-module-icon.tickets{--ui-tile:'));
         ok('Modern with no logo shows the system name', str_contains($modern, 'ui-brand-name'));
         ok('Modern still prints the button', str_contains($modern, 'class="waffle-btn"'));
 
