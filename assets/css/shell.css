@@ -274,7 +274,7 @@
     background: color-mix(in srgb, var(--ui-tile, var(--accent)) 22%, var(--surface)) !important;
     color: color-mix(in srgb, var(--ui-tile, var(--accent)) 55%, #ffffff);
 }
-:root[data-ui="modern"] .waffle-module-icon svg { stroke: currentColor; }
+:root[data-ui="modern"] .waffle-module-icon svg { color: inherit; stroke: currentColor; }
 :root[data-ui="modern"] .waffle-module-name { color: var(--text); }
 
 /* Shared buttons (inbox.css .btn, action-row.css) */

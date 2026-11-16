@@ -134,7 +134,12 @@
             if (near) { near.score += c.score; continue; }
             picked.push(c);
         }
-        return picked.sort((a, b) => b.score - a.score).slice(0, 5).map(c => rgbToHex(c.r, c.g, c.b));
+        picked.sort((a, b) => b.score - a.score);
+        // Anti-aliased edges (a white letter on a coloured square) make faint
+        // in-between colours. Anything with under 8% of the strongest one's
+        // weight is one of those, not a brand colour.
+        const floor = picked.length ? picked[0].score * 0.08 : 0;
+        return picked.filter(c => c.score >= floor).slice(0, 5).map(c => rgbToHex(c.r, c.g, c.b));
     }
 
     window.brandDerive = brandDerive;

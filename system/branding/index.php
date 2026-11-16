@@ -761,7 +761,7 @@ $translationNamespaces = ['common', 'system'];
     <?php echo Tz::scriptTag(); ?>
     <script src="../../assets/js/tz.js?v=5"></script>
     <script src="../../assets/js/i18n.js?v=4"></script>
-    <script src="../../assets/js/brand-colours.js?v=1"></script>
+    <script src="../../assets/js/brand-colours.js?v=2"></script>
     <script>
     const API_BASE = '<?php echo $path_prefix; ?>api/system/';
     const PATH_PREFIX = '<?php echo $path_prefix; ?>';
