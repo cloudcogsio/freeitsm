@@ -69,27 +69,44 @@
 
     const DARK_SURFACE = '#161b22';
 
+    const clamp = v => Math.max(0, Math.min(100, v));
+
+    /** One mode's shades. Mirrors brandingDeriveFor() in includes/branding.php. */
+    function deriveFor(h, s, l, step, surfaces, softBase) {
+        const shows = (c, min) => surfaces.every(bg => contrast(c, bg) >= min);
+
+        let al = l, accent = hslToHex(h, s, al), on = onColour(accent);
+        while ((!shows(accent, 3) || on === null) && al > 0 && al < 100) {
+            al += step;
+            accent = hslToHex(h, s, al);
+            on = onColour(accent);
+        }
+        on = on || (step < 0 ? '#ffffff' : '#111111');
+        const adjusted = accent !== hslToHex(h, s, l);
+
+        const dir = on === '#ffffff' ? -1 : 1;
+        let hl = clamp(al + 8 * dir), hover = hslToHex(h, s, hl);
+        while (contrast(on, hover) < 4.5 && hl > 0 && hl < 100) {
+            hl = clamp(hl + 4 * dir);
+            hover = hslToHex(h, s, hl);
+        }
+        if (hover === accent) hover = hslToHex(h, s, clamp(al - 8 * dir));
+
+        let tl = al, text = accent;
+        while (!shows(text, 4.5) && tl > 0 && tl < 100) {
+            tl += step;
+            text = hslToHex(h, s, tl);
+        }
+        return { accent, hover, soft: mix(accent, softBase, step < 0 ? 12 : 22), on, text, adjusted };
+    }
+
     /** Mirrors brandingDeriveAccent() in includes/branding.php. */
     function brandDerive(hex) {
         const [h, s, l] = rgbToHsl(...hexToRgb(hex));
-        let accent = hex, on = onColour(accent), ll = l, adjusted = false;
-        while (on === null && ll > 0) {
-            ll -= 4;
-            accent = hslToHex(h, s, ll);
-            on = contrast('#ffffff', accent) >= 4.5 ? '#ffffff' : null;
-            adjusted = true;
-        }
-        const light = { accent, hover: hslToHex(h, s, ll - 8), soft: mix(accent, '#ffffff', 12), on: on || '#ffffff', adjusted };
-
-        let dl = l, dAccent = hex, dOn = onColour(dAccent), dAdjusted = false;
-        while ((contrast(dAccent, DARK_SURFACE) < 3 || dOn === null) && dl < 100) {
-            dl += 4;
-            dAccent = hslToHex(h, s, dl);
-            dOn = onColour(dAccent);
-            dAdjusted = true;
-        }
-        const dark = { accent: dAccent, hover: hslToHex(h, s, dl + 8), soft: mix(dAccent, DARK_SURFACE, 22), on: dOn || '#111111', adjusted: dAdjusted };
-        return { light, dark };
+        return {
+            light: deriveFor(h, s, l, -4, ['#ffffff', '#f6f7f9'], '#ffffff'),
+            dark:  deriveFor(h, s, l, +4, [DARK_SURFACE, '#0f1318'], DARK_SURFACE),
+        };
     }
 
     /**

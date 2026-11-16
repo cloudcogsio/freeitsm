@@ -231,7 +231,7 @@
 :root[data-ui="modern"] .header .nav-btn.active:visited {
     background: var(--accent-soft);
     border-color: transparent;
-    color: var(--accent) !important;
+    color: var(--accent-text) !important;
     font-weight: 600;
 }
 :root[data-ui="modern"][data-theme-mode="dark"] .header .nav-btn.active,
@@ -246,13 +246,13 @@
     width: 30px;
     height: 30px;
     background: var(--accent-soft);
-    color: var(--accent);
+    color: var(--accent-text);
     border: 1px solid var(--border);
     font-size: 12px;
     font-weight: 700;
 }
 :root[data-ui="modern"][data-theme-mode="dark"] .header .user-avatar { color: var(--text); }
-:root[data-ui="modern"] .header .user-avatar:hover { border-color: var(--accent); }
+:root[data-ui="modern"] .header .user-avatar:hover { border-color: var(--accent-text); }
 
 /* Launcher: tiles tinted in the module's colour instead of solid gradients */
 :root[data-ui="modern"] .waffle-panel {
@@ -290,7 +290,7 @@
 }
 :root[data-ui="modern"] .btn-secondary:hover { background: var(--surface-hover); }
 :root[data-ui="modern"] :is(.btn, .action-row-btn, .nav-btn, .waffle-btn):focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--accent-text);
     outline-offset: 2px;
 }
 
@@ -301,6 +301,16 @@
 }
 :root[data-ui="modern"] :is(input, select, textarea):focus-visible {
     outline: none;
-    border-color: var(--accent);
+    border-color: var(--accent-text);
     box-shadow: 0 0 0 3px var(--control-focus);
+}
+
+/* Phones. mobile.css draws its own header for a dark bar (white text); Modern's
+   bar is the surface colour, so the bits it paints white need the text colour.
+   The logo gets less room so the title and the avatar still fit. */
+@media (max-width: 768px) {
+    :root[data-ui="modern"] .header .mobile-views-btn { color: var(--text-dim); }
+    :root[data-ui="modern"] .header .mobile-views-btn:hover { color: var(--text); background: var(--surface-hover); }
+    :root[data-ui="modern"] .ui-brand-logo { margin-right: 8px; }
+    :root[data-ui="modern"] .ui-brand-logo img { max-width: 96px; }
 }

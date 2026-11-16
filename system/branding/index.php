@@ -342,7 +342,7 @@ $translationNamespaces = ['common', 'system'];
         .bp-head i { width: 9px; height: 9px; border-radius: 3px; background: var(--bp-module, #0078d4); }
         .bp-body { display: flex; gap: 10px; align-items: center; padding: 12px 10px; flex-wrap: wrap; }
         .bp-btn { padding: 5px 12px; border-radius: 5px; font-weight: 600; background: var(--bp-accent); color: var(--bp-on); }
-        .bp-link { color: var(--bp-accent); text-decoration: underline; }
+        .bp-link { color: var(--bp-text); text-decoration: underline; }
         .bp-sel { padding: 3px 8px; border-radius: 5px; background: var(--bp-soft); }
         .logo-preview-dark { background: #161b22; border-color: rgba(231,235,240,.2); }
         @media (max-width: 600px) { .brand-preview { grid-template-columns: 1fr; } }
@@ -761,7 +761,7 @@ $translationNamespaces = ['common', 'system'];
     <?php echo Tz::scriptTag(); ?>
     <script src="../../assets/js/tz.js?v=5"></script>
     <script src="../../assets/js/i18n.js?v=4"></script>
-    <script src="../../assets/js/brand-colours.js?v=2"></script>
+    <script src="../../assets/js/brand-colours.js?v=3"></script>
     <script>
     const API_BASE = '<?php echo $path_prefix; ?>api/system/';
     const PATH_PREFIX = '<?php echo $path_prefix; ?>';
@@ -870,6 +870,7 @@ $translationNamespaces = ['common', 'system'];
             p.style.setProperty('--bp-accent', s.accent);
             p.style.setProperty('--bp-on', s.on);
             p.style.setProperty('--bp-soft', s.soft);
+            p.style.setProperty('--bp-text', s.text);
         });
         document.getElementById('brandAdjusted').hidden = !d.light.adjusted;
         document.querySelectorAll('.brand-swatch').forEach(b => b.setAttribute('aria-pressed', b.dataset.hex === use ? 'true' : 'false'));

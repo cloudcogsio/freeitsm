@@ -47,7 +47,18 @@ $hex = '/^#[0-9a-f]{6}$/';
 foreach (['#0078d4', '#ffd400', '#f5f5f5', '#0a0a0a', '#2b5bd7', '#e11d48', '#10b981'] as $c) {
     $d = brandingDeriveAccent($c);
     $all = array_merge(array_values($d['light']), array_values($d['dark']));
-    ok("$c: every shade is #rrggbb", count(array_filter($all, fn($v) => is_string($v) && preg_match($hex, $v))) === 8);
+    ok("$c: every shade is #rrggbb", count(array_filter($all, fn($v) => is_string($v) && preg_match($hex, $v))) === 10);
+    ok("$c: hover text reads in light (>= 4.5)", brandingContrastRatio($d['light']['on'], $d['light']['hover']) >= 4.5,
+       $d['light']['on'] . ' on ' . $d['light']['hover']);
+    ok("$c: hover text reads in dark (>= 4.5)", brandingContrastRatio($d['dark']['on'], $d['dark']['hover']) >= 4.5,
+       $d['dark']['on'] . ' on ' . $d['dark']['hover']);
+    ok("$c: hover differs from the button", $d['light']['hover'] !== $d['light']['accent'] && $d['dark']['hover'] !== $d['dark']['accent']);
+    ok("$c: accent shows on the light surfaces (>= 3)", brandingContrastRatio($d['light']['accent'], '#ffffff') >= 3.0
+       && brandingContrastRatio($d['light']['accent'], '#f6f7f9') >= 3.0, $d['light']['accent']);
+    ok("$c: accent text reads on the light surfaces (>= 4.5)", brandingContrastRatio($d['light']['text'], '#ffffff') >= 4.5
+       && brandingContrastRatio($d['light']['text'], '#f6f7f9') >= 4.5, $d['light']['text']);
+    ok("$c: accent text reads on the dark surfaces (>= 4.5)", brandingContrastRatio($d['dark']['text'], '#161b22') >= 4.5
+       && brandingContrastRatio($d['dark']['text'], '#0f1318') >= 4.5, $d['dark']['text']);
     ok("$c: button text reads in light (>= 4.5)", brandingContrastRatio($d['light']['on'], $d['light']['accent']) >= 4.5,
        $d['light']['on'] . ' on ' . $d['light']['accent']);
     ok("$c: button text reads in dark (>= 4.5)", brandingContrastRatio($d['dark']['on'], $d['dark']['accent']) >= 4.5,
@@ -56,7 +67,9 @@ foreach (['#0078d4', '#ffd400', '#f5f5f5', '#0a0a0a', '#2b5bd7', '#e11d48', '#10
        $d['dark']['accent']);
 }
 $y = brandingDeriveAccent('#ffd400');
-ok('yellow keeps its colour and takes dark text', $y['light']['accent'] === '#ffd400' && $y['light']['on'] === '#111111');
+ok('yellow is darkened enough to show on white, and marked adjusted', $y['light']['accent'] !== '#ffd400' && $y['light']['adjusted'] === true);
+$def = brandingDeriveAccent('#0078d4');
+ok('FreeITSM blue keeps readable hover text in dark (the review\'s 3.31:1 case)', brandingContrastRatio($def['dark']['on'], $def['dark']['hover']) >= 4.5);
 $b = brandingDeriveAccent('#0078d4');
 ok('FreeITSM blue is left as it is, with white text', $b['light']['accent'] === '#0078d4' && $b['light']['on'] === '#ffffff');
 $g = brandingDeriveAccent('#7a7a7a');
@@ -127,6 +140,7 @@ if (!$db || !defined('DB_NAME') || $db !== DB_NAME) {
         ok('Modern sets the attribute', str_contains($modern, "dataset.ui='modern'"));
         ok('Modern links the shell stylesheet', (bool)preg_match('/shell\.css\?v=\d+/', $modern));
         ok('Modern carries the brand colour', str_contains($modern, '--accent:#e11d48'));
+        ok('Modern carries the accent text shade', (bool)preg_match('/--accent-text:#[0-9a-f]{6}/', $modern));
         ok('Modern gives each module header its colour', str_contains($modern, '.header.tickets-header{--ui-module:'));
         ok('Modern gives each launcher tile its colour', str_contains($modern, '.waffle-module-icon.tickets{--ui-tile:'));
         ok('Modern with no logo shows the system name', str_contains($modern, 'ui-brand-name'));

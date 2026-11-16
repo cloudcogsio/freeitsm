@@ -630,52 +630,83 @@ function brandingOnColour(string $bg): ?string
 /**
  * Everything Modern needs from one brand colour, for light and dark.
  *
- * Light: the colour as given, with whichever of white or near-black text reads
- * on it. A colour neither can read on (a mid grey) is darkened in steps until
- * white reads, and marked `adjusted` so the Branding page can say so. Dark:
- * lifted until it shows on the dark surface (>= 3:1) and its own text reads.
+ * For each of light and dark, in 4-point steps of HSL lightness:
+ *  - accent: the colour as given if it shows on the page (>= 3:1 against the
+ *    surfaces) and white or near-black text reads on it (>= 4.5:1); otherwise
+ *    darkened (light) or lifted (dark) until both hold, and marked `adjusted`
+ *    so the Branding page can say so. A pale yellow brand gets a deeper yellow.
+ *  - on: the text on the accent (white, else near-black).
+ *  - hover: 8 points away from the accent, in whichever direction makes `on`
+ *    stronger (darker under white text, lighter under dark text), and further
+ *    until `on` still reads on it.
+ *  - text: the accent as a text or line colour on the page (links, the current
+ *    tab, focus rings), moved until it reads (>= 4.5:1) on the surfaces.
+ *  - soft: a tint of the accent on the surface, for selected rows.
+ *
+ * Mirrored for the Branding page's preview in assets/js/brand-colours.js.
  *
  * @param string $hex  a validated #rrggbb
- * @return array{light: array, dark: array}  each: accent, hover, soft, on (#rrggbb), adjusted (bool)
+ * @return array{light: array, dark: array}  each: accent, hover, soft, on, text (#rrggbb), adjusted (bool)
  */
 function brandingDeriveAccent(string $hex): array
 {
     [$h, $s, $l] = brandingHexToHsl($hex);
+    return [
+        'light' => brandingDeriveFor($h, $s, $l, -4, ['#ffffff', '#f6f7f9'], '#ffffff'),
+        'dark'  => brandingDeriveFor($h, $s, $l, +4, [BRANDING_DARK_SURFACE, '#0f1318'], BRANDING_DARK_SURFACE),
+    ];
+}
 
-    $accent = $hex;
+/**
+ * One mode's shades for brandingDeriveAccent().
+ *
+ * @param float  $step      -4 (light: darken) or +4 (dark: lift)
+ * @param array  $surfaces  the page surfaces the accent and its text must show on
+ * @param string $softBase  the surface the soft tint is mixed into
+ */
+function brandingDeriveFor(float $h, float $s, float $l, float $step, array $surfaces, string $softBase): array
+{
+    $shows = function (string $c, float $min) use ($surfaces): bool {
+        foreach ($surfaces as $bg) if (brandingContrastRatio($c, $bg) < $min) return false;
+        return true;
+    };
+
+    // The accent itself.
+    $al = $l;
+    $accent = brandingHslToHex($h, $s, $al);
     $on = brandingOnColour($accent);
-    $adjusted = false;
-    $ll = $l;
-    while ($on === null && $ll > 0) {
-        $ll -= 4;
-        $accent = brandingHslToHex($h, $s, $ll);
-        $on = brandingContrastRatio('#ffffff', $accent) >= 4.5 ? '#ffffff' : null;
-        $adjusted = true;
+    while ((!$shows($accent, 3.0) || $on === null) && $al > 0 && $al < 100) {
+        $al += $step;
+        $accent = brandingHslToHex($h, $s, $al);
+        $on = brandingOnColour($accent);
     }
-    $light = [
+    $on ??= $step < 0 ? '#ffffff' : '#111111';
+    $adjusted = $accent !== brandingHslToHex($h, $s, $l);
+
+    // Hover: towards stronger contrast with its own text, never the same colour.
+    $dir = $on === '#ffffff' ? -1 : 1;
+    $hl = max(0, min(100, $al + 8 * $dir));
+    $hover = brandingHslToHex($h, $s, $hl);
+    while (brandingContrastRatio($on, $hover) < 4.5 && $hl > 0 && $hl < 100) {
+        $hl = max(0, min(100, $hl + 4 * $dir));
+        $hover = brandingHslToHex($h, $s, $hl);
+    }
+    if ($hover === $accent) $hover = brandingHslToHex($h, $s, max(0, min(100, $al - 8 * $dir)));
+
+    // The accent as text on the page.
+    $tl = $al;
+    $text = $accent;
+    while (!$shows($text, 4.5) && $tl > 0 && $tl < 100) {
+        $tl += $step;
+        $text = brandingHslToHex($h, $s, $tl);
+    }
+
+    return [
         'accent'   => $accent,
-        'hover'    => brandingHslToHex($h, $s, $ll - 8),
-        'soft'     => brandingMix($accent, '#ffffff', 12),
-        'on'       => $on ?? '#ffffff',
+        'hover'    => $hover,
+        'soft'     => brandingMix($accent, $softBase, $step < 0 ? 12 : 22),
+        'on'       => $on,
+        'text'     => $text,
         'adjusted' => $adjusted,
     ];
-
-    $dl = $l;
-    $dAccent = $hex;
-    $dOn = brandingOnColour($dAccent);
-    $dAdjusted = false;
-    while ((brandingContrastRatio($dAccent, BRANDING_DARK_SURFACE) < 3.0 || $dOn === null) && $dl < 100) {
-        $dl += 4;
-        $dAccent = brandingHslToHex($h, $s, $dl);
-        $dOn = brandingOnColour($dAccent);
-        $dAdjusted = true;
-    }
-    $dark = [
-        'accent'   => $dAccent,
-        'hover'    => brandingHslToHex($h, $s, $dl + 8),
-        'soft'     => brandingMix($dAccent, BRANDING_DARK_SURFACE, 22),
-        'on'       => $dOn ?? '#111111',
-        'adjusted' => $dAdjusted,
-    ];
-    return ['light' => $light, 'dark' => $dark];
 }

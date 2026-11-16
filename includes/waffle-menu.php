@@ -722,7 +722,7 @@ function renderModernShellHead(array $ui): void
 
     $d = brandingDeriveAccent($ui['primary']);
     $vars = fn(array $s) => '--accent:' . $s['accent'] . ';--accent-hover:' . $s['hover']
-        . ';--accent-soft:' . $s['soft'] . ';--on-accent:' . $s['on'];
+        . ';--accent-soft:' . $s['soft'] . ';--on-accent:' . $s['on'] . ';--accent-text:' . $s['text'];
     $css = ':root[data-ui="modern"]{' . $vars($d['light']) . '}'
          . ':root[data-ui="modern"][data-theme-mode="dark"]{' . $vars($d['dark']) . '}';
     // Each module keeps its identity colour (the header strip and the marker by
@@ -738,7 +738,7 @@ function renderModernShellHead(array $ui): void
     // Every value above is a validated #rrggbb or a fixed key: nothing in $css
     // came from a person as text.
     echo "<script>document.documentElement.dataset.ui='modern';</script>\n";
-    echo '<link rel="stylesheet" href="' . htmlspecialchars(BASE_URL) . 'assets/css/shell.css?v=2">' . "\n";
+    echo '<link rel="stylesheet" href="' . htmlspecialchars(BASE_URL) . 'assets/css/shell.css?v=4">' . "\n";
     echo '<style id="ui-brand">' . $css . "</style>\n";
 }
 
