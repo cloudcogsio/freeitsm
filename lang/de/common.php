@@ -572,6 +572,7 @@ return [
         'event' => [
             'ticket' => [
                 'assigned' => 'Von {actor} Ihnen zugewiesen',
+                'team_assigned' => 'Von {actor} an Ihr Team übergeben',
                 'reassigned' => 'Von {actor} neu zugewiesen',
                 'reply_received' => 'Der Anfragende hat geantwortet',
                 'note_added' => '{actor} hat eine Notiz hinzugefügt',
@@ -632,6 +633,7 @@ return [
         'pref' => [
             'ticket' => [
                 'assigned' => 'Mir wird ein Ticket zugewiesen',
+                'team_assigned' => 'Ein Ticket wird einem meiner Teams übergeben',
                 'reassigned' => 'Ein Ticket, das ich beobachte, wird neu zugewiesen',
                 'reply_received' => 'Ein Anfragender antwortet auf mein Ticket oder eines, das ich beobachte',
                 'note_added' => 'Jemand fügt meinem Ticket oder einem, das ich beobachte, eine Notiz hinzu',
@@ -864,6 +866,13 @@ return [
         'open' => 'Aus einem Kalender wählen',
         'hour' => 'Stunde',
         'minute' => 'Minute',
+    ],
+    // GH #369: the database is behind the code (includes/db_verify_status.php, waffle-menu.php).
+    'db_behind' => [
+        'notice' => 'FreeITSM wurde auf {version} aktualisiert. Führen Sie die Datenbankprüfung aus, damit die Datenbank passt, sonst funktionieren einige Seiten nicht.',
+        'verify' => 'Prüfen',
+        'hide'   => 'Ausblenden',
+        'error'  => 'Die Datenbank muss für diese Version von FreeITSM aktualisiert werden. Bitten Sie einen Administrator, System → Datenbankprüfung auszuführen.',
     ],
     'tenant_switcher' => [
         'title' => 'Unternehmen wechseln',

@@ -572,6 +572,7 @@ return [
         'event' => [
             'ticket' => [
                 'assigned' => 'Ditugaskan kepada Anda oleh {actor}',
+                'team_assigned' => 'Diserahkan ke tim Anda oleh {actor}',
                 'reassigned' => '{actor} menugaskannya ulang',
                 'reply_received' => 'Peminta membalas',
                 'note_added' => '{actor} menambahkan catatan',
@@ -632,6 +633,7 @@ return [
         'pref' => [
             'ticket' => [
                 'assigned' => 'Tiket ditugaskan kepada saya',
+                'team_assigned' => 'Sebuah tiket diserahkan ke salah satu tim saya',
                 'reassigned' => 'Tiket yang saya pantau ditugaskan ulang',
                 'reply_received' => 'Peminta membalas tiket saya',
                 'note_added' => 'Seseorang menambahkan catatan ke tiket saya',
@@ -864,6 +866,13 @@ return [
         'open' => 'Pilih dari kalender',
         'hour' => 'Jam',
         'minute' => 'Menit',
+    ],
+    // GH #369: the database is behind the code (includes/db_verify_status.php, waffle-menu.php).
+    'db_behind' => [
+        'notice' => 'FreeITSM telah diperbarui ke {version}. Jalankan Verifikasi Database agar database sesuai, atau beberapa halaman tidak akan berfungsi.',
+        'verify' => 'Verifikasi',
+        'hide'   => 'Sembunyikan',
+        'error'  => 'Database perlu diperbarui untuk versi FreeITSM ini. Minta administrator menjalankan Sistem → Verifikasi Database.',
     ],
     'tenant_switcher' => [
         'title' => 'Ganti perusahaan',
