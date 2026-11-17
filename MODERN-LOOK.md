@@ -105,4 +105,8 @@ For anyone reading or changing the code.
 
 `dev-modern-look` is only ever merged into, never rebased or force-pushed, so a clone of it can keep pulling. It follows every FreeITSM release through `dev`. Install and run it the same way as FreeITSM (see the README).
 
-Questions or problems with the Modern look belong on this fork, not on FreeITSM.
+## Questions and problems
+
+- **About the Modern look** (how it looks, the Interface setting, the sign-in pages or portal in Modern): open an issue on [this fork](https://github.com/cloudcogsio/freeitsm/issues). Please say whether it also happens with Classic.
+- **Anything that also happens with Classic** is a FreeITSM matter: report it on [FreeITSM](https://github.com/edmozley/freeitsm), not here.
+- Please don't raise the Modern look on FreeITSM's own issues or discussions.
