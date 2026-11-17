@@ -1,3 +1,6 @@
+> [!NOTE]
+> **This fork adds an optional Modern look** - one consistent frame for every module, the sign-in pages and the self-service portal, with your logo and brand colour. Off by default; switch it on in System &rarr; Branding &rarr; Interface. Screenshots and details: [MODERN-LOOK.md](MODERN-LOOK.md).
+
 <h1 align="center">FreeITSM</h1>
 
 <p align="center"><strong>Free, open-source IT Service Management — self-hosted, AI-included, no per-seat fees. Ever.</strong></p>
