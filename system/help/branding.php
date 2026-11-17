@@ -24,7 +24,7 @@ require __DIR__ . '/_top.php';
     <div class="help-section-header"><?php echo helpSectionNum('interface'); ?>
         <div>
             <h3>Interface: Classic or Modern</h3>
-            <p><strong>Classic</strong> is the standard FreeITSM look, where each module has its own coloured header. <strong>Modern</strong> gives every module the same light header, with your logo on the left and your brand colour on buttons, links and selections.</p>
+            <p><strong>Classic</strong> is the standard FreeITSM look, where each module has its own coloured header. <strong>Modern</strong> gives every module the same light header, with your logo on the left and your brand colour on buttons, links and selections. The sign-in pages and the self-service portal follow it too.</p>
         </div>
     </div>
     <p>Every install starts on Classic. Choose <strong>Modern</strong> in the <strong>Interface</strong> card at the top of this page and press <strong>Save</strong>. It applies to every analyst the next time each page loads. Choose Classic again to go back; nothing else changes.</p>
@@ -32,10 +32,12 @@ require __DIR__ . '/_top.php';
         <li><strong>Each module keeps its colour.</strong> In Modern it shows as a thin strip along the top of the header, a small square by the module's name, and its tile in the module menu. Colours set in System &rarr; Colours still apply.</li>
         <li><strong>Brand colour.</strong> Type a colour such as <code>#0078d4</code>, use the colour picker, or click one of the colours suggested <strong>From your logo</strong>. The suggestions are read from your logo in your browser. Leave it blank for FreeITSM's standard blue.</li>
         <li><strong>Readable text.</strong> If white text would be hard to read on your colour, buttons use dark text, or a darker shade of your colour, and the card says so. Dark mode uses a lighter shade so it shows on a dark background. The preview shows both.</li>
-        <li><strong>Logo for dark backgrounds.</strong> Optional. People who use Dark mode see this one in the header. Without it, your logo sits on a small light panel so a dark logo stays visible. PNG or JPG, up to 2MB.</li>
-        <li><strong>Light or Dark</strong> is still each person's own choice, in their account menu.</li>
+        <li><strong>Logo for dark backgrounds.</strong> Optional. People who use Dark mode see this one instead of your logo: in the header, on the home page, on the Files desktop and in the portal. A company's own logo is never replaced. Without it, the header logo sits on a small light panel so a dark logo stays visible. PNG or JPG, up to 2MB.</li>
+        <li><strong>Light or Dark</strong> is still each person's own choice, in their account menu. Portal users choose theirs in My Account.</li>
+        <li><strong>Sign-in pages.</strong> The sign-in, password and registration pages for analysts and the portal take the Modern look. What you set in the sign-in designer below still applies: a background you chose, the card style, positions, logo and banners. The designer's standard purple background is replaced by Modern's own; choose any other background to keep yours. The sign-in pages are always light. Add <code>?nobranding=1</code> to a sign-in address for the plain standard screen.</li>
+        <li><strong>Self-service portal.</strong> The portal gets the same light header and your brand colour. A header colour set in System &rarr; Self-service portal shows as the thin strip along the top; its logo and background pattern settings still apply.</li>
     </ul>
-    <div class="help-note"><strong>Where Modern shows:</strong> every module's main screens, which share the module header. A few pop-out and print views have no header and stay as they are.</div>
+    <div class="help-note"><strong>Where Modern shows:</strong> every module's main screens, which share the module header, the home page, the sign-in pages and the self-service portal. A few pop-out and print views have no header and stay as they are.</div>
 </div>
 
 <!-- System name -->
