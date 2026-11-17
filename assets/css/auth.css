@@ -1,0 +1,139 @@
+/**
+ * The Modern interface: the sign-in pages - System -> Branding -> Interface.
+ *
+ * Analyst sign-in (with the MFA step and the SSO password box), SSO confirm,
+ * the analyst password pages (forgot, reset, forced change) and the portal's
+ * sign-in, register, forgot, reset, verify-email and confirm-address pages.
+ * renderModernAuthHead() (includes/branding.php) links this with
+ * modern-base.css and sets <html data-ui="modern" data-ui-page="auth">.
+ *
+ * Every rule hangs on that pair, so the generic names these pages use
+ * (.container, .header, .card, .btn) cannot reach any other page.
+ *
+ * The login designer keeps what it sets: background, card style (glass,
+ * flat), form and logo position, logo size, banner and footer strips. Its
+ * stock background counts as "not designed" (data-ui-bg="modern", set by the
+ * hook) and gets Modern's own. Light only: nobody is signed in yet, so there
+ * is no personal dark-mode choice to follow.
+ */
+
+/* ------------------------------------------------------------ Background */
+/* A background chosen in the designer: give it back (modern-base.css paints
+   every Modern page's own background, which would hide it). */
+:root[data-ui="modern"][data-ui-page="auth"]:not([data-ui-bg="modern"]) body {
+    background: var(--login-bg, var(--app-bg));
+}
+:root[data-ui="modern"][data-ui-page="auth"][data-ui-bg="modern"] body {
+    background:
+        radial-gradient(1000px 560px at 50% -8%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%),
+        var(--app-bg);
+}
+:root[data-ui="modern"][data-ui-page="auth"][data-ui-bg="modern"] body::before { background: none; }
+/* The footer strip's default ink is white, for the old purple. */
+:root[data-ui="modern"][data-ui-page="auth"][data-ui-bg="modern"] .login-strip-footer { color: var(--text-dim); text-shadow: none; }
+
+/* ------------------------------------------------------------------ Card */
+:root[data-ui="modern"][data-ui-page="auth"] :is(.login-container, .container, .change-container, .card) {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2);
+}
+/* The designer's card styles still win. */
+:root[data-ui="modern"][data-ui-page="auth"] body[data-card="glass"] .login-container {
+    background: color-mix(in srgb, var(--surface) 84%, transparent);
+    border-color: color-mix(in srgb, var(--surface) 50%, transparent);
+}
+:root[data-ui="modern"][data-ui-page="auth"] body[data-card="flat"] .login-container {
+    box-shadow: none;
+    border-color: var(--control-border);
+}
+
+/* ------------------------------------------------------------------ Text */
+:root[data-ui="modern"][data-ui-page="auth"] :is(.login-header h1, .header h1, .change-header h1, .card h1, .modal-box h2) {
+    color: var(--text);
+    font-weight: 650;
+    letter-spacing: -.01em;
+}
+:root[data-ui="modern"][data-ui-page="auth"] :is(.login-tagline, .header p, .change-header p, .card p, .mfa-subtitle, .mfa-desc, .form-hint) {
+    color: var(--text-muted);
+}
+:root[data-ui="modern"][data-ui-page="auth"] .form-group label {
+    color: var(--text);
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+}
+:root[data-ui="modern"][data-ui-page="auth"] :is(.mfa-icon svg, .header .icon, .change-header .icon) { color: var(--accent-text); }
+
+/* ---------------------------------------------------------------- Inputs */
+:root[data-ui="modern"][data-ui-page="auth"] :is(.form-group input, .form-group select, .otp-input-field, .otp-input) {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--control-border);
+    border-radius: var(--radius-md);
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+:root[data-ui="modern"][data-ui-page="auth"] :is(.form-group input, .form-group select, .otp-input-field, .otp-input):focus {
+    outline: none;
+    border-color: var(--accent-text);
+    box-shadow: 0 0 0 3px var(--control-focus);
+}
+
+/* --------------------------------------------------------------- Buttons */
+:root[data-ui="modern"][data-ui-page="auth"] :is(.login-button, .submit-btn, a.btn) {
+    background: var(--accent);
+    color: var(--on-accent);
+    border: none;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-1);
+    font-weight: 600;
+    transform: none;
+    transition: background-color .15s ease;
+}
+:root[data-ui="modern"][data-ui-page="auth"] :is(.login-button, .submit-btn, a.btn):hover:not(:disabled) {
+    background: var(--accent-hover);
+    transform: none;
+}
+:root[data-ui="modern"][data-ui-page="auth"] :is(.login-button, .submit-btn, a.btn):focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+}
+:root[data-ui="modern"][data-ui-page="auth"] .sso-provider-btn {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--control-border);
+    border-radius: var(--radius-md);
+}
+:root[data-ui="modern"][data-ui-page="auth"] .sso-provider-btn:hover { background: var(--surface-hover); }
+:root[data-ui="modern"][data-ui-page="auth"] .sso-divider span { background: var(--border); }
+:root[data-ui="modern"][data-ui-page="auth"] .portal-link { border-top-color: var(--border); }
+
+/* ----------------------------------------------------------------- Links */
+:root[data-ui="modern"][data-ui-page="auth"] :is(.portal-link a, .login-links a) { color: var(--accent-text); }
+:root[data-ui="modern"][data-ui-page="auth"] :is(.forgot-link, .back-link, .logout-link, .mfa-cancel, .cancel-link, .ss-text-link, .mfa-back a) {
+    color: var(--text-dim);
+}
+:root[data-ui="modern"][data-ui-page="auth"] :is(.forgot-link, .back-link, .logout-link, .mfa-cancel, .cancel-link, .ss-text-link, .mfa-back a):hover {
+    color: var(--text);
+}
+
+/* -------------------------------------------------------------- Messages */
+:root[data-ui="modern"][data-ui-page="auth"] :is(.error-message, .mfa-error, .msg.error) {
+    background: color-mix(in srgb, var(--danger, #dc2626) 8%, var(--surface));
+    color: var(--danger-text, #b91c1c);
+    border-left-color: var(--danger, #dc2626);
+    border-radius: var(--radius-sm);
+}
+:root[data-ui="modern"][data-ui-page="auth"] :is(.success-message, .msg.success) {
+    background: color-mix(in srgb, var(--success, #16a34a) 8%, var(--surface));
+    color: var(--success-text, #15803d);
+    border-left-color: var(--success, #16a34a);
+    border-radius: var(--radius-sm);
+}
+
+/* ------------------------------------------------- SSO password box (login) */
+:root[data-ui="modern"][data-ui-page="auth"] .modal-box {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2);
+}

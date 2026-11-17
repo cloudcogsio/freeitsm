@@ -327,6 +327,7 @@ $localAllowed = $localOn || $forceLocal;
     </style>
 </head>
 <body<?php if ($brand): ?> data-form-pos="<?php echo htmlspecialchars($brand['form_position']); ?>" data-card="<?php echo htmlspecialchars($brand['card_style']); ?>" data-logo-pos="<?php echo htmlspecialchars($brand['logo_position']); ?>" style="<?php echo htmlspecialchars(brandingLoginCss($brand)); ?>"<?php endif; ?>>
+<?php /* Cloudcogs fork: the Modern interface (includes/branding.php). */ renderModernAuthHead($brand, $brandNone, $brandPreview); ?>
 <?php if ($brand && $brand['banner_position'] !== 'off' && $brand['banner_text'] !== ''): ?>
     <div class="login-strip login-strip-banner" data-at="<?php echo htmlspecialchars($brand['banner_position']); ?>"><?php echo htmlspecialchars($brand['banner_text']); ?></div>
 <?php endif; ?>

@@ -534,6 +534,114 @@ function brandingDarkLogoUrl(?PDO $conn = null): ?string
     return brandingInterface($conn)['dark_logo'];
 }
 
+/** Cache-buster for the Modern stylesheets (modern-base, shell, portal, auth). */
+const BRANDING_MODERN_CSS_V = 7;
+
+/**
+ * The brand colours as CSS, light and dark, worked out from the one Branding
+ * colour - and, when a dark logo is set, a dark-mode rule that shows it in
+ * place of the organisation logo wherever a page draws that logo as an <img>
+ * (the home page, the Files desktop, the portal bar). Matched on the image's
+ * src, so a company's own logo (Files, the portal's logo) is never swapped.
+ *
+ * Every value is a validated #rrggbb or a path checked to letters, digits and
+ * . _ / : - only, so nothing in it came from a person as text.
+ *
+ * @param array $ui  brandingInterface()
+ */
+function brandingModernCss(array $ui): string
+{
+    $d = brandingDeriveAccent($ui['primary']);
+    $vars = fn(array $s) => '--accent:' . $s['accent'] . ';--accent-hover:' . $s['hover']
+        . ';--accent-soft:' . $s['soft'] . ';--on-accent:' . $s['on'] . ';--accent-text:' . $s['text'];
+    $css = ':root[data-ui="modern"]{' . $vars($d['light']) . '}'
+         . ':root[data-ui="modern"][data-theme-mode="dark"]{' . $vars($d['dark']) . '}';
+    $safe = '/^[A-Za-z0-9._\/:-]+$/';
+    if ($ui['dark_logo'] !== null && preg_match($safe, $ui['dark_logo'])) {
+        try { $org = brandingLogoUrl(); } catch (Throwable) { $org = ''; }
+        if ($org !== '' && preg_match($safe, $org)) {
+            $css .= ':root[data-ui="modern"][data-theme-mode="dark"] :is(img.company-logo,img.fd-logo,.portal-brand img,.portal-page-logo img)[src="'
+                  . $org . '"]{content:url("' . $ui['dark_logo'] . '")}';
+        }
+    }
+    return $css;
+}
+
+/**
+ * What a Modern page prints first thing in <body>: the attributes every Modern
+ * rule hangs on, the stylesheets, and the brand colours. A stylesheet linked in
+ * the body holds back what follows it until it has loaded, so nothing paints in
+ * Classic first.
+ *
+ * @param array  $ui     brandingInterface()
+ * @param string $page   'app', 'portal' or 'auth' - set as data-ui-page
+ * @param array  $sheets stylesheets after modern-base.css, e.g. ['shell.css']
+ * @param string $css    more CSS for the <style> (already safe - see callers)
+ * @param array  $attrs  more data-* on <html>, name => fixed word
+ */
+function brandingModernHead(array $ui, string $page, array $sheets, string $css = '', array $attrs = []): string
+{
+    $base = htmlspecialchars((defined('BASE_URL') ? BASE_URL : '/') . 'assets/css/');
+    $js = "document.documentElement.dataset.ui='modern';document.documentElement.dataset.uiPage='" . preg_replace('/[^a-z]/', '', $page) . "';";
+    foreach ($attrs as $k => $v) {
+        $js .= 'document.documentElement.dataset.' . preg_replace('/[^A-Za-z]/', '', $k) . "='" . preg_replace('/[^a-z-]/', '', $v) . "';";
+    }
+    $out = '<script>' . $js . "</script>\n";
+    foreach (array_merge(['modern-base.css'], $sheets) as $f) {
+        $out .= '<link rel="stylesheet" href="' . $base . htmlspecialchars($f) . '?v=' . BRANDING_MODERN_CSS_V . '">' . "\n";
+    }
+    return $out . '<style id="ui-brand">' . brandingModernCss($ui) . $css . "</style>\n";
+}
+
+/**
+ * The Modern look on a sign-in page (analyst and portal sign-in, MFA, password
+ * forgot / reset / change, SSO confirm, register, verify). One line after
+ * <body> on each page. Prints nothing with Classic, with ?nobranding=1
+ * ($disabled - the safety valve must always give the stock screen), or if
+ * anything at all goes wrong: these pages must always render.
+ *
+ * The login designer keeps the background, card style, positions, logo and
+ * strips. Its STOCK background (the purple gradient, or "Theme") is treated as
+ * "not designed" and Modern's own is used; any other background is kept. Not
+ * in the designer's live preview, where the admin is changing it.
+ *
+ * @param ?array $design    the page's brandingLoginDesign(), or null for a page
+ *                          the designer does not style
+ * @param bool   $disabled  ?nobranding=1
+ * @param bool   $preview   ?preview=1 (the designer's live preview)
+ */
+function renderModernAuthHead(?array $design = null, bool $disabled = false, bool $preview = false): void
+{
+    if ($disabled) return;
+    try {
+        $ui = brandingInterface();
+        if ($ui['mode'] !== 'modern') return;
+        $stock = $design === null
+            || ($design['bg_style'] ?? '') === 'theme'
+            || (($design['bg_style'] ?? '') === 'gradient'
+                && strcasecmp((string)($design['bg_from'] ?? ''), '#667eea') === 0
+                && strcasecmp((string)($design['bg_to'] ?? ''), '#764ba2') === 0);
+        echo brandingModernHead($ui, 'auth', ['auth.css'], '', $stock && !$preview ? ['uiBg' => 'modern'] : []);
+    } catch (Throwable) {
+        // Classic.
+    }
+}
+
+/**
+ * The Modern look on the self-service portal: self-service/includes/header.php
+ * calls this after <body>. Nothing with Classic or on any error.
+ */
+function renderModernPortalHead(): void
+{
+    try {
+        $ui = brandingInterface();
+        if ($ui['mode'] !== 'modern') return;
+        echo brandingModernHead($ui, 'portal', ['portal.css']);
+    } catch (Throwable) {
+        // Classic.
+    }
+}
+
 /**
  * The interface fields of a Branding save, checked before anything is written.
  * Only the fields the form sent: an older client leaves them alone.
