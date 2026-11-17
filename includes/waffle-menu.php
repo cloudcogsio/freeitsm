@@ -22,6 +22,7 @@ require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/module-colors.php';
 require_once __DIR__ . '/app_sidebar.php';   // the optional module sidebar (#124)
 require_once __DIR__ . '/display_order.php';   // each analyst's own module order (GH #187)
+require_once __DIR__ . '/branding.php';        // Branding -> Interface (Modern shell); defines only
 
 // Bootstrap i18n so every module that includes this header gets t() for free.
 // Idempotent — pages that already initialised it (tickets, process-mapper) are fine.
@@ -680,9 +681,16 @@ $modules = [
 <!-- Waffle Menu Button and Panel - to be placed inside .waffle-menu-container -->
 <?php
 /**
- * Output the waffle menu button and panel
+ * Output the waffle menu button and panel.
+ *
+ * Also the ONE place the Modern interface (System -> Branding -> Interface)
+ * reaches every analyst page: all module headers call this first thing, so no
+ * page and no header needed editing. With Classic it prints exactly what it
+ * always printed.
  */
 function renderWaffleMenuButton() {
+    $ui = brandingInterface();
+    if ($ui['mode'] === 'modern') renderModernShellHead($ui);
     ?>
     <button class="waffle-btn" onclick="toggleWaffleMenu()" title="<?php echo htmlspecialchars(t('common.waffle.title')); ?>">
         <div class="waffle-icon">
@@ -692,6 +700,72 @@ function renderWaffleMenuButton() {
         </div>
     </button>
     <?php
+    if ($ui['mode'] === 'modern') renderModernShellLogo($ui);
+}
+
+/**
+ * The Modern shell's head part: the attribute every shell rule hangs on, the
+ * stylesheet, and the brand colours worked out from the one Branding colour.
+ * Printed once per request, inside <body> (the waffle file itself is included
+ * before <!DOCTYPE> on some pages, so nothing may print at include time).
+ *
+ * A stylesheet linked in the body holds back what follows it until it has
+ * loaded, so the header never paints in Classic first.
+ *
+ * @param array $ui  brandingInterface()
+ */
+function renderModernShellHead(array $ui): void
+{
+    static $done = false;
+    if ($done) return;
+    $done = true;
+
+    $d = brandingDeriveAccent($ui['primary']);
+    $vars = fn(array $s) => '--accent:' . $s['accent'] . ';--accent-hover:' . $s['hover']
+        . ';--accent-soft:' . $s['soft'] . ';--on-accent:' . $s['on'] . ';--accent-text:' . $s['text'];
+    $css = ':root[data-ui="modern"]{' . $vars($d['light']) . '}'
+         . ':root[data-ui="modern"][data-theme-mode="dark"]{' . $vars($d['dark']) . '}';
+    // Each module keeps its identity colour (the header strip and the marker by
+    // its name). Overrides from System -> Module colours are respected; a stored
+    // value that is not a colour is skipped rather than printed.
+    foreach (getModuleColors() as $key => $c) {
+        $hex = brandingValidHex($c[0] ?? null);
+        if ($hex !== null && preg_match('/^[a-z0-9-]+$/', (string)$key)) {
+            $css .= '.header.' . $key . '-header{--ui-module:' . $hex . '}'
+                  . '.waffle-module-icon.' . $key . '{--ui-tile:' . $hex . '}';
+        }
+    }
+    // Every value above is a validated #rrggbb or a fixed key: nothing in $css
+    // came from a person as text.
+    echo "<script>document.documentElement.dataset.ui='modern';</script>\n";
+    echo '<link rel="stylesheet" href="' . htmlspecialchars(BASE_URL) . 'assets/css/shell.css?v=5">' . "\n";
+    echo '<style id="ui-brand">' . $css . "</style>\n";
+}
+
+/**
+ * The organisation's logo at the left of the Modern header, linking home. A
+ * second logo for dark backgrounds when Branding has one; without it the CSS
+ * puts the logo on a small light panel in Dark mode. No custom logo: the
+ * system name as text, never FreeITSM's bundled logo (GH #254).
+ *
+ * @param array $ui  brandingInterface()
+ */
+function renderModernShellLogo(array $ui): void
+{
+    $name = function_exists('systemName') ? systemName() : 'FreeITSM';
+    $logo = brandingCustomLogoUrl();
+    $home = htmlspecialchars(BASE_URL);
+    if ($logo === null) {
+        echo '<a class="ui-brand-logo" href="' . $home . '"><span class="ui-brand-name">' . htmlspecialchars($name) . '</span></a>';
+        return;
+    }
+    $cls = $ui['dark_logo'] !== null ? 'ui-brand-logo has-dark' : 'ui-brand-logo';
+    echo '<a class="' . $cls . '" href="' . $home . '" title="' . htmlspecialchars($name) . '">'
+       . '<img class="ui-logo-light" src="' . htmlspecialchars($logo) . '" alt="' . htmlspecialchars($name) . '">';
+    if ($ui['dark_logo'] !== null) {
+        echo '<img class="ui-logo-dark" src="' . htmlspecialchars($ui['dark_logo']) . '" alt="' . htmlspecialchars($name) . '">';
+    }
+    echo '</a>';
 }
 
 /**

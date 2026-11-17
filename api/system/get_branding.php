@@ -15,6 +15,7 @@ session_start(['read_and_close' => true]);
 require_once '../../config.php';
 require_once '../../includes/functions.php';
 require_once '../../includes/landing.php';   // install-wide landing default (#63)
+require_once '../../includes/branding.php';  // the Interface choice and brand colour
 
 header('Content-Type: application/json');
 
@@ -95,6 +96,19 @@ try {
             $st = $conn->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'system_name'");
             $st->execute();
             return (string)$st->fetchColumn();
+        })(),
+        // Interface (Classic / Modern), the brand colour as stored (null = none,
+        // Modern then uses FreeITSM's blue) and the logo for dark backgrounds.
+        'interface' => (function () use ($conn) {
+            $st = $conn->query("SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('branding_interface', 'branding_brand_primary', 'branding_logo_dark_path')");
+            $v = $st->fetchAll(PDO::FETCH_KEY_PAIR);
+            $dark = (string)($v['branding_logo_dark_path'] ?? '');
+            return [
+                'mode'           => brandingValidInterface($v['branding_interface'] ?? null),
+                'brand_primary'  => brandingValidHex($v['branding_brand_primary'] ?? null),
+                'logo_dark_path' => ($dark !== '' && brandingPathIsSafe($dark) && file_exists(__DIR__ . '/../../' . $dark)) ? $dark : null,
+                'default_brand'  => BRANDING_DEFAULT_BRAND,
+            ];
         })(),
         // The Files desktop's corner logo (Files module).
         'files_desktop' => (function () use ($conn) {

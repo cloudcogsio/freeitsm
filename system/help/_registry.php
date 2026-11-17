@@ -184,6 +184,7 @@ function getHelpTopics() {
             'sub'  => 'Set your organisation logo and the default header/footer text that appears on branded output — diagrams and exported documents.',
             'sections' => [
                 ['id' => 'overview', 'label' => 'Overview'],
+                ['id' => 'interface', 'label' => 'Interface: Classic or Modern'],
                 ['id' => 'name',     'label' => 'System name'],
                 ['id' => 'back-link', 'label' => 'Link back to your site'],
                 ['id' => 'logo',     'label' => 'Logo'],
@@ -193,7 +194,7 @@ function getHelpTopics() {
                 ['id' => 'files',    'label' => 'Files desktop logo'],
                 ['id' => 'save',     'label' => 'Saving & resetting'],
             ],
-            'terms' => 'logo brand company name system name service desk page title browser tab bookmark letterhead export pdf watermark login screen background image portal home wallpaper sign-in files desktop corner',
+            'terms' => 'logo brand company name system name service desk page title browser tab bookmark letterhead export pdf watermark login screen background image portal home wallpaper sign-in files desktop corner interface modern classic brand colour color theme look header dark logo',
         ],
         'security' => [
             'hero' => 'Security',

@@ -307,6 +307,46 @@ $translationNamespaces = ['common', 'system'];
         .btn-link:hover { text-decoration: underline; }
         .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+        /* ---- Interface card ---- */
+        .ui-choice { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+        .ui-choice-opt {
+            flex: 1 1 240px; display: flex; gap: 10px; align-items: flex-start;
+            padding: 12px 14px; border: 1px solid var(--border, #e0e0e0); border-radius: 8px;
+            cursor: pointer; background: var(--surface, #fff);
+        }
+        .ui-choice-opt:has(input:checked) { border-color: var(--accent, #0078d4); box-shadow: 0 0 0 1px var(--accent, #0078d4); }
+        .ui-choice-opt input { margin-top: 3px; }
+        .ui-choice-opt span { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--text, #333); }
+        .ui-choice-opt small { font-size: 12px; color: var(--text-dim, #888); line-height: 1.45; }
+        .brand-row { display: flex; flex-direction: column; gap: 6px; }
+        .brand-label { font-size: 13px; font-weight: 600; color: var(--text, #333); }
+        .brand-inputs { display: flex; gap: 8px; align-items: center; }
+        .brand-inputs input[type="color"] { width: 40px; height: 34px; padding: 2px; border: 1px solid var(--border, #ccc); border-radius: 6px; background: var(--surface, #fff); cursor: pointer; }
+        .brand-inputs .slot-input { max-width: 120px; font-family: ui-monospace, Consolas, monospace; }
+        .brand-suggest { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 4px; }
+        .brand-swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+        .brand-swatch {
+            display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px 3px 3px;
+            border: 1px solid var(--border, #ddd); border-radius: 999px; background: var(--surface, #fff);
+            font: 12px ui-monospace, Consolas, monospace; color: var(--text, #333); cursor: pointer;
+        }
+        .brand-swatch i { width: 20px; height: 20px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+        .brand-swatch:hover, .brand-swatch[aria-pressed="true"] { border-color: var(--accent, #0078d4); }
+        .brand-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; max-width: 620px; }
+        .bp-pane { border-radius: 8px; overflow: hidden; border: 1px solid rgba(22,32,44,.12); font-size: 12.5px; }
+        .bp-light { background: #f6f7f9; color: #16202c; }
+        .bp-dark  { background: #0f1318; color: #e7ebf0; border-color: rgba(231,235,240,.12); }
+        .bp-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; font-weight: 600; box-shadow: inset 0 3px 0 var(--bp-module, #0078d4); }
+        .bp-light .bp-head { background: #fff; border-bottom: 1px solid rgba(22,32,44,.09); }
+        .bp-dark .bp-head { background: #161b22; border-bottom: 1px solid rgba(231,235,240,.08); }
+        .bp-head i { width: 9px; height: 9px; border-radius: 3px; background: var(--bp-module, #0078d4); }
+        .bp-body { display: flex; gap: 10px; align-items: center; padding: 12px 10px; flex-wrap: wrap; }
+        .bp-btn { padding: 5px 12px; border-radius: 5px; font-weight: 600; background: var(--bp-accent); color: var(--bp-on); }
+        .bp-link { color: var(--bp-text); text-decoration: underline; }
+        .bp-sel { padding: 3px 8px; border-radius: 5px; background: var(--bp-soft); }
+        .logo-preview-dark { background: #161b22; border-color: rgba(231,235,240,.2); }
+        @media (max-width: 600px) { .brand-preview { grid-template-columns: 1fr; } }
+
         /* ---- Dark mode overrides (pale washes / hovers that would glow) ---- */
         [data-theme-mode="dark"] .info-note { background: #22293a; }
         [data-theme-mode="dark"] .btn-primary:hover { background: #b0bec5; }
@@ -326,6 +366,58 @@ $translationNamespaces = ['common', 'system'];
         </div></div>
 
         <form id="brandingForm" enctype="multipart/form-data">
+            <!-- Interface: Classic (the standard look) or Modern (one header for
+                 every module, with the logo and brand colour). includes/branding.php
+                 section 3; the header side is renderWaffleMenuButton(). -->
+            <div class="settings-card">
+                <h3 id="interface"><?php echo htmlspecialchars(t('system.branding.interface_heading')); ?></h3>
+                <p class="card-desc"><?php echo htmlspecialchars(t('system.branding.interface_desc')); ?></p>
+                <div class="ui-choice" role="radiogroup" aria-labelledby="interface">
+                    <label class="ui-choice-opt"><input type="radio" name="interface" id="interfaceClassic" value="classic">
+                        <span><b><?php echo htmlspecialchars(t('system.branding.interface_classic')); ?></b>
+                        <small><?php echo htmlspecialchars(t('system.branding.interface_classic_hint')); ?></small></span></label>
+                    <label class="ui-choice-opt"><input type="radio" name="interface" id="interfaceModern" value="modern">
+                        <span><b><?php echo htmlspecialchars(t('system.branding.interface_modern')); ?></b>
+                        <small><?php echo htmlspecialchars(t('system.branding.interface_modern_hint')); ?></small></span></label>
+                </div>
+
+                <div class="brand-row">
+                    <label for="brandPrimary" class="brand-label"><?php echo htmlspecialchars(t('system.branding.brand_colour')); ?></label>
+                    <div class="brand-inputs">
+                        <input type="color" id="brandPicker" aria-label="<?php echo htmlspecialchars(t('system.branding.brand_colour')); ?>">
+                        <input type="text" id="brandPrimary" class="slot-input" maxlength="7" autocomplete="off" spellcheck="false" placeholder="#0078d4">
+                    </div>
+                    <div class="logo-hint"><?php echo htmlspecialchars(t('system.branding.brand_colour_hint')); ?></div>
+                    <div class="brand-suggest" id="brandSuggestWrap" hidden>
+                        <span class="brand-label"><?php echo htmlspecialchars(t('system.branding.brand_suggestions')); ?></span>
+                        <div class="brand-swatches" id="brandSuggestions"></div>
+                    </div>
+                    <div class="logo-hint" id="brandNoSuggest" hidden><?php echo htmlspecialchars(t('system.branding.interface_no_suggestions')); ?></div>
+                </div>
+
+                <div class="brand-preview" id="brandPreview" aria-hidden="true">
+                    <div class="bp-pane bp-light"><div class="bp-head"><i></i><span><?php echo htmlspecialchars(t('system.branding.interface_preview_module')); ?></span></div>
+                        <div class="bp-body"><span class="bp-btn"><?php echo htmlspecialchars(t('system.branding.save')); ?></span><span class="bp-link"><?php echo htmlspecialchars(t('system.branding.interface_preview_link')); ?></span><span class="bp-sel"><?php echo htmlspecialchars(t('system.branding.interface_preview_selected')); ?></span></div></div>
+                    <div class="bp-pane bp-dark"><div class="bp-head"><i></i><span><?php echo htmlspecialchars(t('system.branding.interface_preview_module')); ?></span></div>
+                        <div class="bp-body"><span class="bp-btn"><?php echo htmlspecialchars(t('system.branding.save')); ?></span><span class="bp-link"><?php echo htmlspecialchars(t('system.branding.interface_preview_link')); ?></span><span class="bp-sel"><?php echo htmlspecialchars(t('system.branding.interface_preview_selected')); ?></span></div></div>
+                </div>
+                <div class="logo-hint" id="brandAdjusted" hidden><?php echo htmlspecialchars(t('system.branding.brand_adjusted')); ?></div>
+
+                <div class="brand-row" style="margin-top:18px;">
+                    <span class="brand-label"><?php echo htmlspecialchars(t('system.branding.logo_dark_heading')); ?></span>
+                    <div class="logo-row">
+                        <div class="logo-preview logo-preview-dark" id="logoDarkPreview"><span class="no-logo"><?php echo htmlspecialchars(t('system.branding.no_logo')); ?></span></div>
+                        <div class="logo-controls">
+                            <div class="file-row">
+                                <input type="file" id="logoDarkFile" accept=".png,.jpg,.jpeg,image/png,image/jpeg">
+                                <button type="button" class="btn btn-link" id="removeLogoDarkBtn" style="display:none;"><?php echo htmlspecialchars(t('system.branding.remove')); ?></button>
+                            </div>
+                            <div class="logo-hint"><?php echo htmlspecialchars(t('system.branding.logo_dark_hint')); ?></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- System name. Moved here from Tickets -> Settings -> General: it is
                  the first word of every page title in every module, so it was an
                  install-wide setting living in one module's settings. -->
@@ -669,6 +761,7 @@ $translationNamespaces = ['common', 'system'];
     <?php echo Tz::scriptTag(); ?>
     <script src="../../assets/js/tz.js?v=5"></script>
     <script src="../../assets/js/i18n.js?v=4"></script>
+    <script src="../../assets/js/brand-colours.js?v=3"></script>
     <script>
     const API_BASE = '<?php echo $path_prefix; ?>api/system/';
     const PATH_PREFIX = '<?php echo $path_prefix; ?>';
@@ -715,6 +808,15 @@ $translationNamespaces = ['common', 'system'];
 
             currentLogoPath = b.logo_path || null;
             renderLogoPreview();
+
+            const ui = data.interface || {};
+            BRAND_DEFAULT = ui.default_brand || '#0078d4';
+            document.getElementById(ui.mode === 'modern' ? 'interfaceModern' : 'interfaceClassic').checked = true;
+            setBrand(ui.brand_primary || '');
+            currentLogoDarkPath = ui.logo_dark_path || null;
+            pendingRemoveLogoDark = false;
+            renderLogoDarkPreview();
+            suggestFrom(currentLogoPath ? PATH_PREFIX + currentLogoPath : null);
         } catch (e) {
             showToast(window.t('system.branding.load_failed_generic'), 'error');
         }
@@ -744,7 +846,105 @@ $translationNamespaces = ['common', 'system'];
             return;
         }
         pendingRemoveLogo = false;
-        renderLogoPreview(URL.createObjectURL(f));
+        const url = URL.createObjectURL(f);
+        renderLogoPreview(url);
+        suggestFrom(url);
+    });
+
+    /* ---- Interface: brand colour, suggestions from the logo, preview ---- */
+    let BRAND_DEFAULT = '#0078d4';
+    let currentLogoDarkPath = null;
+    let pendingRemoveLogoDark = false;
+    const HEX = /^#[0-9a-fA-F]{6}$/;
+
+    /** Show a colour (or '' for none: the default) in both inputs and the preview. */
+    function setBrand(hex) {
+        const text = document.getElementById('brandPrimary');
+        if (text.value !== hex) text.value = hex;
+        const use = HEX.test(hex) ? hex.toLowerCase() : BRAND_DEFAULT;
+        document.getElementById('brandPicker').value = use;
+        const d = window.brandDerive(use);
+        const prev = document.getElementById('brandPreview');
+        [['bp-light', d.light], ['bp-dark', d.dark]].forEach(([cls, s]) => {
+            const p = prev.querySelector('.' + cls);
+            p.style.setProperty('--bp-accent', s.accent);
+            p.style.setProperty('--bp-on', s.on);
+            p.style.setProperty('--bp-soft', s.soft);
+            p.style.setProperty('--bp-text', s.text);
+        });
+        document.getElementById('brandAdjusted').hidden = !d.light.adjusted;
+        document.querySelectorAll('.brand-swatch').forEach(b => b.setAttribute('aria-pressed', b.dataset.hex === use ? 'true' : 'false'));
+    }
+
+    /** Suggest colours from a logo URL (stored or just picked). */
+    function suggestFrom(url) {
+        const wrap = document.getElementById('brandSuggestWrap');
+        const none = document.getElementById('brandNoSuggest');
+        const list = document.getElementById('brandSuggestions');
+        list.innerHTML = '';
+        wrap.hidden = true; none.hidden = true;
+        if (!url) return;
+        const img = new Image();
+        img.onload = () => {
+            const cols = window.brandColoursFromImage(img);
+            if (!cols.length) { none.hidden = false; return; }
+            cols.forEach(hex => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'brand-swatch';
+                b.dataset.hex = hex;
+                b.innerHTML = '<i></i>';
+                b.querySelector('i').style.background = hex;
+                b.append(hex);
+                b.addEventListener('click', () => setBrand(hex));
+                list.appendChild(b);
+            });
+            wrap.hidden = false;
+            setBrand(document.getElementById('brandPrimary').value);
+        };
+        img.src = url;
+    }
+
+    document.getElementById('brandPicker').addEventListener('input', e => setBrand(e.target.value));
+    document.getElementById('brandPrimary').addEventListener('input', e => {
+        const v = e.target.value.trim();
+        if (v === '' || HEX.test(v)) setBrand(v);
+    });
+
+    function renderLogoDarkPreview(localObjectUrl) {
+        const preview = document.getElementById('logoDarkPreview');
+        const removeBtn = document.getElementById('removeLogoDarkBtn');
+        const src = localObjectUrl || (currentLogoDarkPath && !pendingRemoveLogoDark ? PATH_PREFIX + currentLogoDarkPath : null);
+        preview.innerHTML = '';
+        if (src) {
+            const img = document.createElement('img');
+            img.src = src;
+            img.alt = '';
+            preview.appendChild(img);
+            removeBtn.style.display = 'inline-flex';
+        } else {
+            const s = document.createElement('span');
+            s.className = 'no-logo';
+            s.textContent = window.t('system.branding.no_logo');
+            preview.appendChild(s);
+            removeBtn.style.display = 'none';
+        }
+    }
+    document.getElementById('logoDarkFile').addEventListener('change', function () {
+        const f = this.files[0];
+        if (!f) return;
+        if (f.size > 2 * 1024 * 1024) {
+            showToast(window.t('system.branding.logo_too_large'), 'error');
+            this.value = '';
+            return;
+        }
+        pendingRemoveLogoDark = false;
+        renderLogoDarkPreview(URL.createObjectURL(f));
+    });
+    document.getElementById('removeLogoDarkBtn').addEventListener('click', function () {
+        document.getElementById('logoDarkFile').value = '';
+        pendingRemoveLogoDark = true;
+        renderLogoDarkPreview();
     });
 
     document.getElementById('removeLogoBtn').addEventListener('click', function() {
@@ -1037,6 +1237,16 @@ $translationNamespaces = ['common', 'system'];
             fd.append('remove_logo', '1');
         }
 
+        // Interface. The server refuses anything but classic/modern and #rrggbb.
+        fd.append('interface', document.getElementById('interfaceModern').checked ? 'modern' : 'classic');
+        fd.append('brand_primary', document.getElementById('brandPrimary').value.trim());
+        const darkInput = document.getElementById('logoDarkFile');
+        if (darkInput.files && darkInput.files[0]) {
+            fd.append('logo_dark', darkInput.files[0]);
+        } else if (pendingRemoveLogoDark) {
+            fd.append('remove_logo_dark', '1');
+        }
+
         try {
             const resp = await fetch(API_BASE + 'save_branding.php', {
                 method: 'POST',
@@ -1048,6 +1258,7 @@ $translationNamespaces = ['common', 'system'];
                 // Re-fetch so the preview reflects whatever's actually on disk now
                 pendingRemoveLogo = false;
                 logoInput.value = '';
+                darkInput.value = '';
                 await loadBranding();
             } else {
                 showToast(window.t('system.branding.error', { error: data.error }), 'error');

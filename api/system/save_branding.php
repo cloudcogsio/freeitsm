@@ -98,6 +98,10 @@ try {
         $filesLogo['files_logo_position'] = $p;
     }
 
+    // Interface (Classic / Modern) and the brand colour. Only the fields the form
+    // sent; refused before anything is written, like landing_page above.
+    $interfaceRows = brandingInterfaceFromPost($_POST);
+
     // System name (moved here from Tickets -> Settings -> General). Only sent by
     // a form that has the box, so an older client leaves it alone. Blank is a
     // real value - it means "use the default", which systemName() supplies.
@@ -144,6 +148,9 @@ try {
     }
     if ($landing !== null) {
         $upsert($conn, LANDING_SETTING_KEY, $landing);
+    }
+    foreach ($interfaceRows as $k => $v) {
+        $upsert($conn, $k, $v);
     }
 
     // Logo handling — three paths: upload new / explicitly remove / leave alone
@@ -203,6 +210,28 @@ try {
             }
         }
         $upsert($conn, 'branding_logo_path', null);
+    }
+
+    // The logo for dark backgrounds (Interface: Modern, in Dark mode). Optional,
+    // and through the same pipeline as the logo. It replaces only its own
+    // previous file - never logo.*, which belongs to the logo above.
+    $hasDark = isset($_FILES['logo_dark']) && is_array($_FILES['logo_dark']) && $_FILES['logo_dark']['error'] !== UPLOAD_ERR_NO_FILE;
+    if ($hasDark || ($_POST['remove_logo_dark'] ?? '') === '1') {
+        $prev = $conn->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'branding_logo_dark_path'");
+        $prev->execute();
+        $prevPath = (string)($prev->fetchColumn() ?: '');
+        if ($hasDark) {
+            $uploadDir = __DIR__ . '/../../system/uploads/branding';
+            uploadPrepareWebServableDir($uploadDir);
+            $stored = uploadStoreFile($_FILES['logo_dark'], $uploadDir, UPLOAD_TYPES_IMAGE, 2 * 1024 * 1024);
+            $upsert($conn, 'branding_logo_dark_path', BRANDING_UPLOAD_DIR . $stored['stored_name']);
+        } else {
+            $upsert($conn, 'branding_logo_dark_path', null);
+        }
+        // Only once the new pointer is saved, so a refused upload keeps the old logo.
+        if ($prevPath !== '' && brandingPathIsSafe($prevPath)) {
+            @unlink(__DIR__ . '/../../' . $prevPath);
+        }
     }
 
     /* ---------------------------------------------------------------------

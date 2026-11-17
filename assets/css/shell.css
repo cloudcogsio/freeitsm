@@ -1,0 +1,316 @@
+/**
+ * The Modern interface - System -> Branding -> Interface.
+ *
+ * Loaded ONLY when an administrator chooses Modern: renderWaffleMenuButton()
+ * (includes/waffle-menu.php) links this file, sets <html data-ui="modern"> and
+ * prints the brand colours (--accent, --accent-hover, --accent-soft,
+ * --on-accent) worked out from the one Branding colour. With Classic this file
+ * is never requested.
+ *
+ * Every rule hangs on :root[data-ui="modern"], so even a stray copy of this file
+ * on a Classic page changes nothing.
+ *
+ * What it does:
+ *   1. Fonts - Public Sans and JetBrains Mono, bundled (assets/fonts, OFL).
+ *   2. Tokens - re-points upstream's colour tokens (theme.css) to the Modern
+ *      surfaces, and adds the ones upstream lacks: type, radius, spacing,
+ *      shadow, controls. Light, then Dark (by data-theme-mode, so any future
+ *      dark palette follows).
+ *   3. One accent - every module's chrome accent (--kb-accent, --cm-accent ...)
+ *      points at the brand. The module's own colour stays as its identity:
+ *      the header strip, the marker by its name, its launcher tile.
+ *   4. The shell - header, logo, module title, nav, header buttons, launcher,
+ *      shared buttons and inputs. Module content is left alone.
+ *
+ * Phones: mobile.css owns the phone header. Sizes and spacing here are desktop
+ * only (min-width: 769px); colours apply at every width.
+ */
+
+/* ---------------------------------------------------------------- 1. Fonts */
+@font-face { font-family: "Public Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("../fonts/public-sans/PublicSans-Regular.woff2") format("woff2"); }
+@font-face { font-family: "Public Sans"; font-style: normal; font-weight: 500; font-display: swap; src: url("../fonts/public-sans/PublicSans-Medium.woff2") format("woff2"); }
+@font-face { font-family: "Public Sans"; font-style: normal; font-weight: 600; font-display: swap; src: url("../fonts/public-sans/PublicSans-SemiBold.woff2") format("woff2"); }
+@font-face { font-family: "Public Sans"; font-style: normal; font-weight: 700; font-display: swap; src: url("../fonts/public-sans/PublicSans-Bold.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("../fonts/jetbrains-mono/JetBrainsMono-Regular.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url("../fonts/jetbrains-mono/JetBrainsMono-Medium.woff2") format("woff2"); }
+
+/* --------------------------------------------------------------- 2. Tokens */
+:root[data-ui="modern"] {
+    /* New: type */
+    --font:           "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono:      "JetBrains Mono", ui-monospace, Consolas, monospace;
+    --font-size-xs:   11.5px;
+    --font-size-sm:   12.5px;
+    --font-size-md:   13.5px;
+    --font-size-lg:   16px;
+    --font-size-xl:   19px;
+    /* New: shape and space */
+    --radius-sm:      5px;
+    --radius-md:      8px;
+    --radius-lg:      12px;
+    --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+    --space-5: 20px; --space-6: 24px; --space-7: 28px; --space-8: 32px;
+    --shadow-1:       0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .05);
+    --shadow-2:       0 8px 24px -6px rgba(16, 24, 40, .18), 0 2px 6px rgba(16, 24, 40, .06);
+    /* New: controls */
+    --control-height: 34px;
+    --control-bg:     #eef0f3;
+    --control-border: rgba(22, 32, 44, .17);
+    --control-focus:  var(--accent-soft);
+
+    /* Upstream's tokens, Modern values */
+    --app-bg:        #f6f7f9;
+    --surface:       #ffffff;
+    --surface-2:     #f9fafb;
+    --surface-3:     #f3f4f6;
+    --surface-hover: #f1f3f6;
+    --text:          #16202c;
+    --text-muted:    #4a5666;
+    --text-dim:      #6b7685;
+    --text-faint:    #9aa3af;
+    --border:        rgba(22, 32, 44, .09);
+    --border-soft:   rgba(22, 32, 44, .06);
+    --shadow:        rgba(16, 24, 40, .08);
+}
+
+:root[data-ui="modern"][data-theme-mode="dark"] {
+    --shadow-1:       0 0 0 1px rgba(231, 235, 240, .06);
+    --shadow-2:       0 0 0 1px rgba(231, 235, 240, .08), 0 12px 32px -8px rgba(0, 0, 0, .6);
+    --control-bg:     #11151b;
+    --control-border: rgba(231, 235, 240, .15);
+
+    --app-bg:        #0f1318;
+    --surface:       #161b22;
+    --surface-2:     #1a2028;
+    --surface-3:     #12161c;
+    --surface-hover: #1b212a;
+    --text:          #e7ebf0;
+    --text-muted:    #aeb6c2;
+    --text-dim:      #808a97;
+    --text-faint:    #5d6673;
+    --border:        rgba(231, 235, 240, .08);
+    --border-soft:   rgba(231, 235, 240, .05);
+    --shadow:        rgba(0, 0, 0, .5);
+}
+
+/* ------------------------------------------------- 3. One accent everywhere */
+:root[data-ui="modern"],
+:root[data-ui="modern"][data-theme-mode="dark"] {
+    --kb-accent: var(--accent);       --kb-accent-hover: var(--accent-hover);       --kb-accent-soft: var(--accent-soft);       --kb-on-accent: var(--on-accent);
+    --cm-accent: var(--accent);       --cm-accent-hover: var(--accent-hover);       --cm-accent-soft: var(--accent-soft);       --cm-on-accent: var(--on-accent);
+    --pm-accent: var(--accent);       --pm-accent-hover: var(--accent-hover);       --pm-accent-soft: var(--accent-soft);       --pm-on-accent: var(--on-accent);
+    --cal-accent: var(--accent);      --cal-accent-hover: var(--accent-hover);      --cal-accent-soft: var(--accent-soft);      --cal-on-accent: var(--on-accent);
+    --mc-accent: var(--accent);       --mc-accent-hover: var(--accent-hover);       --mc-accent-soft: var(--accent-soft);       --mc-on-accent: var(--on-accent);
+    --rep-accent: var(--accent);      --rep-accent-hover: var(--accent-hover);      --rep-accent-soft: var(--accent-soft);      --rep-on-accent: var(--on-accent);
+    --sw-accent: var(--accent);       --sw-accent-hover: var(--accent-hover);       --sw-accent-soft: var(--accent-soft);       --sw-on-accent: var(--on-accent);
+    --forms-accent: var(--accent);    --forms-accent-hover: var(--accent-hover);    --forms-accent-soft: var(--accent-soft);    --forms-on-accent: var(--on-accent);
+    --cmdb-accent: var(--accent);     --cmdb-accent-hover: var(--accent-hover);     --cmdb-accent-soft: var(--accent-soft);     --cmdb-on-accent: var(--on-accent);
+    --tsk-accent: var(--accent);      --tsk-accent-hover: var(--accent-hover);      --tsk-accent-soft: var(--accent-soft);      --tsk-on-accent: var(--on-accent);
+    --prj-accent: var(--accent);      --prj-accent-hover: var(--accent-hover);      --prj-accent-soft: var(--accent-soft);      --prj-on-accent: var(--on-accent);
+    --jml-accent: var(--accent);      --jml-accent-hover: var(--accent-hover);      --jml-accent-soft: var(--accent-soft);      --jml-on-accent: var(--on-accent);
+    --con-accent: var(--accent);      --con-accent-hover: var(--accent-hover);      --con-accent-soft: var(--accent-soft);      --con-on-accent: var(--on-accent);
+    --dom-accent: var(--accent);      --dom-accent-hover: var(--accent-hover);      --dom-accent-soft: var(--accent-soft);      --dom-on-accent: var(--on-accent);
+    --fil-accent: var(--accent);      --fil-accent-hover: var(--accent-hover);      --fil-accent-soft: var(--accent-soft);      --fil-on-accent: var(--on-accent);
+    --war-room-accent: var(--accent); --war-room-accent-hover: var(--accent-hover); --war-room-accent-soft: var(--accent-soft); --war-room-on-accent: var(--on-accent);
+    --ss-accent: var(--accent);       --ss-accent-hover: var(--accent-hover);       --ss-accent-soft: var(--accent-soft);       --ss-on-accent: var(--on-accent);
+    --nm-accent: var(--accent);       --nm-accent-hover: var(--accent-hover);       --nm-accent-soft: var(--accent-soft);       --nm-on-accent: var(--on-accent);
+    --wf-accent: var(--accent);       --wf-accent-hover: var(--accent-hover);       --wf-accent-soft: var(--accent-soft);       --wf-on-accent: var(--on-accent);
+    --pmap-accent: var(--accent);     --pmap-accent-hover: var(--accent-hover);     --pmap-accent-soft: var(--accent-soft);     --pmap-on-accent: var(--on-accent);
+    --wiki-accent: var(--accent);     --wiki-accent-hover: var(--accent-hover);     --wiki-accent-soft: var(--accent-soft);     --wiki-on-accent: var(--on-accent);
+    --lms-accent: var(--accent);      --lms-accent-hover: var(--accent-hover);      --lms-accent-soft: var(--accent-soft);      --lms-on-accent: var(--on-accent);
+    --wt-accent: var(--accent);       --wt-accent-hover: var(--accent-hover);       --wt-accent-soft: var(--accent-soft);       --wt-on-accent: var(--on-accent);
+    --sys-accent: var(--accent);      --sys-accent-hover: var(--accent-hover);      --sys-accent-soft: var(--accent-soft);      --sys-on-accent: var(--on-accent);
+}
+
+/* ------------------------------------------------------------ 4. The shell */
+:root[data-ui="modern"] body {
+    font-family: var(--font);
+    background: var(--app-bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+}
+/* Controls inherit the page font. :where() keeps this weaker than any module
+   rule, so a code box that asks for monospace still gets it. */
+:where(:root[data-ui="modern"]) :where(button, input, select, textarea) { font-family: inherit; }
+:where(:root[data-ui="modern"]) :where(code, kbd, samp, pre) { font-family: var(--font-mono); }
+
+/* Header: neutral, one rule underneath, the module's colour as a 3px strip */
+:root[data-ui="modern"] .header {
+    background: var(--surface) !important;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    box-shadow: inset 0 3px 0 var(--ui-module, var(--accent)) !important;
+}
+@media (min-width: 769px) {
+    :root[data-ui="modern"] .header {
+        min-height: 56px;
+        padding: 3px 16px 0;
+    }
+}
+
+/* The waffle button */
+:root[data-ui="modern"] .header .waffle-btn { border-radius: var(--radius-sm); margin-right: 10px; }
+:root[data-ui="modern"] .header .waffle-btn:hover { background-color: var(--surface-hover); }
+:root[data-ui="modern"] .header .waffle-icon span { background-color: var(--text-dim); border-radius: 1px; }
+
+/* The organisation's logo, or its name */
+:root[data-ui="modern"] .ui-brand-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    margin-right: 14px;
+    text-decoration: none;
+    color: var(--text);
+    flex-shrink: 0;
+}
+:root[data-ui="modern"] .ui-brand-logo img {
+    display: block;
+    max-height: 28px;
+    max-width: 180px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+:root[data-ui="modern"] .ui-brand-logo .ui-logo-dark { display: none; }
+:root[data-ui="modern"] .ui-brand-name { font-weight: 700; font-size: 15px; letter-spacing: -.01em; white-space: nowrap; }
+/* Dark: the dark-background logo when there is one; otherwise the logo sits on
+   a small light panel so a dark or transparent logo stays visible. */
+:root[data-ui="modern"][data-theme-mode="dark"] .ui-brand-logo.has-dark .ui-logo-light { display: none; }
+:root[data-ui="modern"][data-theme-mode="dark"] .ui-brand-logo.has-dark .ui-logo-dark { display: block; }
+:root[data-ui="modern"][data-theme-mode="dark"] .ui-brand-logo:not(.has-dark) img {
+    background: var(--ui-logo-panel, #ffffff);
+    padding: 3px 6px;
+    border-radius: 6px;
+    box-sizing: content-box;
+    max-height: 22px;
+}
+
+/* Module title: the module's name with a marker in its colour */
+:root[data-ui="modern"] .header .module-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+    background: none;
+    padding: 4px 0 4px 14px;
+    border-left: 1px solid var(--border);
+    border-radius: 0;
+    font-size: var(--font-size-lg);
+    font-weight: 650;
+    letter-spacing: -.01em;
+}
+:root[data-ui="modern"] .header .module-title::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    background: var(--ui-module, var(--accent));
+    flex-shrink: 0;
+}
+
+/* Module nav: quiet tabs, the current one on a sunk surface */
+:root[data-ui="modern"] .header .nav-btn,
+:root[data-ui="modern"] .header .nav-btn:link,
+:root[data-ui="modern"] .header .nav-btn:visited {
+    background: transparent;
+    border-color: transparent;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted) !important;
+    font-size: var(--font-size-md);
+    font-weight: 500;
+}
+:root[data-ui="modern"] .header .nav-btn:hover,
+:root[data-ui="modern"] .header .nav-btn:link:hover,
+:root[data-ui="modern"] .header .nav-btn:visited:hover {
+    background: var(--surface-hover);
+    color: var(--text) !important;
+}
+:root[data-ui="modern"] .header .nav-btn.active,
+:root[data-ui="modern"] .header .nav-btn.active:link,
+:root[data-ui="modern"] .header .nav-btn.active:visited {
+    background: var(--accent-soft);
+    border-color: transparent;
+    color: var(--accent-text) !important;
+    font-weight: 600;
+}
+:root[data-ui="modern"][data-theme-mode="dark"] .header .nav-btn.active,
+:root[data-ui="modern"][data-theme-mode="dark"] .header .nav-btn.active:link,
+:root[data-ui="modern"][data-theme-mode="dark"] .header .nav-btn.active:visited { color: var(--text) !important; }
+
+/* Header icons and buttons on the right */
+:root[data-ui="modern"] .header :is(.nb-btn, .wra-btn, .mail-check-btn, .back-link) { color: var(--text-dim); }
+:root[data-ui="modern"] .header :is(.nb-btn, .wra-btn, .mail-check-btn, .back-link):hover { color: var(--text); background: var(--surface-hover); }
+:root[data-ui="modern"] .header :is(.nb-count, .wra-count) { box-shadow: 0 0 0 2px var(--surface); }
+:root[data-ui="modern"] .header .user-avatar {
+    width: 30px;
+    height: 30px;
+    background: var(--accent-soft);
+    color: var(--accent-text);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    font-weight: 700;
+}
+:root[data-ui="modern"][data-theme-mode="dark"] .header .user-avatar { color: var(--text); }
+:root[data-ui="modern"] .header .user-avatar:hover { border-color: var(--accent-text); }
+
+/* Launcher: tiles tinted in the module's colour instead of solid gradients */
+:root[data-ui="modern"] .waffle-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2);
+}
+:root[data-ui="modern"] .waffle-module-link { border-radius: var(--radius-md); }
+:root[data-ui="modern"] .waffle-module-link:hover,
+:root[data-ui="modern"] .waffle-module-link.current { background: var(--surface-hover); }
+:root[data-ui="modern"] .waffle-module-icon {
+    background: color-mix(in srgb, var(--ui-tile, var(--accent)) 14%, var(--surface)) !important;
+    color: var(--ui-tile, var(--accent));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-tile, var(--accent)) 26%, transparent);
+    border-radius: 10px;
+}
+:root[data-ui="modern"][data-theme-mode="dark"] .waffle-module-icon {
+    background: color-mix(in srgb, var(--ui-tile, var(--accent)) 22%, var(--surface)) !important;
+    color: color-mix(in srgb, var(--ui-tile, var(--accent)) 55%, var(--text, #ffffff));
+}
+:root[data-ui="modern"] .waffle-module-icon svg { color: inherit; stroke: currentColor; }
+:root[data-ui="modern"] .waffle-module-name { color: var(--text); }
+
+/* Shared buttons (inbox.css .btn, action-row.css) */
+:root[data-ui="modern"] .btn,
+:root[data-ui="modern"] .action-row-btn {
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+}
+:root[data-ui="modern"] .btn-secondary {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: inset 0 0 0 1px var(--control-border);
+}
+:root[data-ui="modern"] .btn-secondary:hover { background: var(--surface-hover); }
+:root[data-ui="modern"] :is(.btn, .action-row-btn, .nav-btn, .waffle-btn):focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+}
+
+/* Inputs: a slightly sunk surface and the brand focus ring. :where() keeps it
+   weaker than any module's own input styling. */
+:where(:root[data-ui="modern"]) :where(input[type="text"], input[type="search"], input[type="email"], input[type="password"], input[type="number"], input[type="url"], input[type="tel"], input[type="date"], input:not([type]), select, textarea) {
+    border-radius: var(--radius-sm);
+}
+:root[data-ui="modern"] :is(input, select, textarea):focus-visible {
+    outline: none;
+    border-color: var(--accent-text);
+    box-shadow: 0 0 0 3px var(--control-focus);
+}
+
+/* Phones. mobile.css draws its own header for a dark bar (white text); Modern's
+   bar is the surface colour, so the bits it paints white need the text colour.
+   The logo gets less room so the title and the avatar still fit. */
+@media (max-width: 768px) {
+    :root[data-ui="modern"] .header .mobile-views-btn { color: var(--text-dim); }
+    :root[data-ui="modern"] .header .mobile-views-btn:hover { color: var(--text); background: var(--surface-hover); }
+    :root[data-ui="modern"] .ui-brand-logo { margin-right: 8px; }
+    :root[data-ui="modern"] .ui-brand-logo img { max-width: 96px; }
+}
