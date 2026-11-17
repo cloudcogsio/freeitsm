@@ -290,10 +290,12 @@ $translationNamespaces = ['common'];
     </style>
 </head>
 <body<?php if ($brand): ?> data-logo-pos="<?php echo htmlspecialchars($brand['logo_position']); ?>" style="<?php echo htmlspecialchars(brandingLoginCss($brand)); ?>"<?php endif; ?>>
+<?php /* Cloudcogs fork: Modern interface. This page has no waffle button, so it asks for the shell itself. */ $__ui = brandingInterface(); if ($__ui['mode'] === 'modern') renderModernShellHead($__ui); ?>
 <?php if ($brand && $brand['banner_position'] !== 'off' && $brand['banner_text'] !== ''): ?>
     <div class="login-strip login-strip-banner" data-at="<?php echo htmlspecialchars($brand['banner_position']); ?>"><?php echo htmlspecialchars($brand['banner_text']); ?></div>
 <?php endif; ?>
     <div class="landing-header">
+        <?php if ($__ui['mode'] === 'modern') renderModernShellLogo($__ui); ?>
         <h1><?php echo htmlspecialchars(t('common.home.header_title')); ?></h1>
         <?php renderHeaderRight($analyst_name, ''); ?>
     </div>
