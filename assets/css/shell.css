@@ -179,7 +179,7 @@
 :root[data-ui="modern"][data-theme-mode="dark"] .ui-brand-logo.has-dark .ui-logo-light { display: none; }
 :root[data-ui="modern"][data-theme-mode="dark"] .ui-brand-logo.has-dark .ui-logo-dark { display: block; }
 :root[data-ui="modern"][data-theme-mode="dark"] .ui-brand-logo:not(.has-dark) img {
-    background: #ffffff;
+    background: var(--ui-logo-panel, #ffffff);
     padding: 3px 6px;
     border-radius: 6px;
     box-sizing: content-box;
@@ -272,7 +272,7 @@
 }
 :root[data-ui="modern"][data-theme-mode="dark"] .waffle-module-icon {
     background: color-mix(in srgb, var(--ui-tile, var(--accent)) 22%, var(--surface)) !important;
-    color: color-mix(in srgb, var(--ui-tile, var(--accent)) 55%, #ffffff);
+    color: color-mix(in srgb, var(--ui-tile, var(--accent)) 55%, var(--text, #ffffff));
 }
 :root[data-ui="modern"] .waffle-module-icon svg { color: inherit; stroke: currentColor; }
 :root[data-ui="modern"] .waffle-module-name { color: var(--text); }
