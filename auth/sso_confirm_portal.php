@@ -160,6 +160,7 @@ function tr(string $key, string $default, array $params = []): string {
     </style>
 </head>
 <body<?php if ($brand): ?> data-form-pos="<?php echo htmlspecialchars($brand['form_position']); ?>" data-card="<?php echo htmlspecialchars($brand['card_style']); ?>" data-logo-pos="<?php echo htmlspecialchars($brand['logo_position']); ?>" style="<?php echo htmlspecialchars(brandingLoginCss($brand)); ?>"<?php endif; ?>>
+<?php /* Cloudcogs fork: the Modern interface (includes/branding.php). */ renderModernAuthHead($brand, $brandNone); ?>
     <div class="login-container">
         <div class="login-header">
             <img src="<?php echo htmlspecialchars($brandLogo); ?>" alt="Company Logo">

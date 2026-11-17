@@ -1,0 +1,75 @@
+/**
+ * The Modern interface: the self-service portal - System -> Branding -> Interface.
+ *
+ * renderModernPortalHead() (includes/branding.php), called by
+ * self-service/includes/header.php right after <body>, links this with
+ * modern-base.css and sets <html data-ui="modern" data-ui-page="portal">.
+ *
+ * The portal's chrome follows the analyst side: a neutral bar with a 3px
+ * strip, quiet nav tabs, the brand colour for everything the portal used to
+ * paint in its own accent (modern-base.css points --ss-accent at the brand, and
+ * .portal-layout already reads --ss-accent). The admin's portal header colour
+ * (System -> Self-service portal) becomes the strip. Logo, logo position and
+ * background pattern settings are kept. Light and dark follow the requester's
+ * palette, as the portal already does.
+ */
+
+/* -------------------------------------------------------------------- Bar */
+:root[data-ui="modern"][data-ui-page="portal"] .portal-header {
+    background: var(--surface) !important;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    box-shadow: inset 0 3px 0 var(--ss-header-bg, var(--accent)) !important;
+}
+:root[data-ui="modern"][data-ui-page="portal"] .portal-brand {
+    color: var(--text);
+    font-weight: 650;
+    letter-spacing: -.01em;
+}
+/* The bundled mark was forced white for the coloured bar; the bar is light now. */
+:root[data-ui="modern"][data-ui-page="portal"] .portal-brand img { filter: none; }
+
+/* ----------------------------------------------------------- Nav (desktop) */
+:root[data-ui="modern"][data-ui-page="portal"] .portal-nav .nav-btn,
+:root[data-ui="modern"][data-ui-page="portal"] .portal-nav .nav-btn:link,
+:root[data-ui="modern"][data-ui-page="portal"] .portal-nav .nav-btn:visited {
+    background: transparent;
+    border-color: transparent;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted) !important;
+    font-size: var(--font-size-md);
+    font-weight: 500;
+}
+:root[data-ui="modern"][data-ui-page="portal"] .portal-nav .nav-btn:hover {
+    background: var(--surface-hover);
+    color: var(--text) !important;
+}
+:root[data-ui="modern"][data-ui-page="portal"] .portal-nav .nav-btn.active,
+:root[data-ui="modern"][data-ui-page="portal"] .portal-nav .nav-btn.active:link,
+:root[data-ui="modern"][data-ui-page="portal"] .portal-nav .nav-btn.active:visited {
+    background: var(--accent-soft) !important;
+    color: var(--accent-text) !important;
+    font-weight: 600;
+}
+:root[data-ui="modern"][data-ui-page="portal"][data-theme-mode="dark"] .portal-nav .nav-btn.active { color: var(--text) !important; }
+
+/* ------------------------------------------------- Right side of the bar */
+:root[data-ui="modern"][data-ui-page="portal"] .portal-header :is(.nb-btn, .back-link, .ss-nav-btn) { color: var(--text-dim); }
+:root[data-ui="modern"][data-ui-page="portal"] .portal-header :is(.nb-btn, .back-link, .ss-nav-btn):hover { color: var(--text); background: var(--surface-hover); }
+:root[data-ui="modern"][data-ui-page="portal"] .portal-header .nb-count { box-shadow: 0 0 0 2px var(--surface); }
+:root[data-ui="modern"][data-ui-page="portal"] .ss-user-avatar {
+    width: 30px;
+    height: 30px;
+    background: var(--accent-soft);
+    color: var(--accent-text);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    font-weight: 700;
+}
+:root[data-ui="modern"][data-ui-page="portal"][data-theme-mode="dark"] .ss-user-avatar { color: var(--text); }
+:root[data-ui="modern"][data-ui-page="portal"] .ss-user-avatar:hover { border-color: var(--accent-text); }
+
+/* ----------------------------------------------------------------- Content */
+/* self-service.css gives filled buttons dark ink in dark mode for its light
+   green; the brand works out its own readable ink, so use that. */
+:root[data-ui="modern"][data-ui-page="portal"][data-theme-mode="dark"] .portal-layout { --on-accent: var(--ss-on-accent); }

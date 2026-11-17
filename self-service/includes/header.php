@@ -264,6 +264,7 @@ if ($ssLogoOnPage) {
 }
 ?>
 <body class="<?php echo htmlspecialchars($ssBodyClass); ?>"<?php echo $ssVars !== '' ? ' style="' . htmlspecialchars($ssVars, ENT_QUOTES) . '"' : ''; ?>>
+<?php /* Cloudcogs fork: the Modern interface (includes/branding.php). */ renderModernPortalHead(); ?>
     <div class="portal-header">
         <div class="portal-brand<?php echo $ssLogoUrl !== '' && !$ssLogoOnPage ? ' has-custom-logo' : ''; ?>">
             <?php /* A portal-specific logo if one is set, otherwise the shared

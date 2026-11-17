@@ -5,6 +5,7 @@
  */
 session_start();
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../includes/branding.php';   // Cloudcogs fork: the Modern interface
 require_once __DIR__ . '/../includes/i18n_guarded.php';
 i18nGuardedInit('auth');
 
@@ -147,6 +148,7 @@ $analyst_name = $_SESSION['analyst_name'] ?? 'Analyst';
     </style>
 </head>
 <body>
+<?php /* Cloudcogs fork: the Modern interface (includes/branding.php). */ renderModernAuthHead(null, isset($_GET['nobranding'])); ?>
     <div class="change-container">
         <div class="change-header">
             <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">

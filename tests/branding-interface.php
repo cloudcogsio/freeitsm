@@ -142,9 +142,57 @@ if (!$db || !defined('DB_NAME') || $db !== DB_NAME) {
         ok('Modern carries the brand colour', str_contains($modern, '--accent:#e11d48'));
         ok('Modern carries the accent text shade', (bool)preg_match('/--accent-text:#[0-9a-f]{6}/', $modern));
         ok('Modern gives each module header its colour', str_contains($modern, '.header.tickets-header{--ui-module:'));
-        ok('Modern gives each launcher tile its colour', str_contains($modern, '.waffle-module-icon.tickets{--ui-tile:'));
+        ok('Modern gives each launcher tile its colour', str_contains($modern, '.waffle-module-icon.tickets,'));
         ok('Modern with no logo shows the system name', str_contains($modern, 'ui-brand-name'));
         ok('Modern still prints the button', str_contains($modern, 'class="waffle-btn"'));
+
+        ok('Modern links the shared base before the shell', (bool)preg_match('/modern-base\.css\?v=\d+.*shell\.css\?v=\d+/s', $modern));
+        ok('Modern marks the app pages', str_contains($modern, "dataset.uiPage='app'"));
+        ok('Modern gives each home tile its colour', str_contains($modern, '.modules-grid>.module-card.tickets{--ui-tile:'));
+
+        // The sign-in pages and the portal.
+        $auth = function (...$a) { ob_start(); renderModernAuthHead(...$a); return ob_get_clean(); };
+        $portal = function () { ob_start(); renderModernPortalHead(); return ob_get_clean(); };
+        $stockDesign = ['bg_style' => 'gradient', 'bg_from' => '#667EEA', 'bg_to' => '#764ba2'];
+        $ownDesign   = ['bg_style' => 'solid', 'bg_from' => '#112233', 'bg_to' => '#764ba2'];
+
+        $set(['branding_interface' => 'classic']);
+        ok('Classic sign-in prints nothing', $auth(null) === '' && $auth($stockDesign) === '');
+        ok('Classic portal prints nothing', $portal() === '');
+
+        $set(['branding_interface' => 'modern', 'branding_brand_primary' => '#e11d48']);
+        $a = $auth(null);
+        ok('Modern sign-in marks the page', str_contains($a, "dataset.ui='modern'") && str_contains($a, "dataset.uiPage='auth'"));
+        ok('Modern sign-in links base and auth.css', (bool)preg_match('/modern-base\.css\?v=\d+.*auth\.css\?v=\d+/s', $a));
+        ok('Modern sign-in carries the brand colour', str_contains($a, '--accent:#e11d48'));
+        ok('a page the designer does not style gets the Modern background', str_contains($a, "dataset.uiBg='modern'"));
+        ok('the stock designer background counts as not designed', str_contains($auth($stockDesign), "dataset.uiBg='modern'"));
+        ok('"Theme" counts as not designed', str_contains($auth(['bg_style' => 'theme']), "dataset.uiBg='modern'"));
+        ok('a designed background is kept', !str_contains($auth($ownDesign), 'uiBg'));
+        ok('the live preview keeps the designer background', !str_contains($auth($stockDesign, false, true), 'uiBg'));
+        ok('?nobranding=1 gives the stock screen', $auth($stockDesign, true) === '');
+        ok('the sign-in hook prints no module colours', !str_contains($a, '--ui-module') && !str_contains($a, 'shell.css'));
+
+        $p = $portal();
+        ok('Modern portal marks the page', str_contains($p, "dataset.uiPage='portal'"));
+        ok('Modern portal links base and portal.css', (bool)preg_match('/modern-base\.css\?v=\d+.*portal\.css\?v=\d+/s', $p));
+        ok('Modern portal carries the brand colour', str_contains($p, '--accent:#e11d48'));
+
+        // The dark logo: swapped in for the organisation logo only, in dark mode.
+        ok('no dark logo, no swap rule', !str_contains($modern, 'content:url('));
+        $darkRel = 'system/uploads/branding/zz-dark-test.png';
+        $darkFile = __DIR__ . '/../' . $darkRel;
+        $made = !file_exists($darkFile) && @file_put_contents($darkFile, 'x') !== false;
+        try {
+            $set(['branding_interface' => 'modern', 'branding_logo_dark_path' => $darkRel]);
+            $withDark = $portal();
+            $org = brandingLogoUrl($conn);
+            ok('a dark logo swaps in for the organisation logo in dark mode',
+                str_contains($withDark, '[data-theme-mode="dark"] :is(img.company-logo,img.fd-logo,.portal-brand img,.portal-page-logo img)[src="' . $org . '"]{content:url("')
+                && str_contains($withDark, $darkRel . '")}'));
+        } finally {
+            if ($made) @unlink($darkFile);
+        }
 
         $set(['branding_interface' => 'classic']);
         $conn->exec("UPDATE system_settings SET setting_value = 'modern' WHERE setting_key = 'branding_interface'");

@@ -16,6 +16,7 @@
 session_start();
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/branding.php';   // Cloudcogs fork: the Modern interface
 require_once __DIR__ . '/../includes/user_emails.php';
 
 $heading = 'Link invalid or expired';
@@ -68,6 +69,7 @@ if ($token !== '' && preg_match('/^[0-9a-f]{64}$/i', $token)) {
     </style>
 </head>
 <body>
+<?php /* Cloudcogs fork: the Modern interface (includes/branding.php). */ renderModernAuthHead(null, isset($_GET['nobranding'])); ?>
     <div class="card">
         <h1><?php echo htmlspecialchars($heading); ?></h1>
         <p><?php echo htmlspecialchars($message); ?></p>

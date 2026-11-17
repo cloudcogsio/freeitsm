@@ -8,6 +8,7 @@ session_start();
 // BASE_URL: this page is reachable as /forgot-password and as /auth/forgot-password.php,
 // so every link it emits has to be absolute. config.php is what defines it (#74).
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../includes/branding.php';   // Cloudcogs fork: the Modern interface
 require_once __DIR__ . '/../includes/i18n_guarded.php';
 i18nGuardedInit('auth');
 
@@ -148,6 +149,7 @@ if (isset($_SESSION['analyst_id'])) {
     </style>
 </head>
 <body>
+<?php /* Cloudcogs fork: the Modern interface (includes/branding.php). */ renderModernAuthHead(null, isset($_GET['nobranding'])); ?>
     <div class="container">
         <div class="header">
             <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">

@@ -87,6 +87,7 @@ $tokenLooksValid = (bool)preg_match('/^[a-f0-9]{64}$/', $token);
     </style>
 </head>
 <body>
+<?php /* Cloudcogs fork: the Modern interface (includes/branding.php). */ renderModernAuthHead(null, isset($_GET['nobranding'])); ?>
     <div class="login-container">
         <div class="login-header">
             <img src="<?php echo htmlspecialchars(brandingLogoUrl()); ?>" alt="Company Logo">
