@@ -692,6 +692,9 @@ return [
             'consumable' => [
                 'low_stock' => 'Stok menipis - saatnya memesan ulang',
             ],
+            'storage' => [
+                'changed' => 'Tempat penyimpanan berkas telah berubah',
+            ],
             'hyperv' => [
                 'collector' => 'Collector Hyper-V memerlukan perhatian Anda',
             ],
@@ -753,6 +756,9 @@ return [
             ],
             'consumable' => [
                 'low_stock' => 'Barang habis pakai turun ke titik pemesanan ulangnya (siapa yang diberi tahu dipilih di Aset -> Pengaturan -> Barang habis pakai)',
+            ],
+            'storage' => [
+                'changed' => 'Tempat penyimpanan berkas berubah, atau pemindahan antar lokasi penyimpanan dimulai atau selesai (administrator)',
             ],
             'hyperv' => [
                 'collector' => 'Collector Hyper-V berhenti melapor, atau penyimpanan sebuah cluster tidak dapat dibaca (orang yang mengelola koneksi Hyper-V)',

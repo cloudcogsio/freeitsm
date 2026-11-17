@@ -692,6 +692,9 @@ return [
             'consumable' => [
                 'low_stock' => 'Queda poco: hora de volver a pedir',
             ],
+            'storage' => [
+                'changed' => 'Ha cambiado dónde se guardan los archivos almacenados',
+            ],
             'hyperv' => [
                 'collector' => 'Un recopilador de Hyper-V requiere su atención',
             ],
@@ -753,6 +756,9 @@ return [
             ],
             'consumable' => [
                 'low_stock' => 'Un consumible baja a su punto de pedido (a quién se avisa se elige en Activos -> Ajustes -> Consumibles)',
+            ],
+            'storage' => [
+                'changed' => 'Cambia dónde se guardan los archivos almacenados, o empieza o termina un traslado entre ubicaciones de almacenamiento (administradores)',
             ],
             'hyperv' => [
                 'collector' => 'Un recopilador de Hyper-V deja de informar, o no se puede leer el almacenamiento de un clúster (personas que gestionan conexiones de Hyper-V)',

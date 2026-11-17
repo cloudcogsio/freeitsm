@@ -692,6 +692,9 @@ return [
             'consumable' => [
                 'low_stock' => 'Lageret er ved at slippe op - tid til at genbestille',
             ],
+            'storage' => [
+                'changed' => 'Hvor gemte filer opbevares, er ændret',
+            ],
             'hyperv' => [
                 'collector' => 'En Hyper-V-collector kræver din opmærksomhed',
             ],
@@ -753,6 +756,9 @@ return [
             ],
             'consumable' => [
                 'low_stock' => 'En forbrugsvare falder til sit genbestillingspunkt (hvem der får besked, vælges under Aktiver -> Indstillinger -> Forbrugsvarer)',
+            ],
+            'storage' => [
+                'changed' => 'Hvor gemte filer opbevares, ændres, eller en flytning mellem lagringssteder starter eller slutter (administratorer)',
             ],
             'hyperv' => [
                 'collector' => 'En Hyper-V-collector holder op med at rapportere, eller en clusters lager kan ikke læses (personer, der administrerer Hyper-V-forbindelser)',

@@ -692,6 +692,9 @@ return [
             'consumable' => [
                 'low_stock' => 'Bestand wird knapp - Zeit zum Nachbestellen',
             ],
+            'storage' => [
+                'changed' => 'Der Speicherort gespeicherter Dateien hat sich geändert',
+            ],
             'hyperv' => [
                 'collector' => 'Ein Hyper-V-Collector braucht Ihre Aufmerksamkeit',
             ],
@@ -753,6 +756,9 @@ return [
             ],
             'consumable' => [
                 'low_stock' => 'Ein Verbrauchsmaterial erreicht seinen Meldebestand (wer benachrichtigt wird, legen Sie unter Assets -> Einstellungen -> Verbrauchsmaterial fest)',
+            ],
+            'storage' => [
+                'changed' => 'Der Speicherort gespeicherter Dateien ändert sich, oder ein Umzug zwischen Speicherorten beginnt oder endet (Administratoren)',
             ],
             'hyperv' => [
                 'collector' => 'Ein Hyper-V-Collector meldet sich nicht mehr, oder der Speicher eines Clusters kann nicht gelesen werden (Personen, die Hyper-V-Verbindungen verwalten)',

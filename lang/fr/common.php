@@ -692,6 +692,9 @@ return [
             'consumable' => [
                 'low_stock' => 'Stock bas - il est temps de recommander',
             ],
+            'storage' => [
+                'changed' => 'L\'emplacement des fichiers stockés a changé',
+            ],
             'hyperv' => [
                 'collector' => 'Un collecteur Hyper-V demande votre attention',
             ],
@@ -753,6 +756,9 @@ return [
             ],
             'consumable' => [
                 'low_stock' => 'Un consommable atteint son seuil de réapprovisionnement (les personnes prévenues se choisissent dans Actifs -> Paramètres -> Consommables)',
+            ],
+            'storage' => [
+                'changed' => 'L\'emplacement des fichiers stockés change, ou un déplacement entre emplacements de stockage commence ou se termine (administrateurs)',
             ],
             'hyperv' => [
                 'collector' => 'Un collecteur Hyper-V cesse de remonter des rapports, ou le stockage d\'un cluster est illisible (personnes qui gèrent les connexions Hyper-V)',

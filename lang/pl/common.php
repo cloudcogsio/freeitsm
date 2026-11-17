@@ -692,6 +692,9 @@ return [
             'consumable' => [
                 'low_stock' => 'Kończy się zapas - czas zamówić ponownie',
             ],
+            'storage' => [
+                'changed' => 'Zmieniło się miejsce przechowywania zapisanych plików',
+            ],
             'hyperv' => [
                 'collector' => 'Kolektor Hyper-V wymaga uwagi',
             ],
@@ -753,6 +756,9 @@ return [
             ],
             'consumable' => [
                 'low_stock' => 'Materiał eksploatacyjny spada do swojego progu zamówienia (kto dostaje powiadomienie, wybiera się w Zasoby -> Ustawienia -> Materiały eksploatacyjne)',
+            ],
+            'storage' => [
+                'changed' => 'Zmienia się miejsce przechowywania zapisanych plików albo zaczyna się lub kończy przenoszenie między lokalizacjami (administratorzy)',
             ],
             'hyperv' => [
                 'collector' => 'Kolektor Hyper-V przestaje zgłaszać dane lub nie można odczytać pamięci masowej klastra (osoby zarządzające połączeniami Hyper-V)',
