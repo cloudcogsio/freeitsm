@@ -239,10 +239,10 @@
 :root[data-ui="modern"][data-theme-mode="dark"] .header .nav-btn.active:visited { color: var(--text) !important; }
 
 /* Header icons and buttons on the right */
-:root[data-ui="modern"] .header :is(.nb-btn, .wra-btn, .mail-check-btn, .back-link) { color: var(--text-dim); }
-:root[data-ui="modern"] .header :is(.nb-btn, .wra-btn, .mail-check-btn, .back-link):hover { color: var(--text); background: var(--surface-hover); }
-:root[data-ui="modern"] .header :is(.nb-count, .wra-count) { box-shadow: 0 0 0 2px var(--surface); }
-:root[data-ui="modern"] .header .user-avatar {
+:root[data-ui="modern"] :is(.header, .landing-header) :is(.nb-btn, .wra-btn, .mail-check-btn, .back-link) { color: var(--text-dim); }
+:root[data-ui="modern"] :is(.header, .landing-header) :is(.nb-btn, .wra-btn, .mail-check-btn, .back-link):hover { color: var(--text); background: var(--surface-hover); }
+:root[data-ui="modern"] :is(.header, .landing-header) :is(.nb-count, .wra-count) { box-shadow: 0 0 0 2px var(--surface); }
+:root[data-ui="modern"] :is(.header, .landing-header) .user-avatar {
     width: 30px;
     height: 30px;
     background: var(--accent-soft);
@@ -251,8 +251,8 @@
     font-size: 12px;
     font-weight: 700;
 }
-:root[data-ui="modern"][data-theme-mode="dark"] .header .user-avatar { color: var(--text); }
-:root[data-ui="modern"] .header .user-avatar:hover { border-color: var(--accent-text); }
+:root[data-ui="modern"][data-theme-mode="dark"] :is(.header, .landing-header) .user-avatar { color: var(--text); }
+:root[data-ui="modern"] :is(.header, .landing-header) .user-avatar:hover { border-color: var(--accent-text); }
 
 /* Launcher: tiles tinted in the module's colour instead of solid gradients */
 :root[data-ui="modern"] .waffle-panel {
@@ -276,6 +276,48 @@
 }
 :root[data-ui="modern"] .waffle-module-icon svg { color: inherit; stroke: currentColor; }
 :root[data-ui="modern"] .waffle-module-name { color: var(--text); }
+
+/* Home page (index.php): the tile launcher. It has no waffle button, so it
+   prints the shell itself. Its header matches the module headers (strip in the
+   brand colour - home belongs to no module); the tiles are the launcher icons
+   at full size. A background chosen in Branding (--login-bg) still wins. */
+:root[data-ui="modern"] body:has(> .landing-container) { background: var(--login-bg, var(--app-bg)); }
+:root[data-ui="modern"] .landing-header {
+    background: var(--surface) !important;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    box-shadow: inset 0 3px 0 var(--accent) !important;
+}
+@media (min-width: 769px) {
+    :root[data-ui="modern"] .landing-header { min-height: 56px; padding: 3px 16px 0; }
+}
+:root[data-ui="modern"] .landing-header h1 { font-size: var(--font-size-lg); font-weight: 600; margin-right: auto; }
+/* No logo uploaded: the logo is the system name, which the title would repeat. */
+:root[data-ui="modern"] .landing-header .ui-brand-logo:not(:has(img)) + h1 { display: none; }
+:root[data-ui="modern"] .landing-header .ui-brand-logo:not(:has(img)) { margin-right: auto; }
+:root[data-ui="modern"] .welcome-text h2 { font-weight: 600; letter-spacing: -.02em; }
+:root[data-ui="modern"] .modules-grid > .module-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-1);
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+:root[data-ui="modern"] .modules-grid > .module-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-2);
+    border-color: color-mix(in srgb, var(--ui-tile, var(--accent)) 45%, var(--border));
+}
+:root[data-ui="modern"] .modules-grid > .module-card:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+:root[data-ui="modern"] .modules-grid > .module-card .module-icon {
+    background: color-mix(in srgb, var(--ui-tile, var(--accent)) 14%, var(--surface));
+    color: var(--ui-tile, var(--accent));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-tile, var(--accent)) 26%, transparent);
+}
+:root[data-ui="modern"][data-theme-mode="dark"] .modules-grid > .module-card .module-icon {
+    background: color-mix(in srgb, var(--ui-tile, var(--accent)) 22%, var(--surface));
+    color: color-mix(in srgb, var(--ui-tile, var(--accent)) 55%, var(--text, #ffffff));
+}
+:root[data-ui="modern"] .modules-grid > .module-card .module-icon svg { color: inherit; stroke: currentColor; }
 
 /* Shared buttons (inbox.css .btn, action-row.css) */
 :root[data-ui="modern"] .btn,

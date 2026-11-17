@@ -732,13 +732,13 @@ function renderModernShellHead(array $ui): void
         $hex = brandingValidHex($c[0] ?? null);
         if ($hex !== null && preg_match('/^[a-z0-9-]+$/', (string)$key)) {
             $css .= '.header.' . $key . '-header{--ui-module:' . $hex . '}'
-                  . '.waffle-module-icon.' . $key . '{--ui-tile:' . $hex . '}';
+                  . '.waffle-module-icon.' . $key . ',.modules-grid>.module-card.' . $key . '{--ui-tile:' . $hex . '}';
         }
     }
     // Every value above is a validated #rrggbb or a fixed key: nothing in $css
     // came from a person as text.
     echo "<script>document.documentElement.dataset.ui='modern';</script>\n";
-    echo '<link rel="stylesheet" href="' . htmlspecialchars(BASE_URL) . 'assets/css/shell.css?v=5">' . "\n";
+    echo '<link rel="stylesheet" href="' . htmlspecialchars(BASE_URL) . 'assets/css/shell.css?v=6">' . "\n";
     echo '<style id="ui-brand">' . $css . "</style>\n";
 }
 
