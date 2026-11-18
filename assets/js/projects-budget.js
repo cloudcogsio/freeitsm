@@ -70,7 +70,9 @@
 
         // Currency
         html += '<div class="prj-budget-cur">' + esc(T('currency_line', { currency: cur }))
-            + (b.per_project_currency && canChange() ? ' <button type="button" class="btn btn-secondary sm" data-budget-currency>' + esc(T('change_currency')) + '</button>' : '') + '</div>';
+            + (b.per_project_currency && canChange() ? ' <button type="button" class="btn btn-secondary sm" data-budget-currency>' + esc(T('change_currency')) + '</button>' : '')
+            // One currency for every project, but this one was created under an earlier default: offer the current one.
+            + (!b.per_project_currency && canChange() && b.install_currency && b.currency !== b.install_currency ? ' <button type="button" class="btn btn-secondary sm" data-budget-currency-install>' + esc(T('use_install_currency', { currency: b.install_currency })) + '</button>' : '') + '</div>';
 
         // #282: where this project's time and other spending count in the chart of accounts.
         if (hasAccounts(b)) {
@@ -442,9 +444,9 @@
     /** Opens the income dialog filled from a line, or empty for a new one; the account list is the company's income accounts. */
     function openIncome(line) {
         const b = ctx.data.budget;
-        document.getElementById('piTitle').textContent = T(line ? 'income_edit' : 'income_new');
-        document.getElementById('piId').value = line ? line.id : '';
-        document.getElementById('piName').value = line ? line.title : '';
+        document.getElementById('pinTitle').textContent = T(line ? 'income_edit' : 'income_new');
+        document.getElementById('pinId').value = line ? line.id : '';
+        document.getElementById('pinName').value = line ? line.title : '';
         document.getElementById('piPlanned').value = line && line.planned !== null ? line.planned : '';
         document.getElementById('piReceived').value = line && line.received !== null ? line.received : '';
         document.getElementById('piPlannedDate').value = line && line.planned_date ? line.planned_date : '';
@@ -455,15 +457,15 @@
         document.getElementById('piAccountWrap').hidden = !accs.length;
         document.getElementById('piAccount').innerHTML = '<option value="">' + esc(T('none')) + '</option>'
             + accs.map(a => '<option value="' + a.id + '"' + (line && line.account && line.account.id === a.id ? ' selected' : '') + '>' + esc(accLabel(a)) + '</option>').join('');
-        document.getElementById('piDelete').hidden = !line;
-        document.getElementById('piError').hidden = true;
+        document.getElementById('pinDelete').hidden = !line;
+        document.getElementById('pinError').hidden = true;
         P.openModal('prjIncomeModal');
     }
     /** Saves the income dialog through tools.php and redraws. */
     async function saveIncome() {
-        const err = document.getElementById('piError');
-        const body = { action: 'income_line_save', id: document.getElementById('piId').value || undefined,
-            title: document.getElementById('piName').value.trim(), planned: document.getElementById('piPlanned').value, received: document.getElementById('piReceived').value,
+        const err = document.getElementById('pinError');
+        const body = { action: 'income_line_save', id: document.getElementById('pinId').value || undefined,
+            title: document.getElementById('pinName').value.trim(), planned: document.getElementById('piPlanned').value, received: document.getElementById('piReceived').value,
             planned_date: document.getElementById('piPlannedDate').value, received_date: document.getElementById('piReceivedDate').value,
             account_id: document.getElementById('piAccount').value || null, notes: document.getElementById('piNotes').value.trim() };
         try { await call(body); P.closeModal('prjIncomeModal'); P.toast(T('saved')); await ctx.refresh(); }
@@ -473,7 +475,7 @@
     async function deleteIncome() {
         const ok = await window.showConfirm({ title: T('income_delete_title'), message: T('income_delete_body'), okLabel: P.TC('delete'), okClass: 'danger' });
         if (!ok) return;
-        try { await call({ action: 'income_line_delete', id: document.getElementById('piId').value }); P.closeModal('prjIncomeModal'); await ctx.refresh(); }
+        try { await call({ action: 'income_line_delete', id: document.getElementById('pinId').value }); P.closeModal('prjIncomeModal'); await ctx.refresh(); }
         catch (e) { P.toast(e.message, 'error'); }
     }
 
@@ -538,6 +540,7 @@
         document.getElementById('pvBudget').addEventListener('click', async e => {
             if (e.target.closest('[data-budget-add]')) { openLine(null); return; }
             if (e.target.closest('[data-budget-currency]')) { pickCurrency(); return; }
+            if (e.target.closest('[data-budget-currency-install]')) { changeCurrency(ctx.data.budget.install_currency); return; }
             const row = e.target.closest('[data-budget-line]');
             if (row) { openLine(ctx.data.budget.lines.find(l => String(l.id) === row.dataset.budgetLine)); return; }
             if (e.target.closest('[data-rate-add]')) {
@@ -579,8 +582,8 @@
                 if (row) openIncome(ctx.data.budget.income.lines.find(l => String(l.id) === row.dataset.incomeLine));
             }
         });
-        document.getElementById('piSave').addEventListener('click', saveIncome);
-        document.getElementById('piDelete').addEventListener('click', deleteIncome);
+        document.getElementById('pinSave').addEventListener('click', saveIncome);
+        document.getElementById('pinDelete').addEventListener('click', deleteIncome);
         document.getElementById('pbSave').addEventListener('click', saveLine);
         document.getElementById('pbDelete').addEventListener('click', deleteLine);
     }

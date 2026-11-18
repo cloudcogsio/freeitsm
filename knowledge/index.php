@@ -52,7 +52,7 @@ $sidebarHoverClass = $sidebarMode === 'hover' ? ' sidebar-hover' : '';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('knowledge')); ?></title>
     <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=79">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=93">
     <link rel="stylesheet" href="../assets/css/knowledge.css?v=30">
     <link rel="stylesheet" href="../assets/css/domain-links.css?v=1">
     <link rel="stylesheet" href="../assets/css/project-links.css?v=1">
@@ -579,7 +579,7 @@ $sidebarHoverClass = $sidebarMode === 'hover' ? ' sidebar-hover' : '';
     <script src="../assets/js/domain-links.js?v=2"></script>
     <script src="../assets/js/project-links.js?v=1"></script>
     <script src="../assets/js/safe-html.js?v=4"></script>   <!-- article bodies are cleaned before display -->
-    <script src="../assets/js/knowledge.js?v=71"></script>
+    <script src="../assets/js/knowledge.js?v=72"></script>
     <!-- Prism.js for code syntax highlighting when viewing articles -->
     <script src="../assets/js/vendor/prism.min.js?v=1.30.0"></script>
     <script src="../assets/js/vendor/prism-powershell.min.js"></script>
