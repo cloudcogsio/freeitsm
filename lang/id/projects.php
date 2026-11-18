@@ -174,6 +174,7 @@ return [
         'name_required' => 'Beri nama pada proyek.',
     ],
     'view' => [
+        'move' => 'Pindahkan',   // GH #370
         'tab_overview' => 'Ikhtisar',
         'tab_plan' => 'Rencana',
         'tab_timeline' => 'Lini masa',
@@ -1316,7 +1317,16 @@ return [
             'problem' => 'Masalah yang ingin diperbaiki proyek - atau yang disebabkannya.',
         ],
     ],
+    // GH #370: move a project to another company.
+    'move' => [
+        'title' => 'Pindahkan ke perusahaan lain',
+        'body' => 'Proyek, tugasnya, dan subtugasnya pindah ke perusahaan yang Anda pilih. Semua orang di proyek harus dapat melihat perusahaan itu, dan lokasi yang tidak dapat digunakannya dikosongkan.',
+        'company' => 'Perusahaan',
+        'done' => 'Dipindahkan ke {company}, dengan {count} tugas.',
+        'location_cleared' => 'Lokasinya dikosongkan: {company} tidak dapat menggunakannya.',
+    ],
     'history' => [
+        'company' => 'memindahkannya ke perusahaan lain',   // GH #370
         'priority' => 'mengubah prioritas',
         'visibility' => 'mengubah siapa yang dapat melihatnya',
         'project_created' => 'membuat proyek',
@@ -2233,6 +2243,7 @@ return [
             'title' => 'Proyek dan perusahaan',
             'intro' => 'Setiap proyek dimiliki satu perusahaan.',
             'p1' => 'Pada instalasi dengan lebih dari satu perusahaan, proyek menjadi milik perusahaan tempat proyek dibuat (atau yang Anda pilih), dan tugas-tugasnya juga milik perusahaan itu. Anda hanya melihat proyek untuk perusahaan yang dapat Anda lihat, dan tampilan Semua perusahaan menampilkannya bersama. Tugas dari perusahaan lain tidak dapat dimasukkan ke dalam proyek.',
+            'p2'    => 'Untuk memindahkan proyek ke perusahaan lain, gunakan **Pindahkan** di halamannya. Tugas dan subtugasnya ikut pindah. Pemindahan ditolak, dengan menyebut apa yang menghalangi, jika manajer proyek atau anggota tim tidak dapat melihat perusahaan baru, atau sebuah tugas tertaut ke tiket atau perubahan di perusahaan lain - tidak ada yang dikeluarkan dari proyek secara otomatis. Lokasi yang tidak dapat digunakan perusahaan baru dikosongkan. Satu tugas dalam proyek tidak dapat dipindahkan sendiri.',   // GH #370
         ],
         'settings' => [
             'nav' => 'Pengaturan',

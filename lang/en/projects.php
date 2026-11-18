@@ -180,6 +180,7 @@ return [
     ],
 
     'view' => [
+        'move' => 'Move',   // GH #370
         'tab_overview' => 'Overview',
         'tab_plan'     => 'Plan',
         'tab_timeline' => 'Timeline',
@@ -1372,7 +1373,16 @@ return [
         ],
     ],
 
+    // GH #370: move a project to another company.
+    'move' => [
+        'title' => 'Move to another company',
+        'body' => 'The project, its tasks and their subtasks move to the company you choose. Everyone on the project must be able to see that company, and a location it cannot use is cleared.',
+        'company' => 'Company',
+        'done' => 'Moved to {company}, with {count} tasks.',
+        'location_cleared' => 'Its location was cleared: {company} cannot use it.',
+    ],
     'history' => [
+        'company' => 'moved it to another company',   // GH #370
         'priority'        => 'changed the priority',
         'visibility'      => 'changed who can see it',
         'project_created' => 'created the project',
@@ -2304,6 +2314,7 @@ return [
             'title' => 'Projects and companies',
             'intro' => 'Each project belongs to one company.',
             'p1'    => 'On an install with more than one company, a project belongs to the company it was created in (or the one you pick), and its tasks belong there too. You only see projects for the companies you can see, and the All companies view shows them together. A task from another company cannot be put in a project.',
+            'p2'    => 'To move a project to another company, use **Move** on its page. Its tasks and their subtasks go with it. The move is refused, naming who or what is in the way, if the project manager or anyone on the team cannot see the new company, or a task is linked to a ticket or change in another company - nobody is taken off the project for you. A location the new company cannot use is cleared. A single task in a project cannot be moved on its own.',   // GH #370
         ],
         'settings' => [
             'nav'   => 'Settings',

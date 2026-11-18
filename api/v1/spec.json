@@ -395,7 +395,7 @@
                         {
                             "name": "work_start_at",
                             "in": "body",
-                            "desc": "Scheduled work start, ISO 8601 (null clears)",
+                            "desc": "Scheduled work start: a local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS, shown exactly as sent (null clears). A Z or offset is refused (422) - since 5.5.0, GH #375.",
                             "req": false
                         },
                         {
@@ -3123,7 +3123,7 @@
                         {
                             "name": "work_start_from \/ work_start_to",
                             "in": "query",
-                            "desc": "Scheduled-work window (ISO 8601) — the calendar shape",
+                            "desc": "Scheduled-work window, local wall-clock (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS, no time zone) — the calendar shape",
                             "req": false
                         },
                         {
@@ -3168,8 +3168,8 @@
                                 "query": {
                                     "change_type": "Emergency",
                                     "cab_required": "true",
-                                    "work_start_from": "2026-07-04T00:00:00Z",
-                                    "work_start_to": "2026-07-11T00:00:00Z",
+                                    "work_start_from": "2026-07-04T00:00:00",
+                                    "work_start_to": "2026-07-11T00:00:00",
                                     "sort": "work_start_at"
                                 }
                             }
@@ -3217,7 +3217,7 @@
                         {
                             "name": "work_start_at \/ work_end_at \/ outage_start_at \/ outage_end_at",
                             "in": "body",
-                            "desc": "Schedule, ISO 8601",
+                            "desc": "Schedule: local wall-clock times with no time zone, YYYY-MM-DDTHH:MM:SS, shown exactly as sent. A Z or offset is refused (422) - since 5.5.0, GH #375.",
                             "req": false
                         },
                         {
@@ -3282,8 +3282,8 @@
                                     "risk_impact_score": 5,
                                     "cab_required": true,
                                     "cab_approval_type": "majority",
-                                    "work_start_at": "2026-07-05T20:00:00Z",
-                                    "work_end_at": "2026-07-05T22:00:00Z"
+                                    "work_start_at": "2026-07-05T20:00:00",
+                                    "work_end_at": "2026-07-05T22:00:00"
                                 }
                             }
                         ],
@@ -3362,7 +3362,7 @@
                         {
                             "name": "pir_was_successful \/ pir_actual_start_at \/ pir_actual_end_at \/ pir_lessons_learned \/ pir_follow_up",
                             "in": "body",
-                            "desc": "Post-implementation review",
+                            "desc": "Post-implementation review. The two actual times are local wall-clock times with no time zone, YYYY-MM-DDTHH:MM:SS.",
                             "req": false
                         }
                     ],
@@ -3391,8 +3391,8 @@
                                 },
                                 "body": {
                                     "assigned_to_id": 3,
-                                    "work_start_at": "2026-07-06T06:00:00Z",
-                                    "work_end_at": "2026-07-06T08:00:00Z"
+                                    "work_start_at": "2026-07-06T06:00:00",
+                                    "work_end_at": "2026-07-06T08:00:00"
                                 }
                             },
                             {
@@ -3404,8 +3404,8 @@
                                 "body": {
                                     "status": "Scheduled",
                                     "approver_id": 2,
-                                    "work_start_at": "2026-07-12T22:00:00Z",
-                                    "work_end_at": "2026-07-13T02:00:00Z",
+                                    "work_start_at": "2026-07-12T22:00:00",
+                                    "work_end_at": "2026-07-13T02:00:00",
                                     "risk_likelihood": 2,
                                     "risk_impact_score": 3
                                 }
@@ -4727,7 +4727,7 @@
                     "p": "\/tasks",
                     "perm": "tasks.read",
                     "s": "List \/ board feed",
-                    "d": "Lists top-level tasks in board order by default (pass parent_task_id to list a task's subtasks). Each task carries its tags, subtask done\/total counts and board position. Only tasks in the key's companies are listed.",
+                    "d": "Lists top-level tasks in board order by default (pass parent_task_id to list a task's subtasks). Each task carries its company, tags, subtask done\/total counts and board position. Only tasks in the key's companies are listed.",
                     "params": [
                         {
                             "name": "state",
@@ -4757,6 +4757,12 @@
                             "name": "ticket_id \/ change_id \/ contract_id",
                             "in": "query",
                             "desc": "Tasks linked to a record",
+                            "req": false
+                        },
+                        {
+                            "name": "company_id",
+                            "in": "query",
+                            "desc": "Only tasks in this company (the Default company includes tasks stored with no company). A company outside the key's list is 403",
                             "req": false
                         },
                         {
@@ -4840,6 +4846,11 @@
                                 "code": 400,
                                 "slug": "invalid_parameter",
                                 "when": "'due_before' or 'due_after' isn't a valid YYYY-MM-DD date."
+                            },
+                            {
+                                "code": 403,
+                                "slug": "forbidden",
+                                "when": "company_id names a company outside the key's list."
                             }
                         ]
                     }
@@ -4849,7 +4860,7 @@
                     "p": "\/tasks",
                     "perm": "tasks.create",
                     "s": "Create a task",
-                    "d": "Creates a task exactly like the UI: defaults To Do \/ Medium, the card is appended to the end of its status column. Links to a ticket\/change\/contract are validated (a ticket link must be within the key's company scope); parent_task_id makes it a subtask. Tags must already exist (they're a curated list in Tasks > Settings).",
+                    "d": "Creates a task exactly like the UI: defaults To Do \/ Medium, the card is appended to the end of its status column. Links to a ticket\/change\/contract are validated (a ticket, change or parent task must be within the key's company scope); parent_task_id makes it a subtask. The task's company is the one its ticket, change or parent task is in; otherwise company_id; otherwise the Default company (or, for a key that cannot reach Default, the key's own company). The response shows it as `company`. Tags must already exist (they're a curated list in Tasks > Settings).",
                     "params": [
                         {
                             "name": "title",
@@ -4894,6 +4905,12 @@
                             "req": false
                         },
                         {
+                            "name": "company_id",
+                            "in": "body",
+                            "desc": "The company to create the task in (see GET \/companies). With a ticket, change or parent task it must be that record's company. tenant_id is accepted as an older name for it",
+                            "req": false
+                        },
+                        {
                             "name": "tags",
                             "in": "body",
                             "desc": "Array of existing tag names or ids",
@@ -4933,6 +4950,14 @@
                                 }
                             },
                             {
+                                "title": "Task for one company",
+                                "note": "Create the task in a particular company (an id from GET \/companies). Without company_id it goes in the Default company, or the key's own company if the key cannot reach Default.",
+                                "body": {
+                                    "title": "Quarterly access review",
+                                    "company_id": 2
+                                }
+                            },
+                            {
                                 "title": "Subtask linked to a ticket",
                                 "note": "A realistic scenario: a follow-up task created from a ticket, filed as a subtask of a parent checklist task and assigned to a team.",
                                 "body": {
@@ -4954,7 +4979,17 @@
                             {
                                 "code": 422,
                                 "slug": "invalid_field",
-                                "when": "assigned_team_id, ticket_id, change_id, contract_id or parent_task_id references a record that doesn't exist — for ticket_id, this also covers a ticket outside the key's company scope."
+                                "when": "assigned_team_id, ticket_id, change_id, contract_id or parent_task_id references a record that doesn't exist — for ticket_id, change_id and parent_task_id, this also covers one outside the key's company scope."
+                            },
+                            {
+                                "code": 422,
+                                "slug": "invalid_field",
+                                "when": "company_id names no company; it differs from the company of the linked ticket, change or parent task; the ticket and the change are in different companies; or company_id and tenant_id are both sent and differ."
+                            },
+                            {
+                                "code": 403,
+                                "slug": "forbidden",
+                                "when": "company_id names a company outside the key's list."
                             },
                             {
                                 "code": 422,
@@ -5007,7 +5042,7 @@
                     "p": "\/tasks\/{id}",
                     "perm": "tasks.update",
                     "s": "Update a task",
-                    "d": "Updates any combination of fields; null clears. Moving to a closed status stamps completed_at and fires the task.completed workflow event (moving back clears it). tags replaces the tag set.",
+                    "d": "Updates any combination of fields; null clears. Moving to a closed status stamps completed_at and fires the task.completed workflow event (moving back clears it). tags replaces the tag set. The company cannot be changed here: company_id (or tenant_id) naming another company is 422 — move the task in the app instead (right-click it, Move to company).",
                     "params": [
                         {
                             "name": "id",
@@ -9138,7 +9173,7 @@
                     "p": "\/projects\/{id}",
                     "perm": "projects.update",
                     "s": "Update a project",
-                    "d": "Change any of the fields accepted on create (not company_id or template). Only what is sent changes, and every change is written to the project's history. Setting status to closed stamps the actual finish if none is set. Switching methodology relabels the open stages and converts nothing. A change of health, dates or status is picked up by the alert scan at once, so the project manager's bell and project.* workflows react as they do to a change on screen.",
+                    "d": "Change any of the fields accepted on create (not template). company_id cannot change here: a different company is 422 (since 5.5.0) - use POST \/projects\/{id}\/move-to-company. Only what is sent changes, and every change is written to the project's history. Setting status to closed stamps the actual finish if none is set. Switching methodology relabels the open stages and converts nothing. A change of health, dates or status is picked up by the alert scan at once, so the project manager's bell and project.* workflows react as they do to a change on screen.",
                     "params": [
                         {
                             "name": "id",
@@ -9218,6 +9253,52 @@
                     },
                     "section": "Projects",
                     "slug": "delete-projects-id"
+                },
+                {
+                    "m": "POST",
+                    "p": "\/projects\/{id}\/move-to-company",
+                    "perm": "projects.update",
+                    "s": "Move a project to another company",
+                    "d": "Moves the project, its tasks and their subtasks to another company in one go (since 5.5.0, GH #370). Refused, saying what is in the way, when the project manager or anyone on the project cannot see the target company, or a task in it is linked to a ticket or change in another company - nobody is taken off the project for you. A location the target company cannot use is cleared (location_cleared). Links to other records stay as they are. Written to the project's history and to each moved task's, and fires project.updated. A single task in a project cannot be moved on its own: move the project.",
+                    "params": [
+                        {
+                            "name": "id",
+                            "in": "path",
+                            "desc": "Project id",
+                            "req": true
+                        },
+                        {
+                            "name": "company_id",
+                            "in": "body",
+                            "desc": "The company to move it to; one the key can reach",
+                            "req": true
+                        }
+                    ],
+                    "body": {
+                        "company_id": 5
+                    },
+                    "extras": {
+                        "examples": [],
+                        "errors": [
+                            {
+                                "code": 404,
+                                "slug": "not_found",
+                                "when": "No such project, or it is outside the key's company scope."
+                            },
+                            {
+                                "code": 403,
+                                "slug": "forbidden",
+                                "when": "The target company is outside the key's companies, or the key's analyst may not change this project."
+                            },
+                            {
+                                "code": 422,
+                                "slug": "invalid_field",
+                                "when": "An unknown company, or the move is refused: the project manager or a member cannot see that company, or a task is linked to a ticket or change in another company - the message names them."
+                            }
+                        ]
+                    },
+                    "section": "Projects",
+                    "slug": "post-projects-id-move-to-company"
                 },
                 {
                     "m": "GET",
@@ -18320,8 +18401,8 @@
                     "query": {
                         "change_type": "Emergency",
                         "cab_required": "true",
-                        "work_start_from": "2026-07-04T00:00:00Z",
-                        "work_start_to": "2026-07-11T00:00:00Z",
+                        "work_start_from": "2026-07-04T00:00:00",
+                        "work_start_to": "2026-07-11T00:00:00",
                         "sort": "work_start_at"
                     }
                 }
@@ -18366,8 +18447,8 @@
                         "risk_impact_score": 5,
                         "cab_required": true,
                         "cab_approval_type": "majority",
-                        "work_start_at": "2026-07-05T20:00:00Z",
-                        "work_end_at": "2026-07-05T22:00:00Z"
+                        "work_start_at": "2026-07-05T20:00:00",
+                        "work_end_at": "2026-07-05T22:00:00"
                     }
                 }
             ],
@@ -18420,8 +18501,8 @@
                     },
                     "body": {
                         "assigned_to_id": 3,
-                        "work_start_at": "2026-07-06T06:00:00Z",
-                        "work_end_at": "2026-07-06T08:00:00Z"
+                        "work_start_at": "2026-07-06T06:00:00",
+                        "work_end_at": "2026-07-06T08:00:00"
                     }
                 },
                 {
@@ -18433,8 +18514,8 @@
                     "body": {
                         "status": "Scheduled",
                         "approver_id": 2,
-                        "work_start_at": "2026-07-12T22:00:00Z",
-                        "work_end_at": "2026-07-13T02:00:00Z",
+                        "work_start_at": "2026-07-12T22:00:00",
+                        "work_end_at": "2026-07-13T02:00:00",
                         "risk_likelihood": 2,
                         "risk_impact_score": 3
                     }

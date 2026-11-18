@@ -1891,25 +1891,25 @@ return array (
             'work_start_at' => 
             array (
               'type' => 'string',
-              'format' => 'date-time',
+              'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
               'nullable' => true,
             ),
             'work_end_at' => 
             array (
               'type' => 'string',
-              'format' => 'date-time',
+              'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
               'nullable' => true,
             ),
             'outage_start_at' => 
             array (
               'type' => 'string',
-              'format' => 'date-time',
+              'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
               'nullable' => true,
             ),
             'outage_end_at' => 
             array (
               'type' => 'string',
-              'format' => 'date-time',
+              'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
               'nullable' => true,
             ),
           ),
@@ -2804,25 +2804,25 @@ return array (
             'work_start_at' => 
             array (
               'type' => 'string',
-              'format' => 'date-time',
+              'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
               'nullable' => true,
             ),
             'work_end_at' => 
             array (
               'type' => 'string',
-              'format' => 'date-time',
+              'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
               'nullable' => true,
             ),
             'outage_start_at' => 
             array (
               'type' => 'string',
-              'format' => 'date-time',
+              'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
               'nullable' => true,
             ),
             'outage_end_at' => 
             array (
               'type' => 'string',
-              'format' => 'date-time',
+              'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
               'nullable' => true,
             ),
           ),
@@ -2938,13 +2938,13 @@ return array (
         'actual_start_at' => 
         array (
           'type' => 'string',
-          'format' => 'date-time',
+          'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
           'nullable' => true,
         ),
         'actual_end_at' => 
         array (
           'type' => 'string',
-          'format' => 'date-time',
+          'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
           'nullable' => true,
         ),
         'lessons_learned' => 
@@ -10538,6 +10538,8 @@ return array (
       'properties' => 
       array (
         'related' => ['$ref' => '#/components/schemas/TaskRelated'],   // GH #328: only with ?include=related on the list; always on GET /tasks/{id}
+        'company' => ['type' => 'object', 'nullable' => true, 'allOf' => [['$ref' => '#/components/schemas/NamedRef']],
+          'description' => 'The company the task is in. A task stored with no company is in the Default company and is shown as it. null only on an install without companies set up.'],
         'collaborators' => ['type' => 'array', 'items' => ['type' => 'object', 'properties' => [   // 5.2.0 docs tidy
           'id' => ['type' => 'integer'], 'name' => ['type' => 'string', 'nullable' => true],
           'is_completed' => ['type' => 'boolean'], 'completed_at' => ['type' => 'string', 'nullable' => true]]]],
@@ -11460,13 +11462,13 @@ return array (
         'work_start_at' =>
         array (
           'type' => 'string',
-          'format' => 'date-time',
+          'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
           'nullable' => true,
         ),
         'work_end_at' =>
         array (
           'type' => 'string',
-          'format' => 'date-time',
+          'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
           'nullable' => true,
         ),
         'work_all_day' =>
