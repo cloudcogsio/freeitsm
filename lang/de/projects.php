@@ -174,6 +174,7 @@ return [
         'name_required' => 'Geben Sie dem Projekt einen Namen.',
     ],
     'view' => [
+        'move' => 'Verschieben',   // GH #370
         'tab_overview' => 'Überblick',
         'tab_plan' => 'Plan',
         'tab_timeline' => 'Zeitleiste',
@@ -1316,7 +1317,16 @@ return [
             'problem' => 'Probleme, die das Projekt beheben soll - oder verursacht hat.',
         ],
     ],
+    // GH #370: move a project to another company.
+    'move' => [
+        'title' => 'In ein anderes Unternehmen verschieben',
+        'body' => 'Das Projekt, seine Aufgaben und deren Unteraufgaben werden in das gewählte Unternehmen verschoben. Alle Beteiligten müssen dieses Unternehmen sehen können, und ein Standort, den es nicht nutzen kann, wird entfernt.',
+        'company' => 'Unternehmen',
+        'done' => 'Nach {company} verschoben, mit {count} Aufgaben.',
+        'location_cleared' => 'Der Standort wurde entfernt: {company} kann ihn nicht nutzen.',
+    ],
     'history' => [
+        'company' => 'hat es in ein anderes Unternehmen verschoben',   // GH #370
         'priority' => 'hat die Priorität geändert',
         'visibility' => 'hat geändert, wer es sehen darf',
         'project_created' => 'hat das Projekt erstellt',
@@ -2233,6 +2243,7 @@ return [
             'title' => 'Projekte und Unternehmen',
             'intro' => 'Jedes Projekt gehört zu einem Unternehmen.',
             'p1' => 'Bei einer Installation mit mehr als einem Unternehmen gehört ein Projekt zu dem Unternehmen, in dem es erstellt wurde (oder das Sie wählen), und seine Aufgaben gehören ebenfalls dorthin. Sie sehen nur Projekte der Unternehmen, die Sie sehen dürfen, und die Ansicht Alle Unternehmen zeigt sie zusammen. Eine Aufgabe eines anderen Unternehmens kann nicht in ein Projekt aufgenommen werden.',
+            'p2'    => 'Um ein Projekt in ein anderes Unternehmen zu verschieben, verwenden Sie **Verschieben** auf seiner Seite. Seine Aufgaben und deren Unteraufgaben gehen mit. Das Verschieben wird abgelehnt, mit Nennung dessen, was im Weg steht, wenn der Projektleiter oder jemand im Team das neue Unternehmen nicht sehen kann oder eine Aufgabe mit einem Ticket oder Change in einem anderen Unternehmen verknüpft ist - niemand wird für Sie aus dem Projekt entfernt. Ein Standort, den das neue Unternehmen nicht nutzen kann, wird entfernt. Eine einzelne Aufgabe in einem Projekt kann nicht allein verschoben werden.',   // GH #370
         ],
         'settings' => [
             'nav' => 'Einstellungen',

@@ -395,7 +395,7 @@
                         {
                             "name": "work_start_at",
                             "in": "body",
-                            "desc": "Scheduled work start, ISO 8601 (null clears)",
+                            "desc": "Scheduled work start: a local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS, shown exactly as sent (null clears). A Z or offset is refused (422) - since 5.5.0, GH #375.",
                             "req": false
                         },
                         {
@@ -3123,7 +3123,7 @@
                         {
                             "name": "work_start_from \/ work_start_to",
                             "in": "query",
-                            "desc": "Scheduled-work window (ISO 8601) — the calendar shape",
+                            "desc": "Scheduled-work window, local wall-clock (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS, no time zone) — the calendar shape",
                             "req": false
                         },
                         {
@@ -3168,8 +3168,8 @@
                                 "query": {
                                     "change_type": "Emergency",
                                     "cab_required": "true",
-                                    "work_start_from": "2026-07-04T00:00:00Z",
-                                    "work_start_to": "2026-07-11T00:00:00Z",
+                                    "work_start_from": "2026-07-04T00:00:00",
+                                    "work_start_to": "2026-07-11T00:00:00",
                                     "sort": "work_start_at"
                                 }
                             }
@@ -3217,7 +3217,7 @@
                         {
                             "name": "work_start_at \/ work_end_at \/ outage_start_at \/ outage_end_at",
                             "in": "body",
-                            "desc": "Schedule, ISO 8601",
+                            "desc": "Schedule: local wall-clock times with no time zone, YYYY-MM-DDTHH:MM:SS, shown exactly as sent. A Z or offset is refused (422) - since 5.5.0, GH #375.",
                             "req": false
                         },
                         {
@@ -3282,8 +3282,8 @@
                                     "risk_impact_score": 5,
                                     "cab_required": true,
                                     "cab_approval_type": "majority",
-                                    "work_start_at": "2026-07-05T20:00:00Z",
-                                    "work_end_at": "2026-07-05T22:00:00Z"
+                                    "work_start_at": "2026-07-05T20:00:00",
+                                    "work_end_at": "2026-07-05T22:00:00"
                                 }
                             }
                         ],
@@ -3362,7 +3362,7 @@
                         {
                             "name": "pir_was_successful \/ pir_actual_start_at \/ pir_actual_end_at \/ pir_lessons_learned \/ pir_follow_up",
                             "in": "body",
-                            "desc": "Post-implementation review",
+                            "desc": "Post-implementation review. The two actual times are local wall-clock times with no time zone, YYYY-MM-DDTHH:MM:SS.",
                             "req": false
                         }
                     ],
@@ -3391,8 +3391,8 @@
                                 },
                                 "body": {
                                     "assigned_to_id": 3,
-                                    "work_start_at": "2026-07-06T06:00:00Z",
-                                    "work_end_at": "2026-07-06T08:00:00Z"
+                                    "work_start_at": "2026-07-06T06:00:00",
+                                    "work_end_at": "2026-07-06T08:00:00"
                                 }
                             },
                             {
@@ -3404,8 +3404,8 @@
                                 "body": {
                                     "status": "Scheduled",
                                     "approver_id": 2,
-                                    "work_start_at": "2026-07-12T22:00:00Z",
-                                    "work_end_at": "2026-07-13T02:00:00Z",
+                                    "work_start_at": "2026-07-12T22:00:00",
+                                    "work_end_at": "2026-07-13T02:00:00",
                                     "risk_likelihood": 2,
                                     "risk_impact_score": 3
                                 }
@@ -7454,7 +7454,7 @@
                     "p": "\/domains\/{id}",
                     "perm": "domains.update",
                     "s": "Update a domain",
-                    "d": "Send only the fields to change; \"\" or null clears one. Every change is written to the domain's history with source \"api\" and fires the domain.updated workflow event. auth_code is refused; the company cannot be changed here (POST \/domains\/{id}\/move-to-company does that).",
+                    "d": "Send only the fields to change; \"\" or null clears one. Every change is written to the domain's history with source \"api\" and fires the domain.updated workflow event. auth_code is refused. company_id cannot change here: a different company is 422 - use POST \/domains\/{id}\/move-to-company; the company it is already in is accepted.",
                     "params": [
                         {
                             "name": "id",
@@ -7494,6 +7494,11 @@
                                 "code": 422,
                                 "slug": "missing_field",
                                 "when": "The body names no fields to change."
+                            },
+                            {
+                                "code": 422,
+                                "slug": "invalid_field",
+                                "when": "company_id names a different company (use POST \/domains\/{id}\/move-to-company)."
                             }
                         ]
                     },
@@ -7633,6 +7638,16 @@
                         ],
                         "errors": [
                             {
+                                "code": 404,
+                                "slug": "not_found",
+                                "when": "No such domain, or it is outside the key's company scope."
+                            },
+                            {
+                                "code": 403,
+                                "slug": "forbidden",
+                                "when": "The target company is outside the key's companies."
+                            },
+                            {
                                 "code": 409,
                                 "slug": "conflict",
                                 "when": "The target company already has the name in the same scope."
@@ -7645,7 +7660,7 @@
                             {
                                 "code": 422,
                                 "slug": "invalid_field",
-                                "when": "The key cannot reach that company, the domain is a subdomain, or it is linked to tickets, CMDB objects or a contract."
+                                "when": "company_id is not a whole number or an unknown company, or the move is refused: the domain is a subdomain, or it is linked to tickets, CMDB objects or a contract - the message says which."
                             }
                         ]
                     },
@@ -9230,7 +9245,7 @@
                     "p": "\/projects\/{id}",
                     "perm": "projects.update",
                     "s": "Update a project",
-                    "d": "Change any of the fields accepted on create (not company_id or template). Only what is sent changes, and every change is written to the project's history. Setting status to closed stamps the actual finish if none is set. Switching methodology relabels the open stages and converts nothing. A change of health, dates or status is picked up by the alert scan at once, so the project manager's bell and project.* workflows react as they do to a change on screen.",
+                    "d": "Change any of the fields accepted on create (not template). company_id cannot change here: a different company is 422 (since 5.5.0) - use POST \/projects\/{id}\/move-to-company. Only what is sent changes, and every change is written to the project's history. Setting status to closed stamps the actual finish if none is set. Switching methodology relabels the open stages and converts nothing. A change of health, dates or status is picked up by the alert scan at once, so the project manager's bell and project.* workflows react as they do to a change on screen.",
                     "params": [
                         {
                             "name": "id",
@@ -9310,6 +9325,52 @@
                     },
                     "section": "Projects",
                     "slug": "delete-projects-id"
+                },
+                {
+                    "m": "POST",
+                    "p": "\/projects\/{id}\/move-to-company",
+                    "perm": "projects.update",
+                    "s": "Move a project to another company",
+                    "d": "Moves the project, its tasks and their subtasks to another company in one go (since 5.5.0, GH #370). Refused, saying what is in the way, when the project manager or anyone on the project cannot see the target company, or a task in it is linked to a ticket or change in another company - nobody is taken off the project for you. A location the target company cannot use is cleared (location_cleared). Links to other records stay as they are. Written to the project's history and to each moved task's, and fires project.updated. A single task in a project cannot be moved on its own: move the project.",
+                    "params": [
+                        {
+                            "name": "id",
+                            "in": "path",
+                            "desc": "Project id",
+                            "req": true
+                        },
+                        {
+                            "name": "company_id",
+                            "in": "body",
+                            "desc": "The company to move it to; one the key can reach",
+                            "req": true
+                        }
+                    ],
+                    "body": {
+                        "company_id": 5
+                    },
+                    "extras": {
+                        "examples": [],
+                        "errors": [
+                            {
+                                "code": 404,
+                                "slug": "not_found",
+                                "when": "No such project, or it is outside the key's company scope."
+                            },
+                            {
+                                "code": 403,
+                                "slug": "forbidden",
+                                "when": "The target company is outside the key's companies, or the key's analyst may not change this project."
+                            },
+                            {
+                                "code": 422,
+                                "slug": "invalid_field",
+                                "when": "An unknown company, or the move is refused: the project manager or a member cannot see that company, or a task is linked to a ticket or change in another company - the message names them."
+                            }
+                        ]
+                    },
+                    "section": "Projects",
+                    "slug": "post-projects-id-move-to-company"
                 },
                 {
                     "m": "GET",
@@ -18412,8 +18473,8 @@
                     "query": {
                         "change_type": "Emergency",
                         "cab_required": "true",
-                        "work_start_from": "2026-07-04T00:00:00Z",
-                        "work_start_to": "2026-07-11T00:00:00Z",
+                        "work_start_from": "2026-07-04T00:00:00",
+                        "work_start_to": "2026-07-11T00:00:00",
                         "sort": "work_start_at"
                     }
                 }
@@ -18458,8 +18519,8 @@
                         "risk_impact_score": 5,
                         "cab_required": true,
                         "cab_approval_type": "majority",
-                        "work_start_at": "2026-07-05T20:00:00Z",
-                        "work_end_at": "2026-07-05T22:00:00Z"
+                        "work_start_at": "2026-07-05T20:00:00",
+                        "work_end_at": "2026-07-05T22:00:00"
                     }
                 }
             ],
@@ -18512,8 +18573,8 @@
                     },
                     "body": {
                         "assigned_to_id": 3,
-                        "work_start_at": "2026-07-06T06:00:00Z",
-                        "work_end_at": "2026-07-06T08:00:00Z"
+                        "work_start_at": "2026-07-06T06:00:00",
+                        "work_end_at": "2026-07-06T08:00:00"
                     }
                 },
                 {
@@ -18525,8 +18586,8 @@
                     "body": {
                         "status": "Scheduled",
                         "approver_id": 2,
-                        "work_start_at": "2026-07-12T22:00:00Z",
-                        "work_end_at": "2026-07-13T02:00:00Z",
+                        "work_start_at": "2026-07-12T22:00:00",
+                        "work_end_at": "2026-07-13T02:00:00",
                         "risk_likelihood": 2,
                         "risk_impact_score": 3
                     }
