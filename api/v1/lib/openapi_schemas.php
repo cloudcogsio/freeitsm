@@ -1905,25 +1905,25 @@ return array (
             'work_start_at' => 
             array (
               'type' => 'string',
-              'format' => 'date-time',
+              'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
               'nullable' => true,
             ),
             'work_end_at' => 
             array (
               'type' => 'string',
-              'format' => 'date-time',
+              'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
               'nullable' => true,
             ),
             'outage_start_at' => 
             array (
               'type' => 'string',
-              'format' => 'date-time',
+              'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
               'nullable' => true,
             ),
             'outage_end_at' => 
             array (
               'type' => 'string',
-              'format' => 'date-time',
+              'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
               'nullable' => true,
             ),
           ),
@@ -2818,25 +2818,25 @@ return array (
             'work_start_at' => 
             array (
               'type' => 'string',
-              'format' => 'date-time',
+              'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
               'nullable' => true,
             ),
             'work_end_at' => 
             array (
               'type' => 'string',
-              'format' => 'date-time',
+              'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
               'nullable' => true,
             ),
             'outage_start_at' => 
             array (
               'type' => 'string',
-              'format' => 'date-time',
+              'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
               'nullable' => true,
             ),
             'outage_end_at' => 
             array (
               'type' => 'string',
-              'format' => 'date-time',
+              'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
               'nullable' => true,
             ),
           ),
@@ -2952,13 +2952,13 @@ return array (
         'actual_start_at' => 
         array (
           'type' => 'string',
-          'format' => 'date-time',
+          'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
           'nullable' => true,
         ),
         'actual_end_at' => 
         array (
           'type' => 'string',
-          'format' => 'date-time',
+          'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
           'nullable' => true,
         ),
         'lessons_learned' => 
@@ -11476,13 +11476,13 @@ return array (
         'work_start_at' =>
         array (
           'type' => 'string',
-          'format' => 'date-time',
+          'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
           'nullable' => true,
         ),
         'work_end_at' =>
         array (
           'type' => 'string',
-          'format' => 'date-time',
+          'description' => 'Local wall-clock time with no time zone, YYYY-MM-DDTHH:MM:SS - shown exactly as sent; a Z or offset is refused (GH #375).',
           'nullable' => true,
         ),
         'work_all_day' =>

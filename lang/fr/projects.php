@@ -174,6 +174,7 @@ return [
         'name_required' => 'Donnez un nom au projet.',
     ],
     'view' => [
+        'move' => 'Déplacer',   // GH #370
         'tab_overview' => 'Vue d\'ensemble',
         'tab_plan' => 'Plan',
         'tab_timeline' => 'Chronologie',
@@ -1316,7 +1317,16 @@ return [
             'problem' => 'Les problèmes que le projet doit corriger - ou qu\'il a causés.',
         ],
     ],
+    // GH #370: move a project to another company.
+    'move' => [
+        'title' => 'Déplacer vers une autre entreprise',
+        'body' => 'Le projet, ses tâches et leurs sous-tâches passent dans l\'entreprise choisie. Toutes les personnes du projet doivent pouvoir voir cette entreprise, et un emplacement qu\'elle ne peut pas utiliser est retiré.',
+        'company' => 'Entreprise',
+        'done' => 'Déplacé vers {company}, avec {count} tâches.',
+        'location_cleared' => 'Son emplacement a été retiré : {company} ne peut pas l\'utiliser.',
+    ],
     'history' => [
+        'company' => 'l\'a déplacé vers une autre entreprise',   // GH #370
         'priority' => 'a modifié la priorité',
         'visibility' => 'a modifié qui peut le voir',
         'project_created' => 'a créé le projet',
@@ -2233,6 +2243,7 @@ return [
             'title' => 'Projets et entreprises',
             'intro' => 'Chaque projet appartient à une entreprise.',
             'p1' => 'Sur une installation comportant plus d\'une entreprise, un projet appartient à l\'entreprise dans laquelle il a été créé (ou à celle que vous choisissez), et ses tâches y appartiennent aussi. Vous ne voyez que les projets des entreprises que vous pouvez voir, et la vue Toutes les entreprises les affiche ensemble. Une tâche d\'une autre entreprise ne peut pas être placée dans un projet.',
+            'p2'    => 'Pour déplacer un projet vers une autre entreprise, utilisez **Déplacer** sur sa page. Ses tâches et leurs sous-tâches suivent. Le déplacement est refusé, en nommant ce qui bloque, si le chef de projet ou quelqu\'un de l\'équipe ne peut pas voir la nouvelle entreprise, ou si une tâche est liée à un ticket ou un changement d\'une autre entreprise - personne n\'est retiré du projet à votre place. Un emplacement que la nouvelle entreprise ne peut pas utiliser est retiré. Une tâche seule d\'un projet ne peut pas être déplacée.',   // GH #370
         ],
         'settings' => [
             'nav' => 'Paramètres',
