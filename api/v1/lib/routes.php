@@ -109,6 +109,16 @@ return [
     ['GET',    '#^/change-categories$#',                   ['reference', 'read'],             'apiChangeCategoriesList'],
     ['GET',    '#^/change-risk-policy$#',                  ['reference', 'read'],             'apiChangeRiskPolicyGet'],
 
+    ['GET', '#^/knowledge/folders$#', ['knowledge_folders', 'read'], 'apiKnowledgeFoldersList'],
+    ['POST', '#^/knowledge/folders$#', ['knowledge_folders', 'create'], 'apiKnowledgeFoldersCreate'],
+    ['GET', '#^/knowledge/folders/(\d+)$#', ['knowledge_folders', 'read'], 'apiKnowledgeFoldersGet'],
+    ['GET', '#^/knowledge/(articles|folders)/(\d+)/access$#', ['knowledge_access', 'read'], 'apiKnowledgeAccessGet'],
+    ['PATCH', '#^/knowledge/(articles|folders)/(\d+)/access$#', ['knowledge_access', 'manage'], 'apiKnowledgeAccessUpdate'],
+    ['GET', '#^/knowledge/articles/(\d+)/images$#', ['knowledge_images', 'read'], 'apiKnowledgeImagesList'],
+    ['POST', '#^/knowledge/articles/(\d+)/images$#', ['knowledge_images', 'create'], 'apiKnowledgeImagesCreate'],
+    ['DELETE', '#^/knowledge/articles/(\d+)/images/(\d+)$#', ['knowledge_images', 'delete'], 'apiKnowledgeImagesDelete'],
+    ['GET', '#^/knowledge/images/(\d+)/content$#', ['knowledge_images', 'read'], 'apiKnowledgeImagesGet'],
+
     ['GET',    '#^/knowledge/articles$#',                  ['knowledge', 'read'],             'apiKnowledgeArticlesList'],
     ['POST',   '#^/knowledge/articles$#',                  ['knowledge', 'create'],           'apiKnowledgeArticlesCreate'],
     ['GET',    '#^/knowledge/articles/(\d+)$#',            ['knowledge', 'read'],             'apiKnowledgeArticlesGet'],
@@ -264,6 +274,7 @@ return [
     ['DELETE', '#^/domains/(\d+)$#',                       ['domains', 'delete'],             'apiDomainsDelete'],
     ['POST',   '#^/domains/(\d+)/lookup$#',                ['domains', 'update'],             'apiDomainsLookup'],
     ['POST',   '#^/domains/(\d+)/check$#',                 ['domains', 'update'],             'apiDomainsCheck'],
+    ['POST',   '#^/domains/(\d+)/move-to-company$#',       ['domains', 'update'],             'apiDomainsMoveToCompany'],   // GH #384
     ['GET',    '#^/domains/(\d+)/findings$#',              ['domains', 'read'],               'apiDomainsFindings'],
     ['GET',    '#^/domains/(\d+)/history$#',               ['domains', 'read'],               'apiDomainsHistory'],
     ['GET',    '#^/domain-statuses$#',                     ['domains', 'read'],               'apiDomainStatusesList'],

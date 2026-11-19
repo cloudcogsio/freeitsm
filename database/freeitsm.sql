@@ -1814,6 +1814,23 @@ CREATE TABLE IF NOT EXISTS `ticket_ai_summaries` (
     CONSTRAINT `fk_ticket_ai_summaries_ticket` FOREIGN KEY (`ticket_id`) REFERENCES `tickets` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_ticket_ai_summaries_analyst` FOREIGN KEY (`generated_by`) REFERENCES `analysts` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ticket_reply_cleanup_prompts (GH #396): every version of the Reply Cleanup
+-- prompt, edited in Tickets -> Settings -> Reply Cleanup. The NEWEST row is the
+-- one in use. Rows are never updated or deleted: Reset and Restore add a row,
+-- so a broken prompt is always one Restore away.
+CREATE TABLE IF NOT EXISTS `ticket_reply_cleanup_prompts` (
+    `id`               INT NOT NULL AUTO_INCREMENT,
+    -- NULL = the built-in default.
+    `prompt_text`      MEDIUMTEXT NULL,
+    -- 'edit', 'reset' or 'restore'.
+    `action`           VARCHAR(20) NOT NULL DEFAULT 'edit',
+    `restored_from`    INT NULL,
+    `created_by`       INT NULL,
+    `created_datetime` DATETIME NOT NULL,
+    PRIMARY KEY (`id`),
+    CONSTRAINT `fk_ticket_reply_cleanup_prompts_analyst` FOREIGN KEY (`created_by`) REFERENCES `analysts` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS `ticket_audit` (
     `id`                INT NOT NULL AUTO_INCREMENT,
     `ticket_id`         INT NOT NULL,
@@ -2060,6 +2077,7 @@ CREATE TABLE IF NOT EXISTS `target_mailboxes` (
     `smtp_server`           TEXT NULL,
     `smtp_port`             INT NULL DEFAULT 587,
     `smtp_encryption`       VARCHAR(10) NULL DEFAULT 'tls',
+    `smtp_auth_enabled`     TINYINT(1) NOT NULL DEFAULT 1,
     -- Sending credentials, when they differ from the reading ones. Plenty of
     -- providers issue a separate SMTP login, and a submission relay in front of
     -- an internal mail server often wants its own. BOTH BLANK = use the IMAP
@@ -5686,6 +5704,35 @@ CREATE TABLE IF NOT EXISTS `knowledge_articles` (
 -- leaks, most-restrictive loses documents people filed themselves, and every
 -- system that tried it ended up with an effective-permissions dialog nobody
 -- could read. Appearing in two places is what knowledge_shortcuts is for.
+
+-- REST Knowledge migrations: protected images and durable create references.
+CREATE TABLE IF NOT EXISTS `knowledge_api_references` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `analyst_id` INT NOT NULL,
+    `operation` VARCHAR(16) NOT NULL,
+    `parent_id` INT NOT NULL DEFAULT 0,
+    `client_reference` VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+    `request_hash` CHAR(64) NOT NULL,
+    `object_id` INT NOT NULL,
+    `created_datetime` DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_knowledge_reference` (`analyst_id`, `operation`, `parent_id`, `client_reference`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `knowledge_images` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `article_id` INT NOT NULL,
+    `stored_name` VARCHAR(64) NOT NULL,
+    `original_name` VARCHAR(255) NOT NULL,
+    `mime_type` VARCHAR(100) NOT NULL,
+    `size_bytes` INT UNSIGNED NOT NULL,
+    `sha256` CHAR(64) NOT NULL,
+    `created_by_id` INT NULL,
+    `created_datetime` DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_knowledge_images_article` (`article_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `knowledge_folders` (
     `id`                  INT NOT NULL AUTO_INCREMENT,
     `parent_id`           INT NULL,
