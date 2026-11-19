@@ -1459,6 +1459,7 @@ return [
         'smtp_server'             => 'TEXT NULL',
         'smtp_port'               => 'INT NULL DEFAULT 587',
         'smtp_encryption'         => 'VARCHAR(10) NULL DEFAULT \'tls\'',
+        'smtp_auth_enabled'       => 'TINYINT(1) NOT NULL DEFAULT 1',
         // Separate sending credentials; blank means "use the IMAP ones".
         'smtp_username'           => 'TEXT NULL',
         'smtp_password'           => 'TEXT NULL',
@@ -1917,6 +1918,18 @@ return [
         'tokens_in'     => 'INT NOT NULL DEFAULT 0',
         'tokens_out'    => 'INT NOT NULL DEFAULT 0',
         'created_at'    => 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP',
+    ],
+    // GH #396: every version of the Reply Cleanup prompt; the newest is in use. Never updated or deleted.
+    'ticket_reply_cleanup_prompts' => [
+        'id'               => 'INT NOT NULL AUTO_INCREMENT',
+        // NULL = the built-in default (a Reset, or the built-in text saved as it is).
+        'prompt_text'      => 'MEDIUMTEXT NULL',
+        // 'edit', 'reset' or 'restore'.
+        'action'           => "VARCHAR(20) NOT NULL DEFAULT 'edit'",
+        // For a restore: the version it copied.
+        'restored_from'    => 'INT NULL',
+        'created_by'       => 'INT NULL',
+        'created_datetime' => 'DATETIME NOT NULL',
     ],
     'ticket_merges' => [
         'id'                   => 'INT NOT NULL AUTO_INCREMENT',
@@ -4260,6 +4273,29 @@ return [
     // with several parents, "inherit from parent" has no answer — most-permissive
     // leaks, most-restrictive loses documents people filed themselves. Appearing
     // in two places is what knowledge_shortcuts is for.
+    'knowledge_api_references' => [
+        'id' => 'INT NOT NULL AUTO_INCREMENT',
+        'analyst_id' => 'INT NOT NULL',
+        'operation' => 'VARCHAR(16) NOT NULL',
+        'parent_id' => 'INT NOT NULL DEFAULT 0',
+        'client_reference' => 'VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL',
+        'request_hash' => 'CHAR(64) NOT NULL',
+        'object_id' => 'INT NOT NULL',
+        'created_datetime' => 'DATETIME NULL DEFAULT CURRENT_TIMESTAMP',
+    ],
+
+    'knowledge_images' => [
+        'id' => 'INT NOT NULL AUTO_INCREMENT',
+        'article_id' => 'INT NOT NULL',
+        'stored_name' => 'VARCHAR(64) NOT NULL',
+        'original_name' => 'VARCHAR(255) NOT NULL',
+        'mime_type' => 'VARCHAR(100) NOT NULL',
+        'size_bytes' => 'INT UNSIGNED NOT NULL',
+        'sha256' => 'CHAR(64) NOT NULL',
+        'created_by_id' => 'INT NULL',
+        'created_datetime' => 'DATETIME NULL DEFAULT CURRENT_TIMESTAMP',
+    ],
+
     'knowledge_folders' => [
         'id'                  => 'INT NOT NULL AUTO_INCREMENT',
         // NULL = a top-level folder. The root itself is not a row.
