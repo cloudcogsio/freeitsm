@@ -25,7 +25,7 @@
 @media (min-width: 769px) {
     :root[data-ui="modern"] .header {
         min-height: 56px;
-        padding: 3px 16px 0;
+        padding: 3px var(--space-4) 0;
     }
 }
 
@@ -38,7 +38,7 @@
 :root[data-ui="modern"] .ui-brand-logo {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     height: 32px;
     margin-right: 14px;
     text-decoration: none;
@@ -71,10 +71,10 @@
 :root[data-ui="modern"] .header .module-title {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     color: var(--text);
     background: none;
-    padding: 4px 0 4px 14px;
+    padding: var(--space-1) 0 var(--space-1) 14px;
     border-left: 1px solid var(--border);
     border-radius: 0;
     font-size: var(--font-size-lg);
@@ -99,7 +99,7 @@
     border-radius: var(--radius-sm);
     color: var(--text-muted) !important;
     font-size: var(--font-size-md);
-    font-weight: 500;
+    font-weight: var(--font-weight-medium, 500);
 }
 :root[data-ui="modern"] .header .nav-btn:hover,
 :root[data-ui="modern"] .header .nav-btn:link:hover,
@@ -113,7 +113,7 @@
     background: var(--accent-soft);
     border-color: transparent;
     color: var(--accent-text) !important;
-    font-weight: 600;
+    font-weight: var(--font-weight-bold, 600);
 }
 :root[data-ui="modern"][data-theme-mode="dark"] .header .nav-btn.active,
 :root[data-ui="modern"][data-theme-mode="dark"] .header .nav-btn.active:link,
@@ -173,7 +173,7 @@
     background: color-mix(in srgb, var(--ui-tile, var(--accent)) 14%, var(--surface)) !important;
     color: var(--ui-tile, var(--accent));
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ui-tile, var(--accent)) 26%, transparent);
-    border-radius: 10px;
+    border-radius: var(--radius-xl, 10px);
 }
 :root[data-ui="modern"][data-theme-mode="dark"] .waffle-module-icon {
     background: color-mix(in srgb, var(--ui-tile, var(--accent)) 22%, var(--surface)) !important;
@@ -194,13 +194,13 @@
     box-shadow: inset 0 3px 0 var(--accent) !important;
 }
 @media (min-width: 769px) {
-    :root[data-ui="modern"] .landing-header { min-height: 56px; padding: 3px 16px 0; }
+    :root[data-ui="modern"] .landing-header { min-height: 56px; padding: 3px var(--space-4) 0; }
 }
-:root[data-ui="modern"] .landing-header h1 { font-size: var(--font-size-lg); font-weight: 600; margin-right: auto; }
+:root[data-ui="modern"] .landing-header h1 { font-size: var(--font-size-lg); font-weight: var(--font-weight-bold, 600); margin-right: auto; }
 /* No logo uploaded: the logo is the system name, which the title would repeat. */
 :root[data-ui="modern"] .landing-header .ui-brand-logo:not(:has(img)) + h1 { display: none; }
 :root[data-ui="modern"] .landing-header .ui-brand-logo:not(:has(img)) { margin-right: auto; }
-:root[data-ui="modern"] .welcome-text h2 { font-weight: 600; letter-spacing: -.02em; }
+:root[data-ui="modern"] .welcome-text h2 { font-weight: var(--font-weight-bold, 600); letter-spacing: -.02em; }
 :root[data-ui="modern"] .modules-grid > .module-card {
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);

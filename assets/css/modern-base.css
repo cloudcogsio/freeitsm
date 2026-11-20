@@ -18,11 +18,11 @@
 
 /* ---------------------------------------------------------------- 1. Fonts */
 @font-face { font-family: "Public Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("../fonts/public-sans/PublicSans-Regular.woff2") format("woff2"); }
-@font-face { font-family: "Public Sans"; font-style: normal; font-weight: 500; font-display: swap; src: url("../fonts/public-sans/PublicSans-Medium.woff2") format("woff2"); }
-@font-face { font-family: "Public Sans"; font-style: normal; font-weight: 600; font-display: swap; src: url("../fonts/public-sans/PublicSans-SemiBold.woff2") format("woff2"); }
+@font-face { font-family: "Public Sans"; font-style: normal; font-weight: var(--font-weight-medium, 500); font-display: swap; src: url("../fonts/public-sans/PublicSans-Medium.woff2") format("woff2"); }
+@font-face { font-family: "Public Sans"; font-style: normal; font-weight: var(--font-weight-bold, 600); font-display: swap; src: url("../fonts/public-sans/PublicSans-SemiBold.woff2") format("woff2"); }
 @font-face { font-family: "Public Sans"; font-style: normal; font-weight: 700; font-display: swap; src: url("../fonts/public-sans/PublicSans-Bold.woff2") format("woff2"); }
 @font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("../fonts/jetbrains-mono/JetBrainsMono-Regular.woff2") format("woff2"); }
-@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url("../fonts/jetbrains-mono/JetBrainsMono-Medium.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: var(--font-weight-medium, 500); font-display: swap; src: url("../fonts/jetbrains-mono/JetBrainsMono-Medium.woff2") format("woff2"); }
 
 /* --------------------------------------------------------------- 2. Tokens */
 :root[data-ui="modern"] {
@@ -132,7 +132,7 @@
 :root[data-ui="modern"] .btn,
 :root[data-ui="modern"] .action-row-btn {
     border-radius: var(--radius-sm);
-    font-weight: 600;
+    font-weight: var(--font-weight-bold, 600);
 }
 :root[data-ui="modern"] .btn-secondary {
     background: var(--surface);
