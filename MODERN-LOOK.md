@@ -65,6 +65,7 @@ The preview on the card shows your colour on a button, a link and a selection, i
 | Sign-in pages | Analyst sign-in (including the MFA step), SSO confirm, forgot / reset / forced password change; the portal's sign-in, register, forgot, reset and email confirmation pages |
 | Self-service portal | Same light header and brand colour; a portal header colour, if set, becomes the strip along the top |
 | Logo in dark mode | Your dark logo replaces your organisation logo in the header, on the home page, the Files desktop and the portal. A company's own logo is never replaced |
+| Narrow screens | On a phone a module's header shows its name (shortened with an ellipsis) instead of your logo; the home page keeps the logo and shrinks it. When the header runs short of room (tablets, narrow windows) the logo gives up space first, and icon-only navigation fades at the edge that has more buttons to scroll to. Sign-in cards use less padding on phones |
 | Fonts | Public Sans and JetBrains Mono, bundled (SIL Open Font License, see `VENDOR.md`), never loaded from a third party |
 
 **Left alone:**
