@@ -53,6 +53,10 @@ $afterChange = loginReturnPeek() ?? ((defined('BASE_URL') ? BASE_URL : '/') . 'i
             width: calc(100% - 2 * var(--space-5, 20px));
             max-width: 420px;
         }
+        /* On a phone the 40px padding leaves the fields a narrow column. */
+        @media (max-width: 480px) {
+            .change-container { padding: var(--space-6, 24px) var(--space-5, 20px); }
+        }
 
         .change-header {
             text-align: center;
