@@ -295,14 +295,21 @@
     }
 
     /* Home: the logo is the bar's only identity, so it stays, but it shrinks
-       before the switcher, bell or avatar are pushed off the screen. */
+       before the switcher, bell or avatar are pushed off the screen. The image
+       scales with its link (max-width: 100%), otherwise it keeps its width and
+       runs under the title and the company switcher. An uploaded logo already
+       says whose desk this is, so the title beside it goes; the name-only logo
+       already hides the title (above). The switcher is capped like the
+       crowded desktop header (inbox.css); its label ends in an ellipsis. */
     :root[data-ui="modern"] .landing-header .ui-brand-logo {
         flex: 0 1 auto;
         min-width: 0;
-        margin-right: var(--space-2);
+        margin-right: auto;
     }
-    :root[data-ui="modern"] .landing-header .ui-brand-logo img { max-width: 96px; }
+    :root[data-ui="modern"] .landing-header .ui-brand-logo img { max-width: min(96px, 100%); }
+    :root[data-ui="modern"] .landing-header .ui-brand-logo:has(img) + h1 { display: none; }
     :root[data-ui="modern"] .landing-header .ui-brand-name { overflow: hidden; text-overflow: ellipsis; }
-    :root[data-ui="modern"] .landing-header .header-right { gap: var(--space-3); flex-shrink: 0; }
+    :root[data-ui="modern"] .landing-header .header-right { gap: var(--space-3); flex-shrink: 0; margin-left: var(--space-2); }
     :root[data-ui="modern"] .landing-header .tenant-switcher { margin-right: 0; }
+    :root[data-ui="modern"] .landing-header .tenant-switcher-btn { max-width: 140px; }
 }
