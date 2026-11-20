@@ -38,7 +38,7 @@
     border-radius: var(--radius-sm);
     color: var(--text-muted) !important;
     font-size: var(--font-size-md);
-    font-weight: 500;
+    font-weight: var(--font-weight-medium, 500);
 }
 :root[data-ui="modern"][data-ui-page="portal"] .portal-nav .nav-btn:hover {
     background: var(--surface-hover);
@@ -49,7 +49,7 @@
 :root[data-ui="modern"][data-ui-page="portal"] .portal-nav .nav-btn.active:visited {
     background: var(--accent-soft) !important;
     color: var(--accent-text) !important;
-    font-weight: 600;
+    font-weight: var(--font-weight-bold, 600);
 }
 :root[data-ui="modern"][data-ui-page="portal"][data-theme-mode="dark"] .portal-nav .nav-btn.active { color: var(--text) !important; }
 

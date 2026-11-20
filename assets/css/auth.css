@@ -60,7 +60,7 @@
 }
 :root[data-ui="modern"][data-ui-page="auth"] .form-group label {
     color: var(--text);
-    font-weight: 600;
+    font-weight: var(--font-weight-bold, 600);
     font-size: var(--font-size-sm);
 }
 :root[data-ui="modern"][data-ui-page="auth"] :is(.mfa-icon svg, .header .icon, .change-header .icon) { color: var(--accent-text); }
@@ -86,7 +86,7 @@
     border: none;
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-1);
-    font-weight: 600;
+    font-weight: var(--font-weight-bold, 600);
     transform: none;
     transition: background-color .15s ease;
 }
