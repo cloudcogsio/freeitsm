@@ -32,8 +32,8 @@ final class BackupsService
     public static ?int $kdfOps = null;
     public static ?int $kdfMem = null;
 
-    /** Everything the page shows. Never contains a secret. */
-    public static function describe(PDO $conn): array
+    /** Everything the page shows. Never contains a secret. $canRestore: the viewer is an administrator (Restore). */
+    public static function describe(PDO $conn, bool $canRestore = false): array
     {
         $cfg = backupTargetConfig($conn);
         $target = null;
@@ -58,6 +58,9 @@ final class BackupsService
             'sodium'         => backupSodiumAvailable(),
             'curl'           => extension_loaded('curl'),
             'running'        => self::isRunning($conn),
+            'last_restore'   => self::lastRestore(),
+            'restore_confirm' => self::RESTORE_CONFIRM,
+            'can_restore'    => $canRestore,   // a restore replaces users and roles: administrators only
         ];
     }
 
@@ -269,10 +272,7 @@ final class BackupsService
     /** An analyst's name for a message, or "someone" when the id names nobody. */
     private static function who(PDO $conn, int $id): string
     {
-        $s = $conn->prepare('SELECT full_name FROM analysts WHERE id = ?');
-        $s->execute([$id]);
-        $n = trim((string)$s->fetchColumn());
-        return $n !== '' ? $n : 'someone';
+        return backupAnalystName($conn, $id);
     }
 
     /**
@@ -464,6 +464,141 @@ final class BackupsService
             $out[] = ['key' => 'verify_stale', 'severity' => 'amber', 'params' => ['when' => (string)$lastVerify['verified_at'], 'days' => self::VERIFY_DUE_DAYS]];
         }
         return $out;
+    }
+
+    /** What the administrator types to confirm a restore (shown on the page as it is, in every language). */
+    public const RESTORE_CONFIRM = 'RESTORE';
+
+    /**
+     * Opens the backup of run $runId with the passphrase and says what restoring it means:
+     * when it was made, by which version, how much it holds, and whether its encryption
+     * key differs from this install's (it would replace it). Changes nothing.
+     *
+     * @return array{run_id: int, set: string, created_at: ?string, app_version: ?string, files: int, size: ?int, key_differs: bool}
+     */
+    public static function restoreCheck(PDO $conn, int $runId, string $passphrase, int $by): array
+    {
+        require_once __DIR__ . '/../backup/restore.php';
+        $s = $conn->prepare("SELECT set_name, status, kind, size_bytes FROM backup_runs WHERE id = ?");
+        $s->execute([$runId]);
+        $run = $s->fetch(PDO::FETCH_ASSOC);
+        if (!$run || $run['status'] !== 'ok' || $run['kind'] === 'restore' || (string)$run['set_name'] === '') throw new BackupsInputError('err_restore_not_ok');
+        $cfg = backupTargetConfig($conn);
+        if ($cfg === null || backupKeyring($conn) === null) throw new BackupsInputError('err_not_set_up');
+        if (!backupSodiumAvailable()) throw new BackupsInputError('err_sodium');
+        $t = backupTargetDriver($cfg);
+        $ticket = self::throttleKdf($conn, $by, 'restore');
+        $wrong = false;
+        try {
+            try {
+                $open = backupOpenSet($t, (string)$run['set_name'], $passphrase);
+            } catch (BackupWrongPassphrase $e) {
+                $wrong = true;   // the reservation stays: it counts as a wrong passphrase
+                throw new BackupsInputError('err_passphrase_wrong');
+            } catch (Throwable $e) {
+                error_log('[backups] restore check: ' . $e->getMessage());
+                throw new BackupsInputError('err_restore_unreadable');
+            }
+            // Only the CURRENT passphrase: an older one can still open an older backup, but not the
+            // safety backup taken first, which a failed restore must be able to put back.
+            try {
+                $current = backupUnlockKeyring(backupKeyring($conn), $passphrase);
+                backupForgetKeys($current);
+            } catch (BackupWrongPassphrase $e) {
+                backupCloseSet($open);
+                $wrong = true;
+                throw new BackupsInputError('err_restore_old_passphrase');
+            }
+        } finally {
+            if (!$wrong) self::kdfRelease($conn, $ticket);
+        }
+        try {
+            $key = trim(backupDecryptString(backupReadString($t, 'sets/' . $run['set_name'] . '/key.bin'), $open['datakey']));
+        } catch (Throwable $e) {
+            throw new BackupsInputError('err_restore_unreadable');
+        } finally {
+            $m = $open['manifest'];
+            backupCloseSet($open);
+        }
+        $current = is_file(ENCRYPTION_KEY_PATH) ? trim((string)file_get_contents(ENCRYPTION_KEY_PATH)) : '';
+        return [
+            'run_id'      => $runId,
+            'set'         => (string)$run['set_name'],
+            'created_at'  => isset($m['created_at']) && strtotime((string)$m['created_at']) ? gmdate('Y-m-d H:i:s', strtotime((string)$m['created_at'])) : null,   // UTC, as the page's dates
+            'app_version' => isset($m['app_version']) ? (string)$m['app_version'] : null,
+            'files'       => (int)($m['file_count'] ?? 0),
+            'size'        => $run['size_bytes'] !== null ? (int)$run['size_bytes'] : null,
+            'key_differs' => !hash_equals($current, $key),
+        ];
+    }
+
+    /**
+     * Starts a rollback to the backup of run $runId: switches maintenance mode on and starts
+     * cron/backup_rollback.php in the background, handing it the passphrase on its standard
+     * input (never stored, never on a command line). Returns the one-time token for the
+     * administrator's browser, which then follows the progress.
+     */
+    public static function restoreStart(PDO $conn, int $runId, string $passphrase, string $confirm, int $by): string
+    {
+        require_once __DIR__ . '/../backup/maintenance.php';
+        if ($confirm !== self::RESTORE_CONFIRM) throw new BackupsInputError('err_restore_confirm');
+        if (backupMaintenanceActive()) throw new BackupsInputError('err_maintenance_on');
+        if (self::isRunning($conn)) throw new BackupsInputError('err_running');
+        if (backupSetting($conn, 'files_storage_previous') !== '') throw new BackupsInputError('err_storage_moving');
+        $check = self::restoreCheck($conn, $runId, $passphrase, $by);
+
+        $script = realpath(__DIR__ . '/../../cron/backup_rollback.php');
+        require_once __DIR__ . '/../intune.php';   // intuneFindPhpExe(): the PHP the scheduler fallback uses
+        $php = intuneFindPhpExe(jobSetting($conn, 'intune_php_exe') ?: null);
+        try {
+            $token = backupMaintenanceStart($by, $check['set']);
+        } catch (RuntimeException $e) {
+            error_log('[backups] restore: ' . $e->getMessage());
+            throw new BackupsInputError(backupMaintenanceActive() ? 'err_maintenance_on' : 'err_maintenance_folder');
+        }
+        if (!$script || !self::spawnWithInput($php, $script, ['--set=' . $check['set'], '--by=' . $by], $passphrase . "\n")) {
+            backupMaintenanceEnd(['state' => 'failed', 'error' => 'The restore could not be started on the server.']);
+            throw new BackupsInputError('err_spawn');
+        }
+        // Told by email above all: the bell row is written to the database the restore replaces.
+        backupNotify($conn, 'restore', backupT('n_restore_started_title'), backupT('n_restore_started', ['set' => $check['set'], 'who' => self::who($conn, $by)]), $by);
+        return $token;
+    }
+
+    /** The outcome of the last rollback, for the page (nothing secret). */
+    public static function lastRestore(): ?array
+    {
+        require_once __DIR__ . '/../backup/maintenance.php';
+        $l = backupMaintenanceLast();
+        if ($l === null) return null;
+        return ['state' => (string)($l['state'] ?? ''), 'set' => $l['set'] ?? null, 'safety_set' => $l['safety_set'] ?? null,
+                'error' => $l['error'] ?? null, 'ended_at' => $l['ended_at'] ?? null, 'warnings' => array_slice((array)($l['warnings'] ?? []), 0, 20)];
+    }
+
+    /**
+     * Starts $script in the background with $input on its standard input, and returns at
+     * once. The input never appears on a command line or in the environment.
+     */
+    private static function spawnWithInput(string $php, string $script, array $args, string $input): bool
+    {
+        if (PHP_OS_FAMILY === 'Windows') {
+            $p = @proc_open(array_merge([$php, $script], $args), [0 => ['pipe', 'r'], 1 => ['file', 'NUL', 'w'], 2 => ['file', 'NUL', 'w']],
+                            $pipes, null, null, ['bypass_shell' => true]);
+            if (!is_resource($p)) return false;
+            fwrite($pipes[0], $input);
+            fclose($pipes[0]);
+            return true;   // not proc_close(): that would wait for the restore to finish
+        }
+        // TRAP: sh gives a background job /dev/null as its input BEFORE its own redirections,
+        // so "<&0" would copy /dev/null. The pipe is moved to fd 3 first and handed on from
+        // there. The shell returns at once; the job carries on without it.
+        $cmd = 'exec 3<&0; nohup ' . escapeshellarg($php) . ' ' . escapeshellarg($script) . ' ' . implode(' ', array_map('escapeshellarg', $args))
+             . ' <&3 > /dev/null 2>&1 &';
+        $p = @proc_open($cmd, [0 => ['pipe', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes);
+        if (!is_resource($p)) return false;
+        fwrite($pipes[0], $input);
+        fclose($pipes[0]);
+        return proc_close($p) === 0;
     }
 
     // ── internals ──
