@@ -484,6 +484,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['mfa_pending_name'] = $analyst['full_name'];
                     $_SESSION['mfa_pending_email'] = $analyst['email'];
                     $_SESSION['mfa_pending_allowed_modules'] = getAnalystAllowedModules($conn, $analyst['id']);
+                    sessionStampEpoch();   // a restore before the code is entered ends this half-signed-in session
 
                     // Log successful password step
                     logLoginAttempt($conn, $analyst['id'], $username, true);
