@@ -61,6 +61,7 @@ return [
         'intro' => 'Quién depende de quién, a partir del responsable registrado para cada persona, por sincronización del directorio o a mano en Tickets → Usuarios.',
         'search' => 'Buscar a alguien',
         'search_ph' => 'Nombre, correo, puesto...',
+        'search_ph_names' => 'Nombre, puesto, departamento...',   // the portal's search, which does not look in email (GH #414)
         'no_results' => 'No hay coincidencias.',
         'view' => 'Vista',
         'view_tree' => 'Árbol',
@@ -69,7 +70,9 @@ return [
         'loading' => 'Cargando...',
         'empty' => 'Todavía nadie tiene un responsable registrado, así que no hay organigrama que dibujar. Los responsables proceden de la sincronización del directorio o se establecen en Tickets → Usuarios.',
         'not_found' => 'Esa persona no está en el organigrama que usted puede ver.',
+        'on_own' => '{name} no tiene responsable ni nadie a su cargo, así que se muestra por separado.',   // GH #414
         'leaver' => 'Baja',
+        'you' => 'Tú',   // the reader, on the portal's chart (GH #414)
         'reports_n' => '{n} a su cargo',
         'reports_total' => '{n} a su cargo, {total} en total por debajo',
         'expand' => 'Mostrar quién depende de {name}',
@@ -328,7 +331,7 @@ return [
         'first_seen' => 'Visto por primera vez',
         'left' => 'Baja',
         'leaver' => 'Baja',
-        'edit_in' => 'Editar en',
+        'open_in' => 'Abrir en',   // GH #397: Edit is on the page; these only open
         'tickets_app' => 'Tickets',
         'assets_app' => 'Activos',
         'org' => 'Organización',
@@ -519,8 +522,8 @@ return [
         'edit' => [
             'nav' => 'Cambiar a alguien',
             'title' => 'Cambiar los detalles de alguien',
-            'intro' => 'Personas solo lee. Los detalles se guardan y se cambian donde siempre.',
-            'p1' => '**Editar en → Tickets** o **Activos** en la parte superior de la página de una persona la abre en Tickets → Usuarios o Activos → Usuarios, donde se editan sus detalles, su responsable y su inicio de sesión - el mismo editor desde cualquiera de los dos.',
+            'intro' => 'La mayoría de los datos se pueden cambiar aquí mismo.',
+            'p1' => '**Editar** en la parte superior de la página de una persona cambia sus detalles, su responsable y su inicio de sesión sin salir de Personas - el mismo editor que Tickets → Usuarios y Activos → Usuarios, disponible para quien pueda abrir cualquiera de los dos. **Abrir en → Tickets** o **Activos** abre a la persona en ese módulo.',
             'p2' => 'Una persona cuyos datos proceden de un directorio o de una libreta de direcciones se actualiza allí, como antes; su página aquí simplemente muestra el resultado.',
         ],
         'who' => [

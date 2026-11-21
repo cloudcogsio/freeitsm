@@ -24,8 +24,8 @@ $translationNamespaces = ['common', 'system'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('system', t('system.colours.title'))); ?></title>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <style>
         body {
             /* System is the FIRST module whose DARK accent is a LIGHT colour (#90a4ae).
@@ -75,7 +75,7 @@ $translationNamespaces = ['common', 'system'];
         }
 
         .module-name {
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             font-weight: 600;
             color: var(--text, #333);
             width: 120px;
@@ -89,7 +89,7 @@ $translationNamespaces = ['common', 'system'];
         }
 
         .colour-field label {
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--text-dim, #888);
             min-width: 60px;
         }
@@ -121,7 +121,7 @@ $translationNamespaces = ['common', 'system'];
             padding: 6px 8px;
             border: 1px solid var(--border, #ddd);
             border-radius: 4px;
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             font-family: monospace;
             text-transform: uppercase;
             background: var(--surface, #fff);
@@ -135,7 +135,7 @@ $translationNamespaces = ['common', 'system'];
             border: 1px solid var(--border, #ddd);
             border-radius: 4px;
             padding: 6px 10px;
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--text-dim, #888);
             cursor: pointer;
             white-space: nowrap;
@@ -155,7 +155,7 @@ $translationNamespaces = ['common', 'system'];
             gap: 8px;
             padding: 10px 20px;
             border-radius: 6px;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             font-weight: 600;
             border: none;
             cursor: pointer;
@@ -363,6 +363,6 @@ $translationNamespaces = ['common', 'system'];
 
     loadColours();
     </script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

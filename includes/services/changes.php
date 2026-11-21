@@ -814,12 +814,13 @@ class ChangesService
             return [$files, $row['title'] ?? null];
         });
 
-        require_once __DIR__ . '/../storage/stores.php';   // the changes store: a server folder or S3
         foreach ($files as $path) {
-            storeDelete($conn, 'changes', (string)$path);
+            $filePath = dirname(__DIR__, 2) . '/change-management/attachments/' . $path;
+            if (file_exists($filePath)) {
+                @unlink($filePath);
+            }
         }
-        // The change's own folder on the server, if it has one (its guard files usually keep it).
-        $dir = storeLocalRoot('changes') . '/' . $changeId;
+        $dir = dirname(__DIR__, 2) . '/change-management/attachments/' . $changeId;
         if (is_dir($dir)) {
             @rmdir($dir);
         }
@@ -1509,21 +1510,18 @@ class ChangesService
         }
         if ($conn->inTransaction()) { throw new LogicException('Attachment uploads must own their transaction.'); }
         require_once __DIR__ . '/../uploads.php';
-        require_once __DIR__ . '/../storage/stores.php';   // the changes store: a server folder or S3
         $stored = null;
         $conn->beginTransaction();
         try {
             self::lockRow($conn, $changeId);
             self::loadJoined($conn, $ctx, $changeId);
             try {
-                $stored = storeSaveUpload($conn, 'changes', (string)$changeId, $file);
-            } catch (StorageUnavailable $e) {
-                throw $e;   // not the file's fault: storage cannot be reached
+                $stored = uploadStoreFile($file, dirname(__DIR__, 2) . '/change-management/attachments/' . $changeId);
             } catch (Exception $e) {
                 throw new ServiceError('validation', 'invalid_file', $e->getMessage());
             }
-            $sha256 = $stored['sha256'];
-            if (!is_string($sha256) || $sha256 === '') { throw new RuntimeException('Could not hash stored evidence.'); }
+            $sha256 = hash_file('sha256', $stored['path']);
+            if ($sha256 === false) { throw new RuntimeException('Could not hash stored evidence.'); }
             if ($reference !== null) {
                 $find = $conn->prepare('SELECT id, file_name, sha256 FROM change_attachments
                     WHERE change_id=? AND uploaded_by_id=? AND client_reference=?');
@@ -1532,7 +1530,7 @@ class ChangesService
                     if ($existing['file_name'] !== $stored['original_name'] || $existing['sha256'] !== $sha256) {
                         throw new ServiceError('conflict', 'reference_conflict', 'This client_reference already names different evidence.');
                     }
-                    storeDelete($conn, 'changes', $stored['key']); $stored = null;
+                    unlink($stored['path']); $stored = null;
                     $conn->commit();
                     return ['id'=>(int)$existing['id'], 'replayed'=>true];
                 }
@@ -1540,7 +1538,7 @@ class ChangesService
             $conn->prepare('INSERT INTO change_attachments
                 (change_id,file_name,file_path,file_size,file_type,uploaded_by_id,uploaded_datetime,sha256,client_reference)
                 VALUES (?,?,?,?,?,?,UTC_TIMESTAMP(),?,?)')->execute([
-                $changeId,$stored['original_name'],$stored['key'],$stored['size'],
+                $changeId,$stored['original_name'],$changeId . '/' . $stored['stored_name'],$stored['size'],
                 $stored['mime'],$ctx->actorId,$sha256,$reference,
             ]);
             $id = (int)$conn->lastInsertId();
@@ -1549,7 +1547,7 @@ class ChangesService
             return ['id'=>$id, 'replayed'=>false];
         } catch (Throwable $e) {
             if ($conn->inTransaction()) { $conn->rollBack(); }
-            if ($stored !== null) { storeDelete($conn, 'changes', $stored['key']); }
+            if ($stored !== null) { @unlink($stored['path']); }
             throw $e;
         }
     }

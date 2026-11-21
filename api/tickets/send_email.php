@@ -444,9 +444,7 @@ function processInlineImages($body, $ticketId) {
     $pattern = '/src=(["\'])(?![a-z][a-z0-9+.\-]*:)[^"\']*?api\/(?:tickets\/)?get_attachment\.php\?([^"\']+)\1/i';
 
     // Use a wrapper to pass variables by reference into the callback
-    require_once __DIR__ . '/../../includes/storage/stores.php';   // the tickets store: a server folder or S3
-    $storeConn = connectToDatabase();
-    $callback = function($matches) use (&$inlineAttachments, &$cidCounter, &$byAttachmentId, &$threadBytes, $stamp, $ticketId, $storeConn) {
+    $callback = function($matches) use (&$inlineAttachments, &$cidCounter, &$byAttachmentId, &$threadBytes, $stamp, $ticketId) {
         try {
             $queryString = $matches[2];
             parse_str(html_entity_decode($queryString), $params);
@@ -470,23 +468,24 @@ function processInlineImages($body, $ticketId) {
                 return 'src="cid:' . $byAttachmentId[$attachment['id']] . '"';
             }
 
-            // The bytes are in the tickets store (a server folder or S3).
-            $key  = (string)$attachment['file_path'];
-            $size = storeSize($storeConn, 'tickets', $key);
-            if ($size === null) {
-                error_log('Inline image: file not found in the tickets store: ' . $key);
+            // Read the file content - use DIRECTORY_SEPARATOR for Windows compatibility
+            $basePath = dirname(dirname(__DIR__)) . DIRECTORY_SEPARATOR . 'tickets' . DIRECTORY_SEPARATOR . 'attachments' . DIRECTORY_SEPARATOR;
+            $filePath = $basePath . str_replace('/', DIRECTORY_SEPARATOR, $attachment['file_path']);
+
+            if (!file_exists($filePath)) {
+                error_log('Inline image: file not found at ' . $filePath);
                 return $matches[0];
             }
 
+            $size = (int)filesize($filePath);
             if ($threadBytes + $size > INLINE_THREAD_BUDGET) {
                 return $matches[0];
             }
             $threadBytes += $size;
 
-            try {
-                $fileContent = storeGetString($storeConn, 'tickets', $key);
-            } catch (Throwable $e) {
-                error_log('Inline image: failed to read ' . $key . ': ' . $e->getMessage());
+            $fileContent = file_get_contents($filePath);
+            if ($fileContent === false) {
+                error_log('Inline image: failed to read file ' . $filePath);
                 return $matches[0];
             }
 
@@ -884,7 +883,20 @@ function saveSentEmail($conn, $ticketId, $mailbox, $to, $cc, $subject, $body, $a
  */
 function saveSentAttachments($conn, $emailId, $attachments) {
     require_once '../../includes/uploads.php';
-    require_once __DIR__ . '/../../includes/storage/stores.php';   // the tickets store: a server folder or S3
+
+    $attachDir = realpath(__DIR__ . '/../../tickets/attachments');
+    if ($attachDir === false) {
+        error_log('Sent attachments: tickets/attachments is missing');
+        return;
+    }
+
+    $subdir   = floor($emailId / 1000);
+    $emailDir = $attachDir . '/' . $subdir . '/' . $emailId;
+
+    if (!is_dir($emailDir) && !mkdir($emailDir, 0755, true) && !is_dir($emailDir)) {
+        error_log('Sent attachments: could not create ' . $emailDir);
+        return;
+    }
 
     $attachStmt = $conn->prepare(
         "INSERT INTO email_attachments (email_id, filename, content_type, file_path, file_size, is_inline, created_datetime)
@@ -905,7 +917,7 @@ function saveSentAttachments($conn, $emailId, $attachments) {
             continue;
         }
 
-        $stored = storeSaveBytes($conn, 'tickets', storeTicketDir((int)$emailId), $bytes, (string)($att['name'] ?? 'file'), $policy, $allowed);
+        $stored = uploadStoreBytes($bytes, (string)($att['name'] ?? 'file'), $emailDir, $policy, $allowed);
 
         if (!$stored['stored']) {
             $notStored[] = $stored['original_name'];
@@ -913,7 +925,7 @@ function saveSentAttachments($conn, $emailId, $attachments) {
         }
 
         $storedAny = true;
-        $relPath   = $stored['key'];
+        $relPath   = $subdir . '/' . $emailId . '/' . $stored['stored_name'];
         $attachStmt->execute([
             $emailId,
             $stored['original_name'],

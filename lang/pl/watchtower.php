@@ -186,7 +186,7 @@ return [
     'projects' => [
         'metric_red' => 'Poza planem',
         'metric_amber' => 'Zagrożone',
-        'metric_week' => 'Daty w tym tygodniu',
+        'metric_week'    => 'Projekty z terminami w tym tygodniu',
         'off_track' => '{name} jest poza planem',
         'more_off_track' => '<span class="wt-attention-bold">{count}</span> kolejnych projektów poza planem',
         'breaches' => '<span class="wt-attention-bold">{count}</span> projektów poza tolerancją',
@@ -205,6 +205,7 @@ return [
         'metric_total' => 'Łącznie',
         'metric_offline' => 'Offline',
         'metric_lease' => 'Leasing',
+        'metric_consumables' => 'Niski stan',   // Consumables (5.8.0)
         'metric_warranty' => 'Gwarancja',
         'warranty' => '<span class="wt-attention-bold">{count}</span> zasobów z gwarancją wygasłą lub wygasającą w ciągu {days} dni',
         'lease' => '<span class="wt-attention-bold">{count}</span> zasobów z leasingiem zakończonym lub kończącym się w ciągu {days} dni',
@@ -251,7 +252,7 @@ return [
         's1_feat3_title' => 'Automatyczne odświeżanie',
         's1_feat3_desc' => 'Pulpit automatycznie odświeża się co 5 minut, dzięki czemu informacje pozostają aktualne bez żadnego ręcznego działania. Zostaw Watchtower otwarty, a sam będzie się aktualizował w tle.',
         's1_feat4_title' => 'Przejście jednym kliknięciem',
-        's1_feat4_desc' => 'Przejdź bezpośrednio do dowolnego modułu z jego karty. Każda nazwa modułu jest klikalnym linkiem, który przenosi Cię prosto do odpowiedniego obszaru, dzięki czemu możesz reagować na problemy bez szukania właściwej strony.',
+        's1_feat4_desc' => 'Każda liczba na karcie jest linkiem, podobnie jak ikona każdej karty. Kliknij liczbę, a jej moduł otworzy się już przefiltrowany dokładnie do tego, co ta liczba policzyła - status zgłoszeń otwiera listę zgłoszeń w tym statusie, umowy kończące się w ciągu 30 dni otwierają właśnie te umowy - z etykietą lub podświetlonym folderem, który wyjaśnia, dlaczego lista jest krótsza. Usuń ją, a wrócisz do zwykłej listy.',
         's2_title' => 'Układ pulpitu',
         's2_p1' => 'Pulpit Watchtower wykorzystuje responsywną 3-kolumnową siatkę kart modułów. Na mniejszych ekranach siatka dostosowuje się do 2 kolumn lub pojedynczej kolumny, więc działa na każdym urządzeniu. Nad siatką znajduje się pasek tytułu z przyciskiem odświeżania oraz znacznikiem czasu „Zaktualizowano”, pokazującym, kiedy dane zostały ostatnio pobrane.',
         's2_p2' => 'Każda karta w siatce ma spójną strukturę, dzięki czemu możesz je szybko przeglądać:',
@@ -348,5 +349,9 @@ return [
         'impersonal_show' => 'Pokazuj je nadal',
         'impersonal_hide' => 'Ukryj je',
         'impersonal_note' => 'Status usług, przepływy pracy, sprzęt, wspólny kalendarz, kontrakty, baza wiedzy, licencje oprogramowania i domeny należą do zespołu, a nie do osoby, więc nie mogą się zawęzić do Ciebie. Ich zachowanie jest bezpieczniejszą odpowiedzią: zdegradowana usługa to ostatnia rzecz, która powinna zniknąć dlatego, że przełączasz się na widok osobisty.',
+        // Discussion #388
+        'refresh_heading' => 'Watchtower odświeża się co',
+        'refresh_minutes' => '{n} min',
+        'refresh_note' => 'Częściej sprawdza się na ekranie na ścianie: użytkownik zalogowany tylko do niego pozostaje zalogowany, a pulpit sam się aktualizuje.',
     ],
 ];

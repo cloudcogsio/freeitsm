@@ -38,6 +38,13 @@ if (!$mailboxId) {
     exit;
 }
 
+// GH #365: the mail this fetches - and every ticket, reply and routing it causes - is
+// the mailbox's doing, not the analyst's whose open inbox happened to ask. Without
+// this the bell credited them ("Raised by ...", "Handed to your team by ...").
+// A workflow that runs on the new ticket still names itself, on top of this.
+require_once '../../includes/notification_actor.php';
+NotificationActor::push(['kind' => 'system', 'id' => null, 'name' => null, 'source' => 'mail_import']);
+
 try {
     $conn = connectToDatabase();
 
@@ -1029,20 +1036,19 @@ function saveAttachment($conn, $dbEmailId, $attachment, ?int $maxBytes = null) {
 
     $fileData = base64_decode($contentBytes);
 
-    // The tickets store: a server folder or S3 (System -> Storage); same layout either way.
-    require_once dirname(__DIR__, 2) . '/includes/storage/stores.php';
+    $attachmentsDir = dirname(dirname(__DIR__)) . '/tickets/attachments';
+    $subDir   = floor($dbEmailId / 1000);
+    $emailDir = $attachmentsDir . '/' . $subDir . '/' . $dbEmailId;
 
     // ⚠️ This is the least authenticated path in the application — anyone who can
     // send an email reaches it. It used to write the sender's own filename into the
     // web root after only stripping the characters that make a path separator, so
     // shell.php survived intact. uploadStoreBytes() applies the extension and
     // content checks and, crucially, names the file itself.
-    $stored = storeSaveBytes(
-        $conn,
-        'tickets',
-        storeTicketDir((int) $dbEmailId),
+    $stored = uploadStoreBytes(
         $fileData,
         $filename,
+        $emailDir,
         attachmentRejectPolicy($conn),
         attachmentAllowedTypes($conn),
         $maxBytes   // the mailbox's own limit when it has one; null = the install's
@@ -1060,7 +1066,7 @@ function saveAttachment($conn, $dbEmailId, $attachment, ?int $maxBytes = null) {
         ];
     }
 
-    $filePath = $stored['key'];
+    $filePath = $subDir . '/' . $dbEmailId . '/' . $stored['stored_name'];
 
     $sql = "INSERT INTO email_attachments (
         email_id, exchange_attachment_id, filename, content_type,

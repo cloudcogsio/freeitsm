@@ -21,7 +21,7 @@ require_once '../includes/contract_report.php';
 I18n::initFromSession();
 
 if (!isset($_SESSION['analyst_id'])) {
-    header('Location: ../login.php');
+    header('Location: ../auth/login.php');   // the same page every gate uses, so the return address is added (GH #407)
     exit;
 }
 requireModuleAccess('contracts');
@@ -53,7 +53,7 @@ $autoPrint = !empty($_GET['print']);
         .cr-page { max-width: 900px; margin: 0 auto; background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
         .cr-bar { max-width: 900px; margin: 0 auto 14px; display: flex; gap: 8px; }
         .cr-bar button, .cr-bar a {
-            font: inherit; font-size: 13px; padding: 8px 16px; border-radius: 4px;
+            font: inherit; font-size: var(--font-size-md, 13px); padding: 8px 16px; border-radius: 4px;
             border: none; cursor: pointer; text-decoration: none;
         }
         .cr-bar .primary { background: #f59e0b; color: #fff; }
@@ -91,7 +91,7 @@ $autoPrint = !empty($_GET['print']);
             .cr-bar button, .cr-bar a {
                 flex: 1 1 auto;
                 min-height: 42px;
-                font-size: 14px;
+                font-size: var(--font-size-lg, 14px);
                 text-align: center;
             }
             .cr-table {

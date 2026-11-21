@@ -36,8 +36,8 @@ $tt = fn(string $k, array $p = []) => htmlspecialchars(t('starters.' . $k, $p));
     <?php echo Tz::scriptTag(); ?>
     <script src="../assets/js/tz.js?v=5"></script>
     <script src="../assets/js/i18n.js?v=4"></script>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=28">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/starters.css?v=7">
     <link rel="stylesheet" href="../assets/css/mobile.css?v=196">
 </head>
@@ -71,7 +71,7 @@ $tt = fn(string $k, array $p = []) => htmlspecialchars(t('starters.' . $k, $p));
                   // asset lookups follow the selected company), so it says which.
                   $oneCompany = oneCompanyNoteName(connectToDatabase(), (int)($_SESSION['analyst_id'] ?? 0));
                   if ($oneCompany !== ''): ?>
-                <div class="one-company-note" role="note" style="margin:0 0 12px;padding:8px 10px;border-radius:6px;font-size:13px;background:var(--info-bg);border:1px solid var(--info-border);color:var(--info-text);"><?php echo t('starters.list.one_company_note', ['company' => htmlspecialchars($oneCompany)]); ?></div>
+                <div class="one-company-note" role="note" style="margin:0 0 12px;padding:8px 10px;border-radius:6px;font-size:var(--font-size-md, 13px);background:var(--info-bg);border:1px solid var(--info-border);color:var(--info-text);"><?php echo t('starters.list.one_company_note', ['company' => htmlspecialchars($oneCompany)]); ?></div>
             <?php endif; ?>
             <div class="jml-card" id="jmlTableCard" hidden>
                 <table class="jml-table">
@@ -103,6 +103,6 @@ $tt = fn(string $k, array $p = []) => htmlspecialchars(t('starters.' . $k, $p));
     <script>window.JML_MULTI = <?php echo $multi ? 'true' : 'false'; ?>;</script>
     <script src="../assets/js/starters.js?v=2"></script>
     <script src="../assets/js/starters-list.js?v=2"></script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

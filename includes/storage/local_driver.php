@@ -19,13 +19,8 @@ final class LocalDriver implements StorageDriver, StorageLister
 
     private function path(string $key): string
     {
-        // ".." is refused as a whole segment (it would climb out), not inside a name:
-        // stored attachment names such as "report..final.pdf" are fine.
-        if ($key === '' || str_contains($key, '\\') || $key[0] === '/' || str_contains($key, "\0")) {
+        if ($key === '' || str_contains($key, '..') || str_contains($key, '\\') || $key[0] === '/' || str_contains($key, "\0")) {
             throw new InvalidArgumentException('Bad storage key.');
-        }
-        foreach (explode('/', $key) as $seg) {
-            if ($seg === '' || $seg === '.' || $seg === '..') throw new InvalidArgumentException('Bad storage key.');
         }
         return $this->root . '/' . $key;
     }
@@ -123,12 +118,6 @@ final class LocalDriver implements StorageDriver, StorageLister
         }
         ksort($keys, SORT_STRING);
         return $keys;
-    }
-
-    /** The folder this driver stores in (forward slashes, no trailing slash). */
-    public function root(): string
-    {
-        return $this->root;
     }
 
     public function label(): string

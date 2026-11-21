@@ -189,17 +189,12 @@
                 (r.offline_marks && (r.offline_marks.folders || r.offline_marks.files || r.offline_marks.excluded)
                     ? ' ' + esc(L('settings.offline_marks', 'Kept offline: folders {folders}, files {files}, left out {excluded} (marked by {people} people).', r.offline_marks)) : '') +
                 (r.free_bytes ? ' ' + esc(L('settings.storage_free', '{size} free on that disk.', { size: fmtSize(r.free_bytes) })) : '') +
-                (r.driver === 's3' && r.s3 && r.s3.insecure ? ' <strong>' + esc(L('settings.storage_insecure', 'The storage endpoint uses plain http:// to an address on the internet: files cross it unencrypted. Use https:// if the provider offers it.')) + '</strong>' : '') +
                 (r.writable ? '' : ' <strong>' + esc(L('settings.not_writable', 'The web server cannot write there - uploads will fail.')) + '</strong>');
 
             var m = r.migration;
             $('stoMove').hidden = !m;
             $('stoLocked').hidden = !m;
-            // Without Storage and backups (System -> Roles) the location is shown, not changed.
-            var noPerm = r.can_change_location === false;
-            $('stoNoPerm').hidden = !noPerm;
-            document.querySelectorAll('input[name="stoType"], #stoRoot, #s3Endpoint, #s3Bucket, #s3Prefix').forEach(function (el) { el.disabled = !!m || noPerm; });
-            document.querySelectorAll('#s3Region, #s3Key, #s3Secret, #s3PathStyle').forEach(function (el) { el.disabled = noPerm; });
+            document.querySelectorAll('input[name="stoType"], #stoRoot, #s3Endpoint, #s3Bucket, #s3Prefix').forEach(function (el) { el.disabled = !!m; });
             clearTimeout(pollTimer);
             if (!m) return;
             var done = m.verified + m.removed + m.skipped;
@@ -234,12 +229,6 @@
                     $('s3Secret').value = r.s3.secret_set ? '********' : '';
                     $('s3Prefix').value = r.s3.prefix;
                     $('s3PathStyle').checked = !!r.s3.path_style;
-                    // The install's one connection lives on System -> Storage once saved there:
-                    // shown here read-only, with a link.
-                    var shared = !!r.connection_shared;
-                    $('s3Shared').hidden = !shared;
-                    ['s3Endpoint', 's3Region', 's3Bucket', 's3Key', 's3Secret', 's3Prefix', 's3PathStyle'].forEach(function (id) { $(id).disabled = shared; });
-                    $('s3Test').hidden = shared;
                     showType();
                 }
                 render(r);
@@ -305,31 +294,25 @@
             });
         });
 
-        /** A move button's error, in the tab's own message line (PR #318 review: no alert()). */
-        var moveFailed = function (e) {
-            var m = $('stoMoveMsg');
-            m.textContent = e.message;
-            m.style.color = 'var(--danger, #c62828)';
-        };
         $('stoRetry').addEventListener('click', function () {
-            api('settings.php', { tab: 'storage_migration', action: 'retry_failed' }).then(function () { $('stoMoveMsg').textContent = ''; return load(false); })
-                .catch(moveFailed);
+            api('settings.php', { tab: 'storage_migration', action: 'retry_failed' }).then(function () { return load(false); })
+                .catch(function (e) { alert(e.message); });
         });
         $('stoSkip').addEventListener('click', function () {
-            api('settings.php', { tab: 'storage_migration', action: 'skip_missing' }).then(function () { $('stoMoveMsg').textContent = ''; return load(false); })
-                .catch(moveFailed);
+            api('settings.php', { tab: 'storage_migration', action: 'skip_missing' }).then(function () { return load(false); })
+                .catch(function (e) { alert(e.message); });
         });
         $('stoFinishKeep').addEventListener('click', function () {
-            api('settings.php', { tab: 'storage_migration', action: 'finish_keep' }).then(function () { $('stoMoveMsg').textContent = ''; return load(false); })
-                .catch(moveFailed);
+            api('settings.php', { tab: 'storage_migration', action: 'finish_keep' }).then(function () { return load(false); })
+                .catch(function (e) { alert(e.message); });
         });
         $('stoRemoveOld').addEventListener('click', function () {
             var from = state && state.migration ? state.migration.from_label : '';
             confirmThen(L('settings.remove_old', 'Remove old copies'),
                 L('settings.remove_old_confirm', 'This permanently deletes the copies at {from}. Continue?', { from: from }),
                 L('settings.remove_old', 'Remove old copies'), function () {
-                    api('settings.php', { tab: 'storage_migration', action: 'remove_old' }).then(function () { $('stoMoveMsg').textContent = ''; return load(false); })
-                        .catch(moveFailed);
+                    api('settings.php', { tab: 'storage_migration', action: 'remove_old' }).then(function () { return load(false); })
+                        .catch(function (e) { alert(e.message); });
                 }, true);   // deletes for good: the red button
         });
 

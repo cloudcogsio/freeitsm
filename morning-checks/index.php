@@ -97,12 +97,13 @@ $translationNamespaces = ['common', 'morning-checks'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('morning-checks')); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=96">
-    <link rel="stylesheet" href="style.css?v=6">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
+    <link rel="stylesheet" href="style.css?v=7">
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <?php echo Tz::scriptTag(); ?>
     <script src="../assets/js/tz.js?v=5"></script>
+    <script src="schedule.js?v=1"></script>   <!-- GH #383 -->
     <script src="../assets/js/i18n.js?v=4"></script>
     <style>
         /* Layout: body is the outer flex column so .container fills
@@ -194,7 +195,7 @@ $translationNamespaces = ['common', 'morning-checks'];
             border: 1px solid var(--border, #e0e0e0);
             border-radius: 4px;
             color: var(--accent, #007bff);
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -215,7 +216,7 @@ $translationNamespaces = ['common', 'morning-checks'];
             border-radius: 6px;
             padding: 10px 14px;
             margin: 0 30px 12px;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             color: var(--warning-text, #664d03);
         }
         .orphan-banner a { color: var(--warning-text, #664d03); font-weight: 600; }
@@ -227,7 +228,7 @@ $translationNamespaces = ['common', 'morning-checks'];
             background: var(--warning-bg, #fff3cd);
             color: var(--warning-text, #664d03);
             border: 1px solid var(--warning-border, #ffe69c);
-            font-size: 11px;
+            font-size: var(--font-size-xs, 11px);
             font-weight: 600;
         }
 
@@ -714,6 +715,23 @@ $translationNamespaces = ['common', 'morning-checks'];
                     ? `<span class="status-orphan-badge" title="${escapeHtmlAttr(window.t('morning-checks.orphan.row_badge_title'))}">⚠ ${escapeHtml(window.t('morning-checks.orphan.row_badge', { label: check.Status }))}</span>`
                     : '';
 
+                // GH #383: a check on a schedule says so under its buttons. One not due on
+                // this day is greyed - still there, and still recordable (a weekly check done
+                // a day late is better recorded than not) - with when it is next due, when it
+                // was last done, or that its last due day went by with nothing recorded.
+                const schedText = MCSchedule.summary(check.Schedule);
+                let dueNote = '';
+                if (check.Due === false) {
+                    const bits = [`<strong>${escapeHtml(window.t('morning-checks.schedule.not_due'))}</strong>`];
+                    if (schedText) bits.push(escapeHtml(schedText));
+                    if (check.NextDue) bits.push(escapeHtml(window.t('morning-checks.schedule.next_due', { date: MCSchedule.dateText(check.NextDue) })));
+                    if (check.MissedOn) bits.push(`<span class="mc-missed">${escapeHtml(window.t('morning-checks.schedule.missed', { date: MCSchedule.dateText(check.MissedOn) }))}</span>`);
+                    else if (check.LastDone) bits.push(escapeHtml(window.t('morning-checks.schedule.last_done', { date: MCSchedule.dateText(check.LastDone) })));
+                    dueNote = `<span class="mc-due-note">${bits.join(' · ')}</span>`;
+                } else if (schedText) {
+                    dueNote = `<span class="mc-due-note">${escapeHtml(schedText)}</span>`;
+                }
+
                 // Row's status-{slug} class — keeps existing CSS hooks
                 // working for legacy row-level highlight rules.
                 const slug = check.Status ? check.Status.toLowerCase().replace(/[^a-z0-9]+/g, '-') : 'none';
@@ -734,12 +752,13 @@ $translationNamespaces = ['common', 'morning-checks'];
 
                 return `
                 ${groupRow}
-                <tr data-check-id="${check.CheckID}" class="status-${slug}">
+                <tr data-check-id="${check.CheckID}" class="status-${slug}${check.Due === false ? ' mc-not-due' : ''}">
                     <td><strong>${escapeHtml(check.CheckName)}</strong>${ownRoute}</td>
                     <td>${escapeHtml(check.CheckDescription || '')}</td>
                     <td>
                         <div class="status-buttons">${buttonsHtml}</div>
                         ${orphanBadge}
+                        ${dueNote}
                     </td>
                     <td class="notes-display">${check.Notes
                         ? escapeHtml(check.Notes)
@@ -1376,7 +1395,8 @@ $translationNamespaces = ['common', 'morning-checks'];
                     const name = row.cells[0].textContent.trim();
                     const desc = row.cells[1].textContent.trim();
                     const activeBtn = row.cells[2]?.querySelector('.status-btn.active');
-                    const status = activeBtn ? activeBtn.textContent : window.t('morning-checks.checklist.not_set');
+                    const status = activeBtn ? activeBtn.textContent
+                        : window.t(row.classList.contains('mc-not-due') ? 'morning-checks.schedule.not_due' : 'morning-checks.checklist.not_set');   // GH #383
                     const notes = row.cells[3]?.textContent.trim() || window.t('morning-checks.checklist.no_notes');
                     body.push([name, desc, status, notes]);
                 }
@@ -1467,6 +1487,6 @@ $translationNamespaces = ['common', 'morning-checks'];
     <!-- The mobile layer's JS: gives this page the views hamburger (top right)
          and moves the page controls into that drawer on a phone. Loaded last so
          it can wrap the page's own globals rather than edit them. -->
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

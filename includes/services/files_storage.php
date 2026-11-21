@@ -80,7 +80,7 @@ final class FilesStorageService
     }
 
     /** The Storage tab's data. The S3 secret is reported as set or not, never sent. */
-    public static function describe(PDO $conn, ?int $analystId = null): array
+    public static function describe(PDO $conn): array
     {
         $root  = rtrim(str_replace('\\', '/', filesSetting($conn, 'files_storage_root', filesDefaultStorageRoot())), '/');
         $usage = $conn->query("SELECT COUNT(DISTINCT storage_path) AS n, COALESCE(SUM(size_bytes), 0) AS bytes
@@ -88,8 +88,6 @@ final class FilesStorageService
         $driver = filesSetting($conn, 'files_storage_driver', 'local') === 's3' ? 's3' : 'local';
         $out = [
             'driver'         => $driver,
-            // Storage and backups (PR #318 review): without it the location fields are read-only.
-            'can_change_location' => self::canChangeLocation($conn, $analystId),
             'location'       => self::label(filesStorageConfig($conn)),
             'storage_root'   => $root,
             'default_root'   => filesDefaultStorageRoot(),
@@ -108,9 +106,15 @@ final class FilesStorageService
                 catch (Throwable $e) { return null; }
             })(),
             'free_bytes'     => $driver === 'local' ? (@disk_free_space(is_dir($root) ? $root : dirname($root)) ?: null) : null,
-            's3'             => self::s3ForTab($conn),
-            // Saved on System -> Storage (#284): the tab shows it read-only and links there.
-            'connection_shared' => self::sharedConnection($conn) !== null,
+            's3'             => [
+                'endpoint'      => filesSetting($conn, 'files_s3_endpoint'),
+                'region'        => filesSetting($conn, 'files_s3_region', 'us-east-1'),
+                'bucket'        => filesSetting($conn, 'files_s3_bucket'),
+                'access_key_id' => filesSetting($conn, 'files_s3_access_key_id'),
+                'prefix'        => filesSetting($conn, 'files_s3_prefix'),
+                'path_style'    => filesSetting($conn, 'files_s3_path_style', '0') === '1',
+                'secret_set'    => filesSetting($conn, 'files_s3_secret') !== '',
+            ],
             'migration'      => (function () use ($conn) {
                 try { return self::migrationSummary($conn); }
                 catch (StorageUnavailable $e) { return ['error' => $e->getMessage(), 'pending' => 0, 'verified' => 0, 'failed' => 0, 'removed' => 0, 'skipped' => 0, 'total' => 0, 'from_label' => '']; }
@@ -165,14 +169,6 @@ final class FilesStorageService
      */
     public static function save(PDO $conn, int $analystId, array $in): void
     {
-        if ($analystId < 1) throw new InvalidArgumentException('Not signed in.');
-        require_once __DIR__ . '/../storage/stores.php';   // storageWithSettingsLock()
-        storageWithSettingsLock($conn, fn() => self::saveLocked($conn, $analystId, $in));
-    }
-
-    /** save() under the storage-settings lock (#284): the checks below read after taking it. */
-    private static function saveLocked(PDO $conn, int $analystId, array $in): void
-    {
         $driver = ($in['driver'] ?? 'local') === 's3' ? 's3' : 'local';
         $mb = (int)($in['max_upload_mb'] ?? 0);
         if ($mb < 1 || $mb > 1024 * 1024) throw new InvalidArgumentException('The largest upload must be between 1 MB and 1 TB.');
@@ -190,14 +186,7 @@ final class FilesStorageService
         $rootAbs = $root === '' ? filesDefaultStorageRoot() : $root;
 
         $s3 = null;
-        $shared = $driver === 's3' ? self::sharedConnection($conn) : null;
-        if ($shared !== null) {
-            // The install's one connection (System -> Storage): whatever the form sent.
-            $s3 = $shared;
-            self::requireLocationPermission($conn, $analystId, $s3);
-            $t = self::test($s3);
-            if (!$t['ok']) throw new InvalidArgumentException('The S3 connection saved on System -> Storage did not work (failed at ' . $t['step'] . '): ' . $t['error']);
-        } elseif ($driver === 's3') {
+        if ($driver === 's3') {
             if (!extension_loaded('curl')) throw new InvalidArgumentException('S3-compatible storage needs the PHP curl extension, which this server does not have.');
             $s = (array)($in['s3'] ?? []);
             $secret = (string)($s['secret'] ?? '');
@@ -216,7 +205,6 @@ final class FilesStorageService
             foreach (['bucket' => 'the bucket', 'access_key_id' => 'the access key ID', 'secret' => 'the secret access key'] as $k => $what) {
                 if ($s3[$k] === '') throw new InvalidArgumentException('Enter ' . $what . '.');
             }
-            self::requireLocationPermission($conn, $analystId, $s3);
             $t = self::test($s3);
             if (!$t['ok']) throw new InvalidArgumentException('Those S3 settings did not work (failed at ' . $t['step'] . '): ' . $t['error']);
         }
@@ -224,7 +212,6 @@ final class FilesStorageService
         $current = filesStorageConfig($conn);
         $oldRoot = rtrim(str_replace('\\', '/', filesSetting($conn, 'files_storage_root', filesDefaultStorageRoot())), '/');
         $next    = $s3 ?? ['driver' => 'local', 'root' => $rootAbs];
-        if ($s3 === null) self::requireLocationPermission($conn, $analystId, $next);
         $moving  = self::locationKey($current) !== self::locationKey($next)
                    // Different settings, same place (another spelling of one folder or bucket):
                    // nothing to move - and a "move" onto itself must never reach cleanup.
@@ -247,7 +234,7 @@ final class FilesStorageService
             filesSaveSetting($conn, 'files_storage_driver', $driver);
             filesSaveSetting($conn, 'files_storage_root', $root === '' ? null : $root);
             filesSaveSetting($conn, 'files_max_upload_mb', (string)$mb);
-            if ($s3 !== null && $shared === null) {
+            if ($s3 !== null) {
                 filesSaveSetting($conn, 'files_s3_endpoint', $s3['endpoint']);
                 filesSaveSetting($conn, 'files_s3_region', $s3['region']);
                 filesSaveSetting($conn, 'files_s3_bucket', $s3['bucket']);
@@ -257,13 +244,6 @@ final class FilesStorageService
                 filesSaveSetting($conn, 'files_s3_path_style', $s3['path_style'] ? '1' : '0');
             }
             if ($own) $conn->commit();
-            if (self::locationKey($current) !== self::locationKey($next)) {
-                require_once __DIR__ . '/../storage/notify.php';
-                storageNotifyAdmins($conn, 'Files storage location changed',
-                    'Files are now stored in ' . self::label($next) . ' (were in ' . self::label($current) . ').'
-                    . ($queued > 0 ? " Stored files being copied there in the background: $queued. Until each is, it is read from the old place." : ''),
-                    'files_storage', $analystId);
-            }
         } catch (Throwable $e) {
             if ($own && $conn->inTransaction()) $conn->rollBack();
             throw $e;
@@ -324,7 +304,6 @@ final class FilesStorageService
      */
     public static function migrationAction(PDO $conn, int $analystId, string $action): void
     {
-        if ($analystId < 1) throw new InvalidArgumentException('Not signed in.');
         $m = self::migrationSummary($conn);
         if ($m === null) throw new InvalidArgumentException('No move between storage locations is running.');
         $copiedAll = $m['pending'] === 0 && $m['failed'] === 0;
@@ -345,7 +324,7 @@ final class FilesStorageService
             filesSaveSetting($conn, 'files_storage_cleanup', '1');
         } elseif ($action === 'finish_keep') {
             if (!$copiedAll) throw new InvalidArgumentException('The move can only be finished once every file has been copied.');
-            storageMigrateEnd($conn, 'finished_kept_old_copies', $m['from_label'], $analystId);
+            storageMigrateEnd($conn, 'finished_kept_old_copies', $m['from_label']);
         } else {
             throw new InvalidArgumentException('Unknown action.');
         }
@@ -369,91 +348,6 @@ final class FilesStorageService
             ? (string)$conn->query("SELECT last_error FROM storage_migration_items WHERE store = 'files' AND state = 'failed' ORDER BY updated_datetime DESC LIMIT 1")->fetchColumn()
             : null;
         return $m;
-    }
-
-    /** The connection saved on System -> Storage (#284), or null when none is saved there yet. */
-    private static function sharedConnection(PDO $conn): ?array
-    {
-        require_once __DIR__ . '/../storage/stores.php';
-        return storeSetting($conn, 'storage_s3_bucket') !== '' ? storageS3Connection($conn) : null;
-    }
-
-    /** The S3 fields the tab shows: the shared connection when there is one, else Files' own. */
-    private static function s3ForTab(PDO $conn): array
-    {
-        $c = self::sharedConnection($conn);
-        if ($c !== null) {
-            return ['endpoint' => $c['endpoint'], 'region' => $c['region'], 'bucket' => $c['bucket'], 'access_key_id' => $c['access_key_id'],
-                    'prefix' => $c['prefix'], 'path_style' => $c['path_style'], 'secret_set' => $c['secret'] !== '',
-                    'insecure' => storageEndpointInsecure((string)$c['endpoint'])];
-        }
-        return [
-            'endpoint'      => filesSetting($conn, 'files_s3_endpoint'),
-            'region'        => filesSetting($conn, 'files_s3_region', 'us-east-1'),
-            'bucket'        => filesSetting($conn, 'files_s3_bucket'),
-            'access_key_id' => filesSetting($conn, 'files_s3_access_key_id'),
-            'prefix'        => filesSetting($conn, 'files_s3_prefix'),
-            'path_style'    => filesSetting($conn, 'files_s3_path_style', '0') === '1',
-            'secret_set'    => filesSetting($conn, 'files_s3_secret') !== '',
-        ];
-    }
-
-    /**
-     * Changing WHERE Files is stored - another folder or bucket, or other S3 credentials -
-     * needs Storage and backups (Cap::FILES_STORAGE_BACKUPS) beside Files -> Storage: it can
-     * send every file somewhere new, past the folder permissions (PR #318 review). The rest
-     * of the tab (the largest upload) does not. save() has already refused an id below 1.
-     *
-     * @param array $next  the location the save would leave in place
-     * @throws InvalidArgumentException
-     */
-    private static function requireLocationPermission(PDO $conn, int $analystId, array $next): void
-    {
-        if (self::canChangeLocation($conn, $analystId)) return;
-        $cur = filesStorageConfig($conn);
-        $same = self::locationKey($cur) === self::locationKey($next);
-        if ($same && ($next['driver'] ?? 'local') === 's3') {
-            foreach (['region', 'access_key_id', 'secret', 'path_style'] as $k) {
-                if ((string)($cur[$k] ?? '') !== (string)($next[$k] ?? '')) { $same = false; break; }
-            }
-        }
-        if (!$same) throw new InvalidArgumentException('Changing where files are stored needs the Storage and backups permission (System -> Roles).');
-    }
-
-    /**
-     * The Storage tab's Test (api/files/settings.php storage_test): a masked secret means
-     * the saved one. A failure is in the Files audit (storage series S4) - endpoint,
-     * bucket, step and error, never the secret.
-     *
-     * @param array $s  endpoint, region, bucket, access_key_id, secret, prefix, path_style
-     */
-    public static function testAudited(PDO $conn, int $analystId, array $s): array
-    {
-        if ($analystId < 1) throw new InvalidArgumentException('Not signed in.');
-        $stored = settingGetDecrypted($conn, 'files_s3_secret');
-        if (self::secretUnchanged((string)($s['secret'] ?? ''), $stored)) $s['secret'] = $stored;
-        $t = self::test($s);
-        if (!$t['ok']) {
-            $secret = (string)($s['secret'] ?? '');
-            filesAudit($conn, $analystId, 'settings', ['path' => '(Settings: storage)'], ['test_failed' => true,
-                'endpoint' => mb_substr((string)($s['endpoint'] ?? ''), 0, 200), 'bucket' => mb_substr((string)($s['bucket'] ?? ''), 0, 100),
-                'step' => (string)$t['step'], 'error' => mb_substr($secret !== '' ? str_replace($secret, '***', (string)$t['error']) : (string)$t['error'], 0, 300)]);
-        }
-        return $t;
-    }
-
-    /**
-     * May this analyst change where Files is stored (Storage and backups)? null is the system
-     * (no person, no check); an id below 1 is what (int) of a missing session id gives, so it
-     * is refused - never "the system" (PR #353 review).
-     */
-    public static function canChangeLocation(PDO $conn, ?int $analystId): bool
-    {
-        if ($analystId === null) return true;
-        if ($analystId < 1) return false;
-        require_once __DIR__ . '/../rbac.php';
-        try { return analystHasCapability($conn, $analystId, Cap::FILES_STORAGE_BACKUPS); }
-        catch (Throwable $e) { return false; }
     }
 
     /** What identifies a location: moving between two different ones moves the files. */

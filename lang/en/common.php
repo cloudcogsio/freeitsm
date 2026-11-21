@@ -102,6 +102,16 @@ return [
     // that has a left panel (settings pages + System → Preferences). Only the
     // identical strings live here; per-module intro/description copy stays in
     // each module's own file.
+    // GH #399: a settings page as tabs or as one page with an index and search (assets/js/settings-view.js).
+    'settings_view' => [
+        'view'      => 'View',
+        'tabs'      => 'Tabs',
+        'page'      => 'One page',
+        'search'    => 'Search settings',
+        'none'      => 'No settings match',
+        'index'     => 'Settings sections',
+        'elsewhere' => 'On another page',
+    ],
     'left_panel' => [
         'tab'        => 'Left panel',
         'visibility' => 'Visibility',
@@ -582,6 +592,59 @@ return [
         'loading'     => 'Loading…',
         'load_failed' => 'Could not load notifications.',
         'someone'     => 'Someone',
+        // GH #365: named after "by" when no person did it.
+        'actor_workflow' => 'the workflow "{name}"',
+        'actor_system' => 'FreeITSM',
+        'actor_email' => 'email',
+        // The bell's (i) panel - "why is this here?" (5.8.0).
+        'explain' => [
+            'info' => 'Why is this here?',
+            'title' => 'Why this is here',
+            'loading' => 'Loading...',
+            'failed' => 'Could not load the explanation.',
+            'by' => 'Done by',
+            'how' => 'How',
+            'when' => 'When',
+            'why' => 'Why you',
+            'history' => 'Ticket history',
+            'workflows' => 'Workflows then',
+            'auto' => 'automatic',
+            'via_api' => 'through the REST API',
+            'by_system' => 'System (automatic)',
+            'by_former' => 'a former analyst',
+            'hist_by' => 'by {who}',
+            'hist_note' => 'a note',
+            'hist_email' => 'an email',
+            'agrees' => 'The ticket history agrees.',
+            'differs' => 'The ticket history says {who} made this change.',
+            'grouped' => '{n} updates were merged into this one row; this explains the latest.',
+            'old_row' => 'Written before 5.8.0: only a name was kept, not what made the change.',
+            'source' => [
+                'screen' => 'Changed on screen',
+                'portal' => 'In the self-service portal',
+                'api' => 'Through the REST API',
+                'workflow' => 'By a workflow',
+                'mail_import' => 'When new mail arrived',
+                'scheduled' => 'By a scheduled job',
+            ],
+            'reason' => [
+                'new_owner' => 'It was assigned to you',
+                'ticket_owner' => 'You own this ticket',
+                'team_member' => 'You are in the team it was handed to',
+                'watcher' => 'You are watching this ticket',
+                'task_owner' => 'You own this task',
+                'task_involved' => 'You are involved in this task',
+                'project' => 'Projects names you for this',
+                'domain_owner' => 'You own this domain',
+                'owner' => 'It is yours',
+                'unknown' => 'Not recorded',
+            ],
+            'hist_notes' => [
+                'no_access' => 'You can no longer see this ticket.',
+                'not_found' => 'No matching line in the ticket history.',
+                'none' => 'This kind of notification has no line in the ticket history.',
+            ],
+        ],
         'just_now'    => 'just now',
         'minutes'     => '{n}m ago',
         'hours'       => '{n}h ago',
@@ -652,9 +715,8 @@ return [
             'help' => [
                 'unanswered' => 'The help assistant could not answer a question',
             ],
-            // Storage series N1 - administrators only.
-            'storage' => [
-                'changed' => 'Where stored files are kept has changed',
+            'consumable' => [
+                'low_stock' => 'Running low - time to reorder',
             ],
             'hyperv' => [
                 'collector' => 'A Hyper-V collector needs your attention',
@@ -721,8 +783,8 @@ return [
             'help' => [
                 'unanswered' => 'The help assistant cannot answer a question someone asked (administrators)',
             ],
-            'storage' => [
-                'changed' => 'Where stored files are kept changes, or a move between storage locations starts or ends (administrators)',
+            'consumable' => [
+                'low_stock' => 'A consumable falls to its reorder point (who is told is chosen in Assets -> Settings -> Consumables)',
             ],
             'hyperv' => [
                 'collector' => 'A Hyper-V collector stops reporting, or a cluster\'s storage cannot be read (people who manage Hyper-V connections)',

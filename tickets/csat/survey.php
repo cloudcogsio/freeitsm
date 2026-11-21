@@ -109,9 +109,9 @@ body {
     padding: 40px 36px;
     text-align: center;
 }
-h1 { font-size: 22px; margin-bottom: 8px; }
-p.ticket { font-size: 14px; color: #666; margin-bottom: 28px; }
-p.intro { font-size: 15px; line-height: 1.5; margin-bottom: 26px; color: #444; }
+h1 { font-size: var(--font-size-4xl, 24px); margin-bottom: 8px; }
+p.ticket { font-size: var(--font-size-lg, 14px); color: #666; margin-bottom: 28px; }
+p.intro { font-size: var(--font-size-xl, 16px); line-height: 1.5; margin-bottom: 26px; color: #444; }
 
 /* Stars: classic fill-on-hover with trailing effect (hover #3 fills #1+#2+#3).
    Emojis: single-highlight greyscale-to-colour, because "all previous emojis
@@ -162,7 +162,7 @@ p.intro { font-size: 15px; line-height: 1.5; margin-bottom: 26px; color: #444; }
 }
 
 .rating-caption {
-    font-size: 13px;
+    font-size: var(--font-size-md, 13px);
     color: #666;
     min-height: 1.4em;
     margin-bottom: 22px;
@@ -176,7 +176,7 @@ textarea {
     border-radius: 6px;
     padding: 10px 12px;
     font-family: inherit;
-    font-size: 14px;
+    font-size: var(--font-size-lg, 14px);
     min-height: 80px;
     resize: vertical;
     margin-bottom: 20px;
@@ -188,7 +188,7 @@ button.submit {
     border: none;
     padding: 12px 36px;
     border-radius: 6px;
-    font-size: 15px;
+    font-size: var(--font-size-xl, 16px);
     font-weight: 600;
     cursor: pointer;
     transition: transform 0.15s;
@@ -205,7 +205,7 @@ button.submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
     border-radius: 6px;
     margin: 20px 0;
     text-align: left;
-    font-size: 14px;
+    font-size: var(--font-size-lg, 14px);
 }
 </style>
     <link rel="stylesheet" href="../../assets/css/mobile.css?v=196">
@@ -332,6 +332,6 @@ button.submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 <?php endif; ?>
 
 </div>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

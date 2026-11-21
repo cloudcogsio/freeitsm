@@ -805,6 +805,12 @@ return [
         'attachments'    => 'Attachments',
         'drop_files'     => 'Drag files here or',
         'browse'         => 'browse',
+        // GH #397: a file from Files, attached to the email itself (a copy).
+        'from_files' => 'From Files',
+        'from_files_title' => 'Attach a file from Files',
+        'from_files_attach' => 'Attach',
+        'from_files_attach_tip' => 'Sent with this email as a copy of the current version',
+        'from_files_failed' => 'That file could not be fetched from Files.',
         'cleaned_up'     => 'Cleaned up',
         'undo'           => 'Undo',
         'cleanup'        => 'Cleanup',
@@ -1039,6 +1045,26 @@ return [
     // Equipment linked to a ticket (discussion #57). Nested, like every other
     // section here — I18n::t() splits the key on every dot, so a flat
     // 'assets.section_title' key would never resolve.
+    // Link to... -> Consumables (5.8.0): issue stock against the ticket.
+    'consumables' => [
+        'menu_item' => 'Consumables',
+        'use' => 'Use a consumable',
+        'loading' => 'Loading...',
+        'none' => 'No consumables in this company yet.',
+        'out' => 'Out of stock',
+        'in_stock' => '{n} in stock',
+        'used' => 'Used {n} x {name} on the ticket ({left} left).',
+        'failed' => 'That did not work. Please try again.',
+        'used_title' => 'Used by {who}',
+        'pill' => '{n} x {name}',
+        'undo_title' => 'Undo this use',
+        'undo_message' => 'It goes back into stock. The use stays in the history with the undo beside it.',
+        'undo' => 'Undo',
+        'undo_reason' => 'Why (required)',
+        'undone' => 'Undone.',
+        'asked' => 'Asked for: {name}',
+        'asked_title' => 'Asked for on "{form}" - {n} in stock. Click to use one.',
+    ],
     'assets' => [
         'menu_item'          => 'Equipment',
         'section_title'      => 'Affected equipment',
@@ -2855,6 +2881,10 @@ return [
             'preferred_name_placeholder' => 'e.g. Jane',
             'company'                    => 'Company',
             'company_none'               => 'No company (tickets go to triage)',
+            // GH #398: add a company from the person editor
+            'company_new' => '+ New company...',
+            'company_new_name' => 'Name of the new company',
+            'company_new_failed' => 'The company could not be added.',
             'cost_centre'                => 'Cost centre',
             'cost_centre_none'           => 'None',
             'cost_centre_inactive'       => 'inactive',
@@ -3435,6 +3465,7 @@ return [
             'ws_safe'   => '<strong>Nothing half-typed is lost:</strong> moving to another ticket, or switching the workspace off, with a reply, a note or a task change unsaved asks you first, and waits for anything still saving.',
             'tb_title'  => 'The ticket table',
             'tb_what'   => 'Choose <strong>Table</strong> instead of <strong>Messages</strong> in the action row at the top of Tickets (or in <strong>System &rarr; Preferences</strong>). The folder you are in becomes the table\'s filter; pick columns, filter and sort them, search, and move through the list 25, 50 or 100 tickets at a time. <strong>Save view</strong> keeps a layout for yourself, your team or everyone.',
+            'tb_remember' => 'The table remembers the view you last picked and opens with it next time, on any browser - until you pick another or use <strong>Reset</strong>, after which it opens with your default view again. Opened from a folder that already narrows the list - a department, team, analyst, status or Unassigned - the folder wins, and only a default view replaces it.',
             'tb_same'   => 'Clicking, Ctrl- and Shift-clicking, right-clicking, dragging to a folder and the bulk actions all work as they do in the message list, and the table never shows a ticket the list would not.',
             'tb_export' => '<strong>CSV export:</strong> the CSV button exports <em>every</em> ticket that matches, not just the page, with the columns you have showing. Who may use it is set in <strong>Tickets &rarr; Settings &rarr; General &rarr; Who can export the ticket list</strong>: administrators only (the default), anyone with Tickets, or nobody. The button is not shown to anyone it is not open to.',
             'tb_columns' => '<strong>Who a ticket is for:</strong> the <strong>Requester</strong> and <strong>Requester email</strong> columns show the person the ticket was raised for and their email address. They are hidden until you tick them in <strong>Columns</strong>; both can be sorted, and both go into the CSV export when they are showing.',
@@ -3484,6 +3515,7 @@ return [
             'switch_body'    => 'A small two-button toggle at the top of the folder panel switches between two views of the same data. <strong>Department</strong> grouping (default) lists tickets under each department with status sub-folders inside; <strong>Analyst</strong> grouping flips it so each top-level folder represents an analyst\'s personal queue with status sub-folders inside. The <strong>Unassigned</strong> folder is context-aware in each view &mdash; in Department view it lists tickets with no department set; in Analyst view it lists tickets with no assignee &mdash; so you can always see what needs picking up. Once your install has teams, a third choice, <strong>Team</strong>, lists the queue each ticket has been handed to. Your choice is saved per-analyst so each team member keeps the view they prefer across sessions. On an install with several companies, the Analyst folders list only people who can work in the company you are viewing, and the <strong>Assign</strong> lists offer only people who can work in that ticket&rsquo;s company. <strong>Tickets &rarr; Settings &rarr; General &rarr; Team folders</strong> can limit the Team folders to the teams each analyst belongs to; it only changes the folder list, never which tickets anyone can open.',
             // Discussion #292
             'folders_hide'   => '<strong>Need more room?</strong> Press <strong>[</strong> (when you are not typing), or the <strong>&laquo;</strong> at the top of the folder panel, to fold it into a thin strip; press <strong>[</strong> or click the strip to bring it back. To have it folded every time, choose <strong>Click to open</strong> or <strong>Show on hover</strong> for <em>Tickets - folders</em> in Preferences &rarr; Display &rarr; Left panels. Folded, the folders open over the ticket list and close again when you pick one. On a phone the folders work as before.',
+            'folders_narrow' => '<strong>On a narrow window</strong> (1100px wide or less, such as a tablet), the folders start folded even on <strong>Always visible</strong>, and the ticket list narrows a little, so the ticket you are reading has room. Make the window wider and they come back.',   // GH #413
             'p_actions'      => 'Above the ticket list, you have four action buttons: <strong>New</strong> to create a ticket, <strong>Search</strong> to find tickets by keyword, reference, or requester, <strong>Filter</strong> to narrow what you see, and <strong>Refresh</strong> to reload the current folder.',
             // #149
             'filter_body'    => 'The <strong>Filter</strong> button (the funnel) narrows the folders and the list together, whichever way they are grouped. <strong>Mine</strong> shows only tickets assigned to you, and <strong>Hide closed</strong> leaves out every ticket whose status is marked as closed. While a filter is on, the funnel carries a dot and a label appears beside the list title, so you always know you are not seeing everything. When folders are grouped by <strong>Analyst</strong>, your own folder sits at the top as <strong>My tickets</strong> instead. Search has its own <strong>Include closed tickets</strong> switch, on by default, because a search is usually a hunt for an old ticket. Both choices are saved for you alone.',
@@ -3630,7 +3662,7 @@ return [
             'addresses_note' => '<strong>Addresses as you type</strong> &mdash; start typing in <strong>To</strong> or <strong>Cc</strong> and FreeITSM suggests addresses: a supplier&rsquo;s <strong>service desk</strong> first (set it on the supplier in Contracts), then supplier contacts, people of the ticket&rsquo;s company, and addresses recently emailed from that company&rsquo;s tickets. Use the arrow keys and Enter, or click; pick as many as you like, or keep typing your own. An address from one company&rsquo;s tickets is never suggested on another company&rsquo;s, and who a confidential ticket was emailed to is never suggested at all.',
             'attachments_note' => '<strong>Email attachments</strong> &mdash; in the attachment list, clicking one opens it in a window over the ticket where the file type allows: pictures, PDFs, Word documents, spreadsheets and CSV files, text, audio and video, with a download button. Anything else downloads. <strong>Save to Files</strong> beside each one - and beside each file on a note - copies it into a folder in Files. To put a file that is already in Files on the ticket, use <strong>From Files</strong> in the <strong>Add note</strong> window (<strong>From Computer</strong> is the button beside it) - a window like a file dialog opens, with folders on the left and their files on the right - as a link (opened through Files, under its folder\'s permissions, never shown in the portal) or a copy, as Files &rarr; Settings &rarr; Sharing allows.',
             'files_heading' => '<strong>File attachments</strong>',
-            'files_body'    => 'Attach screenshots, logs, documents, or any supporting file directly to a ticket. Files can be dragged into the attachment drop zone or selected using the file browser. Attachments are stored on the server and linked to the ticket\'s activity trail so nothing gets lost.',
+            'files_body'    => 'Attach screenshots, logs, documents, or any supporting file directly to a ticket. Files can be dragged into the attachment drop zone or selected using the file browser. Attachments are stored on the server and linked to the ticket\'s activity trail so nothing gets lost. In the reply box, <strong>From Files</strong> beside the drop zone picks a file that is already in Files and sends a copy with the email - any file in a folder you can download from.',
             'audit_heading' => '<strong>Audit logging</strong>',
             'export_heading' => '<strong>Case reports</strong>',
             'export_body'    => 'For a review or an auditor, <strong>Export</strong> in the ticket\'s toolbar turns the ticket and its tasks into one printable report - see <a href="#case-reports">Case reports</a>.',
@@ -3873,7 +3905,7 @@ return [
             'heading' => 'Companies &amp; email routing',
             'intro'   => 'When your install serves more than one company (for example an IT provider supporting several clients), each company\'s tickets are kept separate. This section explains how inbound email finds the right company.',
             'switcher_body' => 'A <strong>company switcher</strong> appears in the header. It sets the company you\'re working in &mdash; the ticket list, folders and counts all show just that company, and any ticket you create is filed to it. Staff with access to several companies can switch between them; the current one is always shown so you can\'t reply in the wrong context. Manage the companies themselves under <strong>System &rarr; Companies</strong>.',
-            'switcher_remember' => 'To start each sign-in in the company you last picked (or in <strong>All companies</strong>) instead of the Default company, turn on <strong>Start in the company I last used</strong> under <strong>My preferences</strong>.',
+            'switcher_remember' => 'To start each sign-in in the company you last picked (or in <strong>All companies</strong>) instead of the Default company, turn on <strong>Start in the company I last used</strong> under <strong>Preferences</strong> (your account menu).',
 
             'mailboxes_heading' => 'Every mailbox is one of two kinds &mdash; this is what decides routing:',
             'card_pinned_title' => 'Pinned mailbox',

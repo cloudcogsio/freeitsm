@@ -41,6 +41,7 @@ if ($movedTo !== null) {
 
 
 require_once __DIR__ . '/../../includes/services/asset_type_layout.php';
+require_once __DIR__ . '/../../includes/services/asset_completeness.php';   // GH #404
 
 /**
  * The shared icon library, for the asset-type icon picker (#1146).
@@ -71,8 +72,8 @@ $translationNamespaces = ['common', 'asset-management'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('assets', t('asset-management.nav.settings'))); ?></title>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../../assets/css/locations-tree.css?v=4">
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <?php echo Tz::scriptTag(); ?>
@@ -146,33 +147,33 @@ $translationNamespaces = ['common', 'asset-management'];
         }
 
         .settings-section-header svg { color: #107c10; flex-shrink: 0; }
-        .settings-section-header h2 { margin: 0; font-size: 16px; font-weight: 600; color: var(--text, #333); }
+        .settings-section-header h2 { margin: 0; font-size: var(--font-size-xl, 16px); font-weight: 600; color: var(--text, #333); }
         .settings-section-body { padding: 25px; }
-        .settings-description { font-size: 13px; color: var(--text-muted, #666); margin: 0 0 20px 0; line-height: 1.5; }
+        .settings-description { font-size: var(--font-size-md, 13px); color: var(--text-muted, #666); margin: 0 0 20px 0; line-height: 1.5; }
 
         .form-group { margin-bottom: 18px; }
         .form-group:last-child { margin-bottom: 0; }
-        .form-label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 13px; color: var(--text, #333); }
+        .form-label { display: block; margin-bottom: 6px; font-weight: 500; font-size: var(--font-size-md, 13px); color: var(--text, #333); }
 
         .form-input {
             width: 100%;
             padding: 10px 12px;
             border: 1px solid var(--border, #ddd);
             border-radius: 4px;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             box-sizing: border-box;
             transition: border-color 0.15s, box-shadow 0.15s;
         }
 
         .form-input:focus { outline: none; border-color: #107c10; box-shadow: 0 0 0 2px rgba(16, 124, 16, 0.1); }
-        .form-hint { font-size: 12px; color: var(--text-dim, #888); margin-top: 4px; }
+        .form-hint { font-size: var(--font-size-sm, 12px); color: var(--text-dim, #888); margin-top: 4px; }
 
         .form-actions {
             display: flex; align-items: center; gap: 12px;
             margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--border-soft, #eee);
         }
 
-        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500; transition: background-color 0.15s; }
+        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: var(--font-size-lg, 14px); font-weight: 500; transition: background-color 0.15s; }
         .btn-primary { background-color: #107c10; color: white; }
         .btn-primary:hover { background-color: #0b5c0b; }
         .btn-primary:disabled { background-color: #999; cursor: not-allowed; }
@@ -184,7 +185,7 @@ $translationNamespaces = ['common', 'asset-management'];
 
         .password-wrapper { position: relative; }
         .password-wrapper .form-input { padding-right: 45px; }
-        .password-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-dim, #888); font-size: 13px; padding: 4px; }
+        .password-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: var(--text-dim, #888); font-size: var(--font-size-md, 13px); padding: 4px; }
         .password-toggle:hover { color: var(--text, #333); }
 
         .modal-content {
@@ -193,7 +194,7 @@ $translationNamespaces = ['common', 'asset-management'];
         }
 
         .modal-header {
-            font-size: 20px;
+            font-size: var(--font-size-3xl, 20px);
             font-weight: 600;
             margin-bottom: 20px;
             color: var(--text, #333);
@@ -217,7 +218,7 @@ $translationNamespaces = ['common', 'asset-management'];
             border-radius: 6px;
             background: var(--warning-bg, #fff8e6);
             color: var(--warning-text, #6b4e00);
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             margin-bottom: 18px;
         }
         .cf-block {
@@ -228,10 +229,10 @@ $translationNamespaces = ['common', 'asset-management'];
             background: var(--surface, #fff);
         }
         .cf-block-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-        .cf-block-title { margin: 0 0 4px 0; font-size: 15px; font-weight: 600; color: var(--text, #333); }
-        .cf-block-intro { margin: 0 0 14px 0; font-size: 13px; color: var(--text-muted, #666); line-height: 1.5; }
+        .cf-block-title { margin: 0 0 4px 0; font-size: var(--font-size-xl, 16px); font-weight: 600; color: var(--text, #333); }
+        .cf-block-intro { margin: 0 0 14px 0; font-size: var(--font-size-md, 13px); color: var(--text-muted, #666); line-height: 1.5; }
         .cf-typebar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-        .cf-typebar label { font-size: 13px; color: var(--text-muted, #666); }
+        .cf-typebar label { font-size: var(--font-size-md, 13px); color: var(--text-muted, #666); }
         .cf-typebar select { min-width: 220px; }
         .cf-typeactions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
 
@@ -246,13 +247,13 @@ $translationNamespaces = ['common', 'asset-management'];
             margin-bottom: 6px;
             background: var(--surface-2, #fafafa);
         }
-        .cf-row-name { font-weight: 600; color: var(--text, #333); font-size: 13px; }
-        .cf-row-kind { font-size: 12px; color: var(--text-muted, #666); }
-        .cf-row-from { margin-left: auto; font-size: 11px; color: var(--text-muted, #666); }
+        .cf-row-name { font-weight: 600; color: var(--text, #333); font-size: var(--font-size-md, 13px); }
+        .cf-row-kind { font-size: var(--font-size-sm, 12px); color: var(--text-muted, #666); }
+        .cf-row-from { margin-left: auto; font-size: var(--font-size-xs, 11px); color: var(--text-muted, #666); }
         .cf-req { color: var(--danger-text, #c0392b); margin-left: 3px; }
-        .cf-empty { color: var(--text-faint, #999); padding: 14px 12px; font-size: 13px; }
+        .cf-empty { color: var(--text-faint, #999); padding: 14px 12px; font-size: var(--font-size-md, 13px); }
         .cf-warn { color: var(--danger-text, #c0392b); }
-        .cf-scope { font-size: 11px; color: var(--text-muted, #666); }
+        .cf-scope { font-size: var(--font-size-xs, 11px); color: var(--text-muted, #666); }
 
         /* Field/set pickers inside the modals. */
         .cf-picker {
@@ -261,15 +262,15 @@ $translationNamespaces = ['common', 'asset-management'];
         }
         .cf-pick {
             display: flex; align-items: center; gap: 8px;
-            padding: 7px 8px; border-radius: 4px; font-size: 13px; color: var(--text, #333);
+            padding: 7px 8px; border-radius: 4px; font-size: var(--font-size-md, 13px); color: var(--text, #333);
         }
         .cf-pick:hover { background: var(--surface-hover, #f0f0f0); }
         .cf-pick input[type="checkbox"] { flex-shrink: 0; }
-        .cf-pick-kind { color: var(--text-muted, #666); font-size: 12px; }
-        .cf-pick-req { margin-left: auto; font-size: 11px; color: var(--text-muted, #666); display: flex; align-items: center; gap: 4px; }
+        .cf-pick-kind { color: var(--text-muted, #666); font-size: var(--font-size-sm, 12px); }
+        .cf-pick-req { margin-left: auto; font-size: var(--font-size-xs, 11px); color: var(--text-muted, #666); display: flex; align-items: center; gap: 4px; }
 
         /* ── Custom fields: the tree ───────────────────────────────── */
-        .cf-tree { font-size: 13px; }
+        .cf-tree { font-size: var(--font-size-md, 13px); }
         .cf-tree-node { padding: 2px 0; }
         .cf-tree-type {
             display: flex; align-items: baseline; gap: 8px;
@@ -289,37 +290,40 @@ $translationNamespaces = ['common', 'asset-management'];
         .cf-tree-set-name { color: var(--text, #333); font-weight: 600; }
         .cf-tree-field { padding-left: 44px; color: var(--text-muted, #666); }
         .cf-tree-field::before { left: 29px; }
-        .cf-tree-kind { color: var(--text-dim, #888); font-size: 12px; }
+        .cf-tree-kind { color: var(--text-dim, #888); font-size: var(--font-size-sm, 12px); }
         .cf-tree-req { color: var(--danger-text, #c0392b); }
-        .cf-tree-count { font-size: 11px; color: var(--text-dim, #888); font-weight: 400; }
+        .cf-tree-count { font-size: var(--font-size-xs, 11px); color: var(--text-dim, #888); font-weight: 400; }
         /* A type with no custom fields, or a field in no set. Stated, not hidden. */
         .cf-tree-none { color: var(--text-faint, #999); font-style: italic; padding-left: 22px; }
         .cf-tree-warn { color: var(--warning-text, #6b4e00); }
         .cf-tree-section {
             margin-top: 16px; padding-top: 12px;
             border-top: 1px solid var(--border, #e0e0e0);
-            font-size: 11px; font-weight: 600; letter-spacing: 0.4px;
+            font-size: var(--font-size-xs, 11px); font-weight: 600; letter-spacing: 0.4px;
             text-transform: uppercase; color: var(--text-muted, #666);
         }
 
         /* ── Asset type layout (GH #200) ─────────────────────────────── */
         .atl-box { border: 1px solid var(--border, #e5e7eb); border-radius: 8px; padding: 12px 14px; }
-        .atl-intro { font-size: 13px; color: var(--text-muted, #666); margin: 0 0 10px; line-height: 1.5; }
-        .atl-sub { font-size: 13px; font-weight: 600; margin: 14px 0 6px; }
-        .atl-note { font-size: 12px; color: var(--text-muted, #666); margin: 0 0 8px; }
+        .atl-intro { font-size: var(--font-size-md, 13px); color: var(--text-muted, #666); margin: 0 0 10px; line-height: 1.5; }
+        .atl-sub { font-size: var(--font-size-md, 13px); font-weight: 600; margin: 14px 0 6px; }
+        .atl-note { font-size: var(--font-size-sm, 12px); color: var(--text-muted, #666); margin: 0 0 8px; }
         /* Scoped to the row: `.modal .form-group label` makes every label a block. */
         #itemLayoutRow .atl-opt { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; margin: 0; cursor: pointer; font-weight: normal; }
         #itemLayoutRow .atl-opt input { margin-top: 3px; flex-shrink: 0; }
+        /* GH #404: the Expected information ticks - the same tick rows, two to a line. */
+        #itemExpectedRow .atl-opt { display: inline-flex; align-items: center; gap: 8px; width: 48%; padding: 4px 0; margin: 0; cursor: pointer; font-weight: normal; vertical-align: top; }
+        #itemExpectedRow .atl-opt input { flex-shrink: 0; margin: 0; }
         #itemLayoutRow .atl-tab-opt { display: flex; margin: 0; }
-        .atl-opt-name { display: block; font-size: 14px; }
-        .atl-opt-desc { display: block; font-size: 12px; color: var(--text-muted, #666); }
+        .atl-opt-name { display: block; font-size: var(--font-size-lg, 14px); }
+        .atl-opt-desc { display: block; font-size: var(--font-size-sm, 12px); color: var(--text-muted, #666); }
         .atl-tab-opt { display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: normal; margin: 0; }
         #itemLayoutTabs .rl-list { max-width: none; }
 
         /* ── Asset type icon picker ────────────────────────────────── */
         .ic-picked { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
         .ic-preview { display: inline-flex; width: 24px; height: 24px; color: var(--accent, #0078d4); }
-        .ic-name { font-size: 13px; color: var(--text-muted, #666); flex: 1; }
+        .ic-name { font-size: var(--font-size-md, 13px); color: var(--text-muted, #666); flex: 1; }
         .ic-grid {
             display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
             gap: 4px; max-height: 190px; overflow-y: auto;
@@ -346,13 +350,13 @@ $translationNamespaces = ['common', 'asset-management'];
             margin-top: 12px; padding: 10px 12px; border-radius: 6px;
             background: var(--surface-2, #fafafa);
             border: 1px solid var(--border-soft, #eee);
-            font-size: 13px; color: var(--text, #333);
+            font-size: var(--font-size-md, 13px); color: var(--text, #333);
         }
         .imp-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 16px; }
         .imp-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .imp-hint { font-size: 12px; color: var(--text-dim, #888); }
+        .imp-hint { font-size: var(--font-size-sm, 12px); color: var(--text-dim, #888); }
         .imp-badge {
-            font-size: 12px; padding: 2px 9px; border-radius: 999px;
+            font-size: var(--font-size-sm, 12px); padding: 2px 9px; border-radius: 999px;
             background: var(--surface-3, #f8f9fa); border: 1px solid var(--border, #e0e0e0);
             color: var(--text-muted, #666);
         }
@@ -365,7 +369,7 @@ $translationNamespaces = ['common', 'asset-management'];
            word carries it for anybody who cannot see the colour. */
         .imp-act {
             display: inline-block; min-width: 76px; text-align: center;
-            font-size: 11px; font-weight: 600; text-transform: uppercase;
+            font-size: var(--font-size-xs, 11px); font-weight: 600; text-transform: uppercase;
             letter-spacing: 0.3px; padding: 2px 8px; border-radius: 4px;
         }
         .imp-act-create    { background: var(--success-bg, #e6f4ea); color: var(--success-text, #1e7e34); }
@@ -381,7 +385,7 @@ $translationNamespaces = ['common', 'asset-management'];
 
         .imp-tally { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0; }
         .imp-tally span {
-            font-size: 12px; padding: 4px 10px; border-radius: 6px;
+            font-size: var(--font-size-sm, 12px); padding: 4px 10px; border-radius: 6px;
             background: var(--surface-2, #fafafa); border: 1px solid var(--border-soft, #eee);
             color: var(--text, #333);
         }
@@ -389,14 +393,14 @@ $translationNamespaces = ['common', 'asset-management'];
         .imp-row {
             display: flex; align-items: flex-start; gap: 10px;
             padding: 8px 10px; border-bottom: 1px solid var(--border-soft, #eee);
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
         }
         .imp-row-main { flex: 1; min-width: 0; }
         .imp-row-name { font-weight: 600; color: var(--text, #333); }
-        .imp-row-detail { color: var(--text-muted, #666); font-size: 12px; margin-top: 2px; word-break: break-word; }
+        .imp-row-detail { color: var(--text-muted, #666); font-size: var(--font-size-sm, 12px); margin-top: 2px; word-break: break-word; }
         .imp-row-raw {
             margin-top: 4px; font-family: ui-monospace, Consolas, monospace;
-            font-size: 11px; color: var(--text-dim, #888); word-break: break-all;
+            font-size: var(--font-size-xs, 11px); color: var(--text-dim, #888); word-break: break-all;
         }
 
         /* ── Suppliers tab ─────────────────────────────────────────── */
@@ -411,24 +415,24 @@ $translationNamespaces = ['common', 'asset-management'];
         .ho-spacer { flex: 1 1 auto; }
         .ho-select {
             padding: 8px 10px; border: 1px solid var(--border, #d5dbe1); border-radius: 5px;
-            background: var(--surface, #fff); color: var(--text, #333); font-size: 14px; min-width: 220px;
+            background: var(--surface, #fff); color: var(--text, #333); font-size: var(--font-size-lg, 14px); min-width: 220px;
         }
         .ho-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
         .ho-field { display: block; margin-bottom: 14px; }
-        .ho-field-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted, #666); margin-bottom: 4px; }
+        .ho-field-label { display: block; font-size: var(--font-size-sm, 12px); font-weight: 600; color: var(--text-muted, #666); margin-bottom: 4px; }
         .ho-field input[type=text], .ho-block textarea, .ho-block input[type=text] {
             width: 100%; box-sizing: border-box; padding: 8px 10px;
             border: 1px solid var(--border, #d5dbe1); border-radius: 5px;
             background: var(--surface, #fff); color: var(--text, #333);
-            font-size: 13px; font-family: inherit;
+            font-size: var(--font-size-md, 13px); font-family: inherit;
         }
         .ho-block textarea { resize: vertical; min-height: 62px; }
         .ho-merge { border: 1px solid var(--border, #e0e0e0); border-radius: 6px; padding: 10px 12px; margin-bottom: 16px; }
-        .ho-merge-title { font-size: 12px; font-weight: 700; color: var(--text, #333); }
-        .ho-merge-hint { font-size: 12px; color: var(--text-muted, #666); margin: 2px 0 8px; }
+        .ho-merge-title { font-size: var(--font-size-sm, 12px); font-weight: 700; color: var(--text, #333); }
+        .ho-merge-hint { font-size: var(--font-size-sm, 12px); color: var(--text-muted, #666); margin: 2px 0 8px; }
         .ho-merge-codes { display: flex; flex-wrap: wrap; gap: 6px; }
         .ho-code {
-            font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--font-size-xs, 11px);
             padding: 3px 7px; border-radius: 4px; cursor: pointer;
             border: 1px solid var(--border, #d5dbe1); background: var(--surface-hover, #f4f6f8); color: var(--text, #333);
         }
@@ -439,20 +443,20 @@ $translationNamespaces = ['common', 'asset-management'];
         }
         .ho-block.disabled { opacity: 0.55; }
         .ho-block-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
-        .ho-block-name { font-weight: 600; font-size: 13px; flex: 1 1 auto; color: var(--text, #333); }
+        .ho-block-name { font-weight: 600; font-size: var(--font-size-md, 13px); flex: 1 1 auto; color: var(--text, #333); }
         .ho-mini {
             border: 1px solid var(--border, #d5dbe1); background: var(--surface, #fff);
             color: var(--text-muted, #666); border-radius: 4px; cursor: pointer;
-            width: 26px; height: 26px; line-height: 1; font-size: 13px;
+            width: 26px; height: 26px; line-height: 1; font-size: var(--font-size-md, 13px);
         }
         .ho-mini:hover:not(:disabled) { color: var(--accent, #0078d4); border-color: var(--accent, #0078d4); }
         .ho-mini:disabled { opacity: 0.35; cursor: default; }
         .ho-block-body { padding: 0 10px 10px; display: grid; gap: 8px; }
         .ho-cols { display: flex; flex-wrap: wrap; gap: 10px; }
-        .ho-col-toggle { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text, #333); }
+        .ho-col-toggle { display: inline-flex; align-items: center; gap: 5px; font-size: var(--font-size-sm, 12px); color: var(--text, #333); }
         .ho-preview-wrap { position: sticky; top: 12px; }
         .ho-preview-head {
-            font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px;
+            font-size: var(--font-size-sm, 12px); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px;
             color: var(--text-muted, #666); margin-bottom: 6px;
         }
         /* The preview is a real document, so it keeps the document's own light
@@ -476,24 +480,24 @@ $translationNamespaces = ['common', 'asset-management'];
         /* Review (GH #200 part D). */
         .rv-item { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 2fr) auto; gap: 8px 16px; align-items: center;
                    padding: 12px 14px; border: 1px solid var(--border, #ddd); border-radius: 8px; margin-bottom: 10px; background: var(--surface, #fff); }
-        .rv-what { font-size: 13px; color: var(--text, #333); }
-        .rv-kind { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; border: 1px solid var(--border, #ddd); color: var(--text-muted, #666); margin-right: 4px; }
-        .rv-meta { display: block; font-size: 12px; color: var(--text-dim, #888); margin-top: 2px; }
+        .rv-what { font-size: var(--font-size-md, 13px); color: var(--text, #333); }
+        .rv-kind { display: inline-block; font-size: var(--font-size-xs, 11px); padding: 1px 8px; border-radius: 10px; border: 1px solid var(--border, #ddd); color: var(--text-muted, #666); margin-right: 4px; }
+        .rv-meta { display: block; font-size: var(--font-size-sm, 12px); color: var(--text-dim, #888); margin-top: 2px; }
         .rv-assets a { font-weight: 600; color: var(--accent, #0078d4); text-decoration: none; }
         .rv-assets > div + div { margin-top: 6px; }
         .rv-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-        .rv-status { font-size: 12px; color: var(--text-muted, #666); }
+        .rv-status { font-size: var(--font-size-sm, 12px); color: var(--text-muted, #666); }
         .rv-empty { padding: 24px; color: var(--text-dim, #888); }
         .merge-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
-        .merge-card { display: flex; flex-direction: column; gap: 3px; padding: 12px; border: 2px solid var(--border, #ddd); border-radius: 8px; cursor: pointer; font-size: 13px; }
+        .merge-card { display: flex; flex-direction: column; gap: 3px; padding: 12px; border: 2px solid var(--border, #ddd); border-radius: 8px; cursor: pointer; font-size: var(--font-size-md, 13px); }
         .merge-card:has(input:checked) { border-color: var(--accent, #0078d4); }
         .merge-card input { align-self: flex-start; margin: 0 0 4px; }
         .merge-ci:empty { display: none; }
-        .merge-ci { margin: 4px 0 12px; padding: 12px; border: 1px solid var(--border, #ddd); border-radius: 8px; font-size: 13px; }
+        .merge-ci { margin: 4px 0 12px; padding: 12px; border: 1px solid var(--border, #ddd); border-radius: 8px; font-size: var(--font-size-md, 13px); }
         .merge-ci-title { font-weight: 600; margin-bottom: 6px; }
         .merge-ci label { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0; cursor: pointer; }
         .merge-ci .merge-ci-ack { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border, #ddd); }
-        .merge-card em { font-style: normal; font-size: 12px; color: var(--accent, #0078d4); margin-top: 4px; visibility: hidden; }
+        .merge-card em { font-style: normal; font-size: var(--font-size-sm, 12px); color: var(--accent, #0078d4); margin-top: 4px; visibility: hidden; }
         .merge-card:has(input:checked) em { visibility: visible; }
         @media (max-width: 768px) {
             .rv-item { grid-template-columns: 1fr; }
@@ -505,6 +509,11 @@ $translationNamespaces = ['common', 'asset-management'];
              @media rules win on ties. Every rule inside is gated at 768px. */ ?>
     <link rel="stylesheet" href="../../assets/css/mobile.css?v=196">
     <script src="../../assets/js/qrcode.min.js"></script>
+    <style>
+        #consumables-tab input[type=text], #consumables-tab select { width: 100%; max-width: 420px; box-sizing: border-box; padding: 7px 10px; border: 1px solid var(--border, #ccc); border-radius: 6px; background: var(--surface, #fff); color: var(--text, #333); font-size: var(--font-size-md, 13px); }
+        #consumables-tab p > .add-btn { margin-top: 12px; }
+        .cs-set-people { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 14px; margin: 8px 0 4px; font-size: var(--font-size-md, 13px); }
+    </style>
 </head>
 <?php /* The marker mobile.css LAYER 15e keys on. `.container` is far too common
          a class to restyle globally, so a settings page opts in by name. */ ?>
@@ -527,14 +536,14 @@ $translationNamespaces = ['common', 'asset-management'];
                     <label style="display: block; padding: 10px 14px; border: 1px solid var(--border, #ddd); border-radius: 6px; margin-bottom: 8px; cursor: pointer;">
                         <input type="radio" name="assetsSidebarMode" value="always" onchange="saveSidebarMode(this.value)">
                         <strong><?php echo htmlspecialchars(t('common.left_panel.always')); ?></strong>
-                        <span style="display: block; font-size: 12px; color: var(--text-dim, #777); margin-top: 4px; margin-left: 22px;">
+                        <span style="display: block; font-size: var(--font-size-sm, 12px); color: var(--text-dim, #777); margin-top: 4px; margin-left: 22px;">
                             <?php echo htmlspecialchars(t('asset-management.settings.left_panel_always_desc')); ?>
                         </span>
                     </label>
                     <label style="display: block; padding: 10px 14px; border: 1px solid var(--border, #ddd); border-radius: 6px; cursor: pointer;">
                         <input type="radio" name="assetsSidebarMode" value="hover" onchange="saveSidebarMode(this.value)">
                         <strong><?php echo htmlspecialchars(t('common.left_panel.hover')); ?></strong>
-                        <span style="display: block; font-size: 12px; color: var(--text-dim, #777); margin-top: 4px; margin-left: 22px;">
+                        <span style="display: block; font-size: var(--font-size-sm, 12px); color: var(--text-dim, #777); margin-top: 4px; margin-left: 22px;">
                             <?php echo htmlspecialchars(t('asset-management.settings.left_panel_hover_desc')); ?>
                         </span>
                     </label>
@@ -569,7 +578,7 @@ $translationNamespaces = ['common', 'asset-management'];
             <?php /* GH #200: how an asset says it holds details its type's layout hides.
                      A setting because teams differ: one that chose its layouts deliberately
                      finds the line noise, one that inherited them wants to be told. */ ?>
-            <h3 style="margin: 28px 0 6px; font-size: 15px;"><?php echo htmlspecialchars(t('asset-management.layout.notice_heading')); ?></h3>
+            <h3 style="margin: 28px 0 6px; font-size: var(--font-size-xl, 16px);"><?php echo htmlspecialchars(t('asset-management.layout.notice_heading')); ?></h3>
             <p class="settings-description"><?php echo htmlspecialchars(t('asset-management.layout.notice_intro')); ?></p>
             <div class="form-group">
                 <label class="form-label" for="assetLayoutNotice"><?php echo htmlspecialchars(t('asset-management.layout.notice_label')); ?></label>
@@ -998,7 +1007,7 @@ $translationNamespaces = ['common', 'asset-management'];
                              built; this is the other half, configured the same
                              way because it is the same question. */ ?>
                     <hr class="settings-divider" style="margin: 28px 0 22px; border: none; border-top: 1px solid var(--border-color, #e5e7eb);">
-                    <h3 style="margin: 0 0 6px; font-size: 15px;"><?php echo htmlspecialchars(t('asset-management.settings.lease_heading')); ?></h3>
+                    <h3 style="margin: 0 0 6px; font-size: var(--font-size-xl, 16px);"><?php echo htmlspecialchars(t('asset-management.settings.lease_heading')); ?></h3>
                     <p class="settings-description">
                         <?php echo t('asset-management.settings.lease_intro'); ?>
                     </p>
@@ -1052,6 +1061,75 @@ $translationNamespaces = ['common', 'asset-management'];
         </div>
         <?php endif; ?>
 
+        <?php if (settingsTabVisible($visibleTabs, 'consumables')): ?>
+        <?php
+        // Consumables (5.8.0): the analysts who may be told about low stock, and the forms
+        // (with their questions) that Reorder can open - read here, the page is admin-only.
+        $csConn = connectToDatabase();
+        $csAnalysts = $csConn->query("SELECT id, full_name FROM analysts WHERE is_active = 1 ORDER BY full_name")->fetchAll(PDO::FETCH_ASSOC);
+        $csForms = [];
+        try {
+            foreach ($csConn->query("SELECT id, title FROM forms WHERE is_active = 1 ORDER BY title LIMIT 500")->fetchAll(PDO::FETCH_ASSOC) as $f) {
+                $csForms[(int)$f['id']] = ['title' => $f['title'], 'fields' => []];
+            }
+            if ($csForms) {
+                $q = $csConn->query("SELECT form_id, id, label FROM form_fields WHERE is_deleted = 0
+                                     AND field_type IN ('text', 'textarea', 'number', 'select', 'dropdown', 'email', 'date')
+                                     AND form_id IN (" . implode(',', array_keys($csForms)) . ") ORDER BY form_id, sort_order, id");
+                foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $f) $csForms[(int)$f['form_id']]['fields'][] = ['id' => (int)$f['id'], 'label' => $f['label']];
+            }
+        } catch (Throwable $e) { $csForms = []; }
+        ?>
+        <!-- Consumables Tab (5.8.0) -->
+        <div class="tab-content<?php echo $activeTabId === 'consumables' ? ' active' : ''; ?>" id="consumables-tab" data-capability="<?php echo capKey(Cap::ASSETS_CONSUMABLES); ?>">
+            <div class="section-header">
+                <h2><?php echo htmlspecialchars(t('asset-management.consumables.set_types')); ?></h2>
+            </div>
+            <p class="settings-description" style="margin-bottom: 12px;"><?php echo htmlspecialchars(t('asset-management.consumables.set_intro')); ?></p>
+            <table>
+                <thead><tr>
+                    <th><?php echo htmlspecialchars(t('asset-management.consumables.set_type_name')); ?></th>
+                    <th><?php echo htmlspecialchars(t('asset-management.consumables.set_type_desc')); ?></th>
+                    <th><?php echo htmlspecialchars(t('asset-management.consumables.set_type_items')); ?></th>
+                    <th><?php echo htmlspecialchars(t('asset-management.common.actions')); ?></th>
+                </tr></thead>
+                <tbody id="csTypesList"></tbody>
+                <tfoot><tr>
+                    <td><input type="text" id="csTypeName" maxlength="100" aria-label="<?php echo htmlspecialchars(t('asset-management.consumables.set_type_name')); ?>"></td>
+                    <td><input type="text" id="csTypeDesc" maxlength="255" aria-label="<?php echo htmlspecialchars(t('asset-management.consumables.set_type_desc')); ?>"></td>
+                    <td></td>
+                    <td><button type="button" class="add-btn" onclick="csTypeSave(0)"><?php echo htmlspecialchars(t('asset-management.consumables.set_type_add')); ?></button></td>
+                </tr></tfoot>
+            </table>
+            <p class="settings-description"><a href="../../system/custom-fields/#consumable"><?php echo htmlspecialchars(t('asset-management.consumables.set_fields_link')); ?></a></p>
+
+            <div class="section-header" style="margin-top: 24px;"><h2><?php echo htmlspecialchars(t('asset-management.consumables.set_notify')); ?></h2></div>
+            <p class="settings-description"><?php echo htmlspecialchars(t('asset-management.consumables.set_notify_hint')); ?></p>
+            <div class="cs-set-people" id="csNotify">
+                <?php foreach ($csAnalysts as $a): ?>
+                <label><input type="checkbox" value="<?php echo (int)$a['id']; ?>"> <?php echo htmlspecialchars($a['full_name']); ?></label>
+                <?php endforeach; ?>
+            </div>
+
+            <div class="section-header" style="margin-top: 24px;"><h2><?php echo htmlspecialchars(t('asset-management.consumables.set_reorder')); ?></h2></div>
+            <p class="settings-description"><?php echo htmlspecialchars(t('asset-management.consumables.set_reorder_hint')); ?></p>
+            <select id="csReorderForm" style="max-width: 360px;">
+                <option value=""><?php echo htmlspecialchars(t('asset-management.consumables.set_reorder_none')); ?></option>
+                <?php foreach ($csForms as $fid => $f): ?><option value="<?php echo $fid; ?>"><?php echo htmlspecialchars($f['title']); ?></option><?php endforeach; ?>
+            </select>
+            <div id="csReorderMap" hidden style="margin-top: 12px;">
+                <p class="settings-description"><strong><?php echo htmlspecialchars(t('asset-management.consumables.set_reorder_map')); ?></strong></p>
+                <table><tbody>
+                    <?php foreach (['item', 'part_number', 'supplier', 'quantity', 'unit_cost', 'note'] as $k): ?>
+                    <tr><td><?php echo htmlspecialchars(t('asset-management.consumables.set_map_' . $k)); ?></td>
+                        <td><select data-map="<?php echo $k; ?>"></select></td></tr>
+                    <?php endforeach; ?>
+                </tbody></table>
+            </div>
+            <p><button type="button" class="add-btn" onclick="csSettingsSave()"><?php echo htmlspecialchars(t('common.save')); ?></button></p>
+            <script>window.CS_FORMS = <?php echo json_encode((object)$csForms, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;</script>
+        </div>
+        <?php endif; ?>
         <?php if (settingsTabVisible($visibleTabs, 'vcenter')): ?>
         <!-- vCenter Tab -->
         <div class="tab-content<?php echo $activeTabId === 'vcenter' ? ' active' : ''; ?>" id="vcenter-tab" data-capability="<?php echo capKey(Cap::ASSETS_VCENTER); ?>">
@@ -1148,11 +1226,11 @@ $translationNamespaces = ['common', 'asset-management'];
                         </div>
 
                         <div class="card" style="background:var(--surface-2, #f3f6fa); border:1px solid var(--border, #e2e6ea); border-radius:8px; padding:14px 16px; margin:16px 0;">
-                            <div style="font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted, #667); margin-bottom:4px;">
+                            <div style="font-size:var(--font-size-sm, 12px); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted, #667); margin-bottom:4px;">
                                 <?php echo htmlspecialchars(t('asset-management.settings.asset_tags_preview_label')); ?>
                             </div>
-                            <div style="font-size:16px; font-family:monospace; font-weight:700; color:var(--accent, #0056b3);" id="tagFormatPreview">AST-00001</div>
-                            <ul id="tagProblems" style="margin:8px 0 0; padding-left:18px; color:var(--danger, #c0392b); font-size:13px;" hidden></ul>
+                            <div style="font-size:var(--font-size-xl, 16px); font-family:monospace; font-weight:700; color:var(--accent, #0056b3);" id="tagFormatPreview">AST-00001</div>
+                            <ul id="tagProblems" style="margin:8px 0 0; padding-left:18px; color:var(--danger, #c0392b); font-size:var(--font-size-md, 13px);" hidden></ul>
                         </div>
                         <div class="form-actions">
                             <button type="submit" class="btn btn-primary" id="tagSaveBtn"><?php echo htmlspecialchars(t('asset-management.common.save')); ?></button>
@@ -1261,7 +1339,7 @@ $translationNamespaces = ['common', 'asset-management'];
                                 
                                 <!-- QR Logo Section directly in Left Column -->
                                 <div style="border-top: 1px solid var(--border, #e2e6ea); padding-top: 16px;">
-                                    <h3 style="font-size:14px; font-weight:600; margin:0 0 10px 0;"><?php echo htmlspecialchars(t('asset-management.settings.asset_label_logo_heading')); ?></h3>
+                                    <h3 style="font-size:var(--font-size-lg, 14px); font-weight:600; margin:0 0 10px 0;"><?php echo htmlspecialchars(t('asset-management.settings.asset_label_logo_heading')); ?></h3>
                                     <div class="form-group">
                                         <label class="form-label" style="display:flex; align-items:center; gap:10px;">
                                             <label class="toggle-switch">
@@ -1282,7 +1360,7 @@ $translationNamespaces = ['common', 'asset-management'];
                                                 <?php echo htmlspecialchars(t('asset-management.settings.asset_label_logo_remove_btn')); ?>
                                             </button>
                                         </div>
-                                        <div id="lblLogoStatusText" style="font-size:12px; color:var(--text-muted, #778);"></div>
+                                        <div id="lblLogoStatusText" style="font-size:var(--font-size-sm, 12px); color:var(--text-muted, #778);"></div>
                                         <div class="form-hint" style="width:100%; margin-top:6px;"><?php echo htmlspecialchars(t('asset-management.settings.asset_label_logo_restrictions_hint', 'Logo format: PNG or JPG only, max 2 MB. Square, bold, or high-contrast logos work best. Scaled to 22% in the center of the QR code with Error Correction Level H (30% redundancy) to ensure reliable scanning.')); ?></div>
                                     </div>
                                 </div>
@@ -1300,7 +1378,7 @@ $translationNamespaces = ['common', 'asset-management'];
                                                 <input type="checkbox" id="lblShowFieldLabels" onchange="updateLabelLivePreview()">
                                                 <span class="toggle-slider"></span>
                                             </label>
-                                            <span style="font-size:13px;"><?php echo htmlspecialchars(t('asset-management.settings.asset_label_show_labels_label', 'Include field labels on printed tag')); ?></span>
+                                            <span style="font-size:var(--font-size-md, 13px);"><?php echo htmlspecialchars(t('asset-management.settings.asset_label_show_labels_label', 'Include field labels on printed tag')); ?></span>
                                         </label>
                                         <div class="form-hint" style="margin-left: 48px;"><?php echo htmlspecialchars(t('asset-management.settings.asset_label_show_labels_hint', 'When enabled, prints field names before values (e.g. "Hostname: LON-01"). When disabled, prints only values for maximum space efficiency.')); ?></div>
                                     </div>
@@ -1317,10 +1395,10 @@ $translationNamespaces = ['common', 'asset-management'];
                         <!-- Live Physical Label Preview Card -->
                         <div class="card" style="background:var(--surface-2, #f3f6fa); border:1px solid var(--border, #e2e6ea); border-radius:8px; padding:16px; margin:20px 0;">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
-                                <div style="font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted, #667);">
+                                <div style="font-size:var(--font-size-sm, 12px); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-muted, #667);">
                                     <?php echo htmlspecialchars(t('asset-management.settings.asset_label_preview_heading', 'Live physical label previews (100% physical scale — all 4 sheet sizes)')); ?>
                                 </div>
-                                <div style="font-size:11px; color:var(--text-muted, #778); font-style:italic;">
+                                <div style="font-size:var(--font-size-xs, 11px); color:var(--text-muted, #778); font-style:italic;">
                                     Shown at actual 1:1 physical print dimensions (mm). Verify that your selected fields fit comfortably without excessive truncation.
                                 </div>
                             </div>
@@ -1328,9 +1406,9 @@ $translationNamespaces = ['common', 'asset-management'];
                             <div style="display:flex; gap:20px; align-items:flex-start; overflow-x:auto; padding:12px 6px 18px 6px;">
                                 <!-- 65 per sheet: 38.1 x 21.2 mm -->
                                 <div style="flex:0 0 auto;">
-                                    <div style="font-size:11px; font-weight:600; color:#556; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                                    <div style="font-size:var(--font-size-xs, 11px); font-weight:600; color:#556; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
                                         <span>65 per sheet</span>
-                                        <span style="font-size:10px; color:#889; font-weight:normal;">(38.1 × 21.2 mm)</span>
+                                        <span style="font-size:var(--font-size-xs, 11px); color:#889; font-weight:normal;">(38.1 × 21.2 mm)</span>
                                     </div>
                                     <div class="label-preview-item" data-sheet="65" style="width:38.1mm; height:21.2mm; padding:1.2mm 1.5mm; background:#fff; border:1px dashed #bbb; border-radius:2px; box-shadow:0 2px 5px rgba(0,0,0,0.06); display:flex; flex-direction:column; justify-content:space-between; overflow:hidden; box-sizing:border-box;">
                                         <div class="prevHeader" style="text-align:right; font-size:5pt; font-weight:600; color:#444; text-transform:uppercase; letter-spacing:0.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:0.3mm; display:none;"></div>
@@ -1347,10 +1425,10 @@ $translationNamespaces = ['common', 'asset-management'];
 
                                 <!-- 40 per sheet: 45.7 x 25.4 mm (Standard) -->
                                 <div style="flex:0 0 auto;">
-                                    <div style="font-size:11px; font-weight:600; color:#556; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                                    <div style="font-size:var(--font-size-xs, 11px); font-weight:600; color:#556; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
                                         <span>40 per sheet</span>
-                                        <span style="font-size:10px; color:#889; font-weight:normal;">(45.7 × 25.4 mm)</span>
-                                        <span style="font-size:9px; background:#e8f5e9; color:#2e7d32; padding:1px 4px; border-radius:3px;">Standard</span>
+                                        <span style="font-size:var(--font-size-xs, 11px); color:#889; font-weight:normal;">(45.7 × 25.4 mm)</span>
+                                        <span style="font-size:var(--font-size-xs, 11px); background:#e8f5e9; color:#2e7d32; padding:1px 4px; border-radius:3px;">Standard</span>
                                     </div>
                                     <div class="label-preview-item" data-sheet="40" style="width:45.7mm; height:25.4mm; padding:1.2mm 1.5mm; background:#fff; border:1px dashed #bbb; border-radius:2px; box-shadow:0 2px 5px rgba(0,0,0,0.06); display:flex; flex-direction:column; justify-content:space-between; overflow:hidden; box-sizing:border-box;">
                                         <div class="prevHeader" style="text-align:right; font-size:6.0pt; font-weight:600; color:#444; text-transform:uppercase; letter-spacing:0.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:0.4mm; display:none;"></div>
@@ -1367,9 +1445,9 @@ $translationNamespaces = ['common', 'asset-management'];
 
                                 <!-- 24 per sheet: 63.5 x 33.9 mm -->
                                 <div style="flex:0 0 auto;">
-                                    <div style="font-size:11px; font-weight:600; color:#556; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                                    <div style="font-size:var(--font-size-xs, 11px); font-weight:600; color:#556; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
                                         <span>24 per sheet</span>
-                                        <span style="font-size:10px; color:#889; font-weight:normal;">(63.5 × 33.9 mm)</span>
+                                        <span style="font-size:var(--font-size-xs, 11px); color:#889; font-weight:normal;">(63.5 × 33.9 mm)</span>
                                     </div>
                                     <div class="label-preview-item" data-sheet="24" style="width:63.5mm; height:33.9mm; padding:1.2mm 1.5mm; background:#fff; border:1px dashed #bbb; border-radius:2px; box-shadow:0 2px 5px rgba(0,0,0,0.06); display:flex; flex-direction:column; justify-content:space-between; overflow:hidden; box-sizing:border-box;">
                                         <div class="prevHeader" style="text-align:right; font-size:7.5pt; font-weight:600; color:#444; text-transform:uppercase; letter-spacing:0.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:0.5mm; display:none;"></div>
@@ -1386,9 +1464,9 @@ $translationNamespaces = ['common', 'asset-management'];
 
                                 <!-- 12 per sheet: 63.5 x 72.0 mm -->
                                 <div style="flex:0 0 auto;">
-                                    <div style="font-size:11px; font-weight:600; color:#556; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                                    <div style="font-size:var(--font-size-xs, 11px); font-weight:600; color:#556; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
                                         <span>12 per sheet</span>
-                                        <span style="font-size:10px; color:#889; font-weight:normal;">(63.5 × 72.0 mm)</span>
+                                        <span style="font-size:var(--font-size-xs, 11px); color:#889; font-weight:normal;">(63.5 × 72.0 mm)</span>
                                     </div>
                                     <div class="label-preview-item" data-sheet="12" style="width:63.5mm; height:72.0mm; padding:1.2mm 1.5mm; background:#fff; border:1px dashed #bbb; border-radius:2px; box-shadow:0 2px 5px rgba(0,0,0,0.06); display:flex; flex-direction:column; justify-content:space-between; overflow:hidden; box-sizing:border-box;">
                                         <div class="prevHeader" style="text-align:right; font-size:7.5pt; font-weight:600; color:#444; text-transform:uppercase; letter-spacing:0.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:0.5mm; display:none;"></div>
@@ -1431,7 +1509,7 @@ $translationNamespaces = ['common', 'asset-management'];
                     <form id="reconciliationForm" onsubmit="saveReconciliationSettings(event); return false;">
                         <div class="form-group">
                             <label class="form-label" for="reconIgnoredSerials"><?php echo htmlspecialchars(t('asset-management.settings.ignored_serials_label')); ?></label>
-                            <textarea class="form-input" id="reconIgnoredSerials" rows="6" placeholder="<?php echo htmlspecialchars(t('asset-management.settings.ignored_serials_placeholder')); ?>" style="font-family: monospace; font-size: 12px;"></textarea>
+                            <textarea class="form-input" id="reconIgnoredSerials" rows="6" placeholder="<?php echo htmlspecialchars(t('asset-management.settings.ignored_serials_placeholder')); ?>" style="font-family: monospace; font-size: var(--font-size-sm, 12px);"></textarea>
                             <div class="form-hint"><?php echo htmlspecialchars(t('asset-management.settings.ignored_serials_hint')); ?></div>
                         </div>
                         <?php /* GH #200 part D. A setting because teams differ: most want a correction to
@@ -1458,7 +1536,7 @@ $translationNamespaces = ['common', 'asset-management'];
 
                     <?php /* GH #200 part D: names shown one way. Its own list, saved as you add,
                              because each row is a decision on its own, not part of the form above. */ ?>
-                    <h3 style="margin: 32px 0 6px; font-size: 15px;"><?php echo htmlspecialchars(t('asset-management.names.heading')); ?></h3>
+                    <h3 style="margin: 32px 0 6px; font-size: var(--font-size-xl, 16px);"><?php echo htmlspecialchars(t('asset-management.names.heading')); ?></h3>
                     <p class="settings-description"><?php echo htmlspecialchars(t('asset-management.names.intro')); ?></p>
                     <div class="nm-add">
                         <select class="form-input" id="nmField" onchange="nmFillSuggestions()">
@@ -1575,7 +1653,7 @@ $translationNamespaces = ['common', 'asset-management'];
                                 <label><input type="checkbox" id="proxmoxActive" checked> <?php echo htmlspecialchars(t('asset-management.proxmox.field_active')); ?></label>
                             </div>
                         </div>
-                        <p style="color:var(--text-muted, #666); font-size:12px; margin-top:10px;"><?php echo htmlspecialchars(t('asset-management.proxmox.perm_help')); ?></p>
+                        <p style="color:var(--text-muted, #666); font-size:var(--font-size-sm, 12px); margin-top:10px;"><?php echo htmlspecialchars(t('asset-management.proxmox.perm_help')); ?></p>
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -1619,7 +1697,7 @@ $translationNamespaces = ['common', 'asset-management'];
                 <div style="display:flex; gap:8px; align-items:center;"><code id="hvKey" style="word-break:break-all;"></code>
                     <button type="button" class="btn btn-outline btn-sm" onclick="hvCopy('hvKey')"><?php echo htmlspecialchars(t('asset-management.hyperv.key_copy')); ?></button></div>
                 <h4 style="margin:16px 0 6px;"><?php echo htmlspecialchars(t('asset-management.hyperv.command_title')); ?></h4>
-                <pre id="hvCommand" style="white-space:pre-wrap; word-break:break-all; padding:10px; background:var(--surface-hover, #f3f4f6); border-radius:6px; font-size:12px;"></pre>
+                <pre id="hvCommand" style="white-space:pre-wrap; word-break:break-all; padding:10px; background:var(--surface-hover, #f3f4f6); border-radius:6px; font-size:var(--font-size-sm, 12px);"></pre>
                 <button type="button" class="btn btn-outline btn-sm" onclick="hvCopy('hvCommand')"><?php echo htmlspecialchars(t('asset-management.hyperv.key_copy')); ?></button>
                 <p class="form-hint"><?php echo htmlspecialchars(t('asset-management.hyperv.command_hint')); ?></p>
             </div>
@@ -1635,13 +1713,13 @@ $translationNamespaces = ['common', 'asset-management'];
 
             <div class="settings-section" style="margin-top:16px;">
                 <h3 style="margin-top:0;"><?php echo htmlspecialchars(t('asset-management.hyperv.setup_title')); ?></h3>
-                <ul style="margin:0; padding-left:20px; line-height:1.6; color:var(--text-muted, #555); font-size:13px;">
+                <ul style="margin:0; padding-left:20px; line-height:1.6; color:var(--text-muted, #555); font-size:var(--font-size-md, 13px);">
                     <li><?php echo htmlspecialchars(t('asset-management.hyperv.setup_ps')); ?></li>
                     <li><?php echo htmlspecialchars(t('asset-management.hyperv.setup_modules')); ?></li>
                     <li><?php echo htmlspecialchars(t('asset-management.hyperv.setup_cluster')); ?></li>
                     <li><?php echo htmlspecialchars(t('asset-management.hyperv.setup_hosts')); ?></li>
                 </ul>
-                <p style="font-size:13px;"><a href="https://github.com/edmozley/freeitsm/wiki/Hyper-V-Discovery" target="_blank" rel="noopener"><?php echo htmlspecialchars(t('asset-management.hyperv.setup_more')); ?></a></p>
+                <p style="font-size:var(--font-size-md, 13px);"><a href="https://github.com/edmozley/freeitsm/wiki/Hyper-V-Discovery" target="_blank" rel="noopener"><?php echo htmlspecialchars(t('asset-management.hyperv.setup_more')); ?></a></p>
             </div>
         </div>
 
@@ -1793,7 +1871,7 @@ $translationNamespaces = ['common', 'asset-management'];
                                 <label><input type="checkbox" id="vcloudActive" checked> <?php echo htmlspecialchars(t('asset-management.vcloud.field_active')); ?></label>
                             </div>
                         </div>
-                        <p style="color:var(--text-muted, #666); font-size:12px; margin-top:10px;"><?php echo htmlspecialchars(t('asset-management.vcloud.perm_help')); ?></p>
+                        <p style="color:var(--text-muted, #666); font-size:var(--font-size-sm, 12px); margin-top:10px;"><?php echo htmlspecialchars(t('asset-management.vcloud.perm_help')); ?></p>
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -1925,6 +2003,28 @@ $translationNamespaces = ['common', 'asset-management'];
                         <div id="itemLayoutTabs"></div>
                     </div>
                 </div>
+                <?php /* GH #404: what this type is expected to have filled in eventually. Flags,
+                         never refuses - see includes/services/asset_completeness.php. Asset TYPES
+                         only; saved with the type by Save. Shown once Database Verification has
+                         added the tables. */ ?>
+                <?php if (AssetCompleteness::ready(connectToDatabase())): ?>
+                <div class="form-group" id="itemExpectedRow" style="display:none;">
+                    <label><?php echo htmlspecialchars(t('asset-management.missing.expected_heading')); ?></label>
+                    <div class="atl-box">
+                        <p class="atl-intro"><?php echo htmlspecialchars(t('asset-management.missing.expected_intro')); ?></p>
+                        <?php $byS = []; foreach (AssetCompleteness::BUILTIN as $k => $d) $byS[$d[0]][] = $k; ?>
+                        <?php foreach ($byS as $sec => $keys): ?>
+                        <div class="atl-sub"><?php echo htmlspecialchars(t('asset-management.missing.section_' . $sec)); ?></div>
+                        <?php foreach ($keys as $k): ?>
+                        <label class="atl-opt"><input type="checkbox" data-expected="<?php echo $k; ?>"><span><span class="atl-opt-name"><?php echo htmlspecialchars(t('asset-management.missing.field_' . $k)); ?></span></span></label>
+                        <?php endforeach; ?>
+                        <?php endforeach; ?>
+                        <div class="atl-sub"><?php echo htmlspecialchars(t('asset-management.missing.section_custom')); ?></div>
+                        <div id="itemExpectedCustom"></div>
+                        <div class="form-hint"><?php echo htmlspecialchars(t('asset-management.missing.expected_hint')); ?></div>
+                    </div>
+                </div>
+                <?php endif; ?>
                 <div class="form-group">
                     <label class="toggle-label">
                         <span class="toggle-switch">
@@ -2233,12 +2333,12 @@ $translationNamespaces = ['common', 'asset-management'];
                 const labelName = availableLabelFieldsMap[fk] || fk;
                 const row = document.createElement('div');
                 row.className = 'lbl-field-item';
-                row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; background:var(--surface,#fff); border:1px solid var(--border,#d5dbe1); border-radius:4px; padding:6px 10px; font-size:13px;';
+                row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; background:var(--surface,#fff); border:1px solid var(--border,#d5dbe1); border-radius:4px; padding:6px 10px; font-size:var(--font-size-md, 13px);';
 
                 const left = document.createElement('div');
                 left.style.cssText = 'display:flex; align-items:center; gap:8px;';
-                const dragIcon = '<span style="color:var(--text-muted,#889); font-size:12px;">☰</span>';
-                left.innerHTML = dragIcon + '<strong>' + escapeHtml(labelName) + '</strong>' + (fk === 'asset_tag' ? ' <span style="font-size:11px; color:#2e7d32; background:#e8f5e9; padding:1px 5px; border-radius:3px; font-weight:normal;">Required</span>' : '');
+                const dragIcon = '<span style="color:var(--text-muted,#889); font-size:var(--font-size-sm, 12px);">☰</span>';
+                left.innerHTML = dragIcon + '<strong>' + escapeHtml(labelName) + '</strong>' + (fk === 'asset_tag' ? ' <span style="font-size:var(--font-size-xs, 11px); color:#2e7d32; background:#e8f5e9; padding:1px 5px; border-radius:3px; font-weight:normal;">Required</span>' : '');
 
                 const actions = document.createElement('div');
                 actions.style.cssText = 'display:flex; align-items:center; gap:4px;';
@@ -2246,7 +2346,7 @@ $translationNamespaces = ['common', 'asset-management'];
                 const upBtn = document.createElement('button');
                 upBtn.type = 'button';
                 upBtn.className = 'btn btn-secondary';
-                upBtn.style.cssText = 'padding:2px 6px; font-size:11px;';
+                upBtn.style.cssText = 'padding:2px 6px; font-size:var(--font-size-xs, 11px);';
                 upBtn.textContent = '↑';
                 upBtn.disabled = (idx === 0);
                 upBtn.onclick = () => moveSelectedLabelField(idx, -1);
@@ -2254,7 +2354,7 @@ $translationNamespaces = ['common', 'asset-management'];
                 const dnBtn = document.createElement('button');
                 dnBtn.type = 'button';
                 dnBtn.className = 'btn btn-secondary';
-                dnBtn.style.cssText = 'padding:2px 6px; font-size:11px;';
+                dnBtn.style.cssText = 'padding:2px 6px; font-size:var(--font-size-xs, 11px);';
                 dnBtn.textContent = '↓';
                 dnBtn.disabled = (idx === selectedLabelFields.length - 1);
                 dnBtn.onclick = () => moveSelectedLabelField(idx, 1);
@@ -2266,7 +2366,7 @@ $translationNamespaces = ['common', 'asset-management'];
                     const delBtn = document.createElement('button');
                     delBtn.type = 'button';
                     delBtn.className = 'btn btn-secondary delete';
-                    delBtn.style.cssText = 'padding:2px 6px; font-size:11px; margin-left:4px;';
+                    delBtn.style.cssText = 'padding:2px 6px; font-size:var(--font-size-xs, 11px); margin-left:4px;';
                     delBtn.textContent = '✕';
                     delBtn.onclick = () => removeSelectedLabelField(idx);
                     actions.appendChild(delBtn);
@@ -2685,7 +2785,7 @@ $translationNamespaces = ['common', 'asset-management'];
         // defaults it inherits, each with a Hide/Show toggle.
         function renderItemsScoped(type, tbody, scoped) {
             const groupRow = (label, hint) =>
-                `<tr><td colspan="5" style="background:var(--surface-2, #f7f9fa);border-top:1px solid var(--border, #e3e8ea);font-size:12px;font-weight:600;color:var(--text-muted, #455a64);padding:10px;">${escapeHtml(label)}${hint ? ` <span style="font-weight:400;color:var(--text-faint, #90a4ae);">— ${escapeHtml(hint)}</span>` : ''}</td></tr>`;
+                `<tr><td colspan="5" style="background:var(--surface-2, #f7f9fa);border-top:1px solid var(--border, #e3e8ea);font-size:var(--font-size-sm, 12px);font-weight:600;color:var(--text-muted, #455a64);padding:10px;">${escapeHtml(label)}${hint ? ` <span style="font-weight:400;color:var(--text-faint, #90a4ae);">— ${escapeHtml(hint)}</span>` : ''}</td></tr>`;
 
             let html = '';
             html += groupRow(`${scoped.company.name}’s own`);
@@ -2764,6 +2864,7 @@ $translationNamespaces = ['common', 'asset-management'];
             document.getElementById('itemActive').checked = true;
             icSetup(type, null);
             atlSetup(type, null);
+            expSetup(type, null);   // GH #404
             cmdbClassSetup(type, null);
             leaseKindSetup(type, null);
             retiredTickSetup(type, null);
@@ -2784,6 +2885,7 @@ $translationNamespaces = ['common', 'asset-management'];
             document.getElementById('itemActive').checked = item.is_active;
             icSetup(type, item.icon_id || null);
             atlSetup(type, item.layout || null);
+            expSetup(type, item);   // GH #404
             cmdbClassSetup(type, item.cmdb_class_id || null);
             leaseKindSetup(type, item);
             retiredTickSetup(type, item);
@@ -2834,6 +2936,7 @@ $translationNamespaces = ['common', 'asset-management'];
             };
             if (type === 'asset-type') {
                 payload.layout = atlCollect();
+                if (document.getElementById('itemExpectedRow')) payload.expected = expCollect();   // GH #404
                 payload.cmdb_class_id = document.getElementById('itemCmdbClass').value || null;
             }
             if (type === 'asset-status') {
@@ -3169,7 +3272,7 @@ $translationNamespaces = ['common', 'asset-management'];
             }
             tbody.innerHTML = rows.map(s => {
                 const alt = (s.trading_name && s.legal_name && s.trading_name !== s.legal_name)
-                    ? ` <span style="color:#999;font-size:12px;">(${escapeHtml(s.legal_name)})</span>` : '';
+                    ? ` <span style="color:#999;font-size:var(--font-size-sm, 12px);">(${escapeHtml(s.legal_name)})</span>` : '';
                 const inactive = !s.is_active ? ` <span class="status-badge status-inactive">${window.t('asset-management.status.inactive')}</span>` : '';
                 return `
                     <tr>
@@ -3277,6 +3380,41 @@ $translationNamespaces = ['common', 'asset-management'];
 
         let atlTabs = null;   // the ReorderList of tabs, while the dialog is open
 
+        // =========================================================
+        //  Expected information (GH #404): which fields this type should have filled
+        //  in eventually. Built-in ticks are in the markup; the custom fields offered
+        //  are the ones in the field sets attached to this type (from get_asset_types).
+        // =========================================================
+        /** Show the block for asset types, ticked from the type's expected fields. */
+        function expSetup(type, item) {
+            const row = document.getElementById('itemExpectedRow');
+            if (!row) return;
+            const isType = (type === 'asset-type');
+            row.style.display = isType ? '' : 'none';
+            if (!isType) return;
+            const on = new Set((item && item.expected) || []);
+            document.querySelectorAll('[data-expected]').forEach(cb => { cb.checked = on.has(cb.dataset.expected); });
+            const host = document.getElementById('itemExpectedCustom');
+            const custom = (item && item.expected_custom) || [];
+            host.textContent = '';
+            if (!custom.length) {
+                const p = document.createElement('div');
+                p.className = 'atl-note';
+                p.textContent = window.t('asset-management.missing.no_custom');
+                host.appendChild(p);
+                return;
+            }
+            custom.forEach(c => {
+                const lab = document.createElement('label'); lab.className = 'atl-opt';
+                const cb = document.createElement('input'); cb.type = 'checkbox'; cb.dataset.expected = c.key; cb.checked = on.has(c.key);
+                const sp = document.createElement('span'); const nm = document.createElement('span'); nm.className = 'atl-opt-name'; nm.textContent = c.label;
+                sp.appendChild(nm); lab.append(cb, sp); host.appendChild(lab);
+            });
+        }
+        /** The ticked keys, for Save. */
+        function expCollect() {
+            return Array.from(document.querySelectorAll('[data-expected]:checked')).map(cb => cb.dataset.expected);
+        }
         /** Show the editor for asset types, filled from the type's layout; hide it otherwise. */
         function atlSetup(type, layout) {
             const row = document.getElementById('itemLayoutRow');
@@ -3353,6 +3491,74 @@ $translationNamespaces = ['common', 'asset-management'];
             }
         }
         loadLayoutNotice();
+
+        // ════════════════════════════════════════════════════════════════
+        //  Consumables (5.8.0): types, who hears about low stock, the reorder form.
+        //  Types through api/assets/consumables.php (the only writer); the rest are
+        //  system settings, as every other tab here.
+        // ════════════════════════════════════════════════════════════════
+        const CS_API = '../../api/assets/consumables.php';
+        const csT = (k, p) => window.t('asset-management.consumables.' + k, p);
+        const csEsc = s => { const d = document.createElement('div'); d.textContent = s == null ? '' : String(s); return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); };
+        async function csLoad() {
+            if (!document.getElementById('consumables-tab')) return;
+            const m = await fetch(CS_API + '?action=meta').then(r => r.json()).catch(() => null);
+            const body = document.getElementById('csTypesList');
+            if (!m || !m.success) { body.innerHTML = `<tr><td colspan="4">${csEsc(m ? m.error : '')}</td></tr>`; return; }
+            body.innerHTML = m.types.length ? m.types.map(t => `<tr data-type="${t.id}" style="${t.is_active ? '' : 'opacity:.55'}">
+                    <td><input type="text" maxlength="100" value="${csEsc(t.name)}" data-f="name"></td>
+                    <td><input type="text" maxlength="255" value="${csEsc(t.description || '')}" data-f="description"></td>
+                    <td>${t.items}</td>
+                    <td><button type="button" class="action-btn" onclick="csTypeSave(${t.id})">${csEsc(window.t('common.save'))}</button>
+                        <button type="button" class="action-btn" onclick="csTypeSave(${t.id}, ${t.is_active ? 0 : 1})">${csEsc(csT(t.is_active ? 'set_type_retire' : 'set_type_restore'))}</button></td>
+                </tr>`).join('') : `<tr><td colspan="4">${csEsc(csT('set_type_none'))}</td></tr>`;
+            const s = await fetch(API_SETTINGS + 'get_system_settings.php').then(r => r.json()).catch(() => null);
+            if (!s || !s.success) return;
+            const ids = String(s.settings.consumables_low_notify || '').split(',').filter(Boolean);
+            document.querySelectorAll('#csNotify input').forEach(b => { b.checked = ids.includes(b.value); });
+            document.getElementById('csReorderForm').value = s.settings.consumables_reorder_form || '';
+            let map = {};
+            try { map = JSON.parse(s.settings.consumables_reorder_map || '{}') || {}; } catch (e) { map = {}; }
+            csDrawMap(map);
+        }
+        function csDrawMap(map) {
+            const fid = document.getElementById('csReorderForm').value;
+            const form = fid && window.CS_FORMS[fid];
+            document.getElementById('csReorderMap').hidden = !form;
+            if (!form) return;
+            document.querySelectorAll('#csReorderMap [data-map]').forEach(sel => {
+                sel.innerHTML = `<option value="">${csEsc(csT('set_map_skip'))}</option>` + form.fields.map(f => `<option value="${f.id}">${csEsc(f.label)}</option>`).join('');
+                sel.value = map[sel.dataset.map] ? String(map[sel.dataset.map]) : '';
+            });
+        }
+        document.getElementById('csReorderForm')?.addEventListener('change', () => csDrawMap({}));
+        async function csTypeSave(id, active) {
+            let type;
+            if (id) {
+                const row = document.querySelector(`#csTypesList tr[data-type="${id}"]`);
+                type = { id, name: row.querySelector('[data-f=name]').value, description: row.querySelector('[data-f=description]').value };
+                if (active !== undefined) type.is_active = active;
+            } else {
+                type = { name: document.getElementById('csTypeName').value, description: document.getElementById('csTypeDesc').value };
+            }
+            const d = await fetch(CS_API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'save_type', type }) }).then(r => r.json());
+            if (!d.success) { showToast(d.error, 'error'); return; }
+            if (!id) { document.getElementById('csTypeName').value = ''; document.getElementById('csTypeDesc').value = ''; }
+            showToast(csT('set_saved'), 'success');
+            csLoad();
+        }
+        async function csSettingsSave() {
+            const map = {};
+            document.querySelectorAll('#csReorderMap [data-map]').forEach(sel => { if (sel.value) map[sel.dataset.map] = parseInt(sel.value, 10); });
+            const settings = {
+                consumables_low_notify: Array.from(document.querySelectorAll('#csNotify input:checked')).map(b => b.value).join(','),
+                consumables_reorder_form: document.getElementById('csReorderForm').value,
+                consumables_reorder_map: JSON.stringify(map),
+            };
+            const d = await fetch(API_SETTINGS + 'save_system_settings.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ settings }) }).then(r => r.json());
+            if (d.success) showToast(csT('set_saved'), 'success'); else showToast(window.t('asset-management.toast.error', { error: d.error }), 'error');
+        }
+        csLoad();
 
         // ════════════════════════════════════════════════════════════════
         //  Review (GH #200 part D) - the cases matching refuses to guess.
@@ -4898,7 +5104,7 @@ $translationNamespaces = ['common', 'asset-management'];
     <script src="../../assets/js/asset-labels/designs-admin.js?v=3"></script>
     <?php endif; endif; ?>
     <script>window.ASSET_LAYOUT = <?php echo json_encode(['defaults' => AssetTypeLayout::defaults(), 'presets' => AssetTypeLayout::PRESETS], JSON_HEX_TAG | JSON_HEX_AMP); ?>;</script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
     <?php if (settingsTabVisible($visibleTabs, 'hyperv')): ?><script src="hyperv.js?v=3"></script><?php endif; ?>
 </body>
 </html>

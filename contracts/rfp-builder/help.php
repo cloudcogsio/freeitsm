@@ -32,8 +32,8 @@ $translationNamespaces = ['common', 'contracts'];
     <?php echo Tz::scriptTag(); ?>
     <script src="../../assets/js/tz.js?v=5"></script>
     <script src="../../assets/js/i18n.js?v=4"></script>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../../assets/css/help.css?v=6">
     <style>
         /* The only thing a help page should need to say for itself: its colour. */
@@ -47,7 +47,7 @@ $translationNamespaces = ['common', 'contracts'];
         /* This guide sits one level down inside Contracts, so it keeps a
            breadcrumb above the hero. Everything below the breadcrumb is the
            ordinary house style. */
-        .rfp-breadcrumb { font-size: 13px; color: var(--text-dim, #888); padding: 14px 32px 0; }
+        .rfp-breadcrumb { font-size: var(--font-size-md, 13px); color: var(--text-dim, #888); padding: 14px 32px 0; }
         .rfp-breadcrumb a { color: var(--text-muted, #666); text-decoration: none; }
         .rfp-breadcrumb a:hover { color: var(--accent); }
         .rfp-breadcrumb span.sep { margin: 0 6px; color: var(--text-faint, #ccc); }
@@ -66,10 +66,10 @@ $translationNamespaces = ['common', 'contracts'];
             border-radius: 6px;
             padding: 10px 12px;
             text-align: center;
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--text-muted, #374151);
         }
-        .rfp-workflow-strip .step strong { display: block; color: var(--accent); font-size: 16px; margin-bottom: 4px; }
+        .rfp-workflow-strip .step strong { display: block; color: var(--accent); font-size: var(--font-size-xl, 16px); margin-bottom: 4px; }
 
         .help-content table td.num { text-align: right; font-variant-numeric: tabular-nums; }
 
@@ -320,6 +320,6 @@ $translationNamespaces = ['common', 'contracts'];
                 </div>
             </main>
     </div>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

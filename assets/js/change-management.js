@@ -51,6 +51,10 @@ document.addEventListener('DOMContentLoaded', function() {
         loadChangePriorities(), loadChangeTypes(), loadChangeImpacts()
     ]).then(loaded => loaded.every(Boolean));
     loadMoveCompanies();
+    // Before the first load, so a list opened from a Watchtower count is fetched
+    // filtered once rather than drawn whole and then redrawn (discussion #388).
+    readListLinkFromUrl();
+    statusesReady.then(settleListLink);
     loadChanges();
     setupFileUpload();
 
@@ -502,12 +506,21 @@ function populateAnalystDropdowns() {
     });
 }
 
+// Which loadChanges() call is the latest. A list opened from a Watchtower link
+// can fire two loads close together (the linked one, then the whole list when
+// the status turns out not to exist), and an answer arriving late must not draw
+// over the newer one (discussion #388).
+let changeListGeneration = 0;
+
 /** Loads the change list for the current status filter and search, and updates the counts. */
 async function loadChanges() {
+    const generation = ++changeListGeneration;
     try {
         let url = API_BASE + 'list.php?';
         if (currentFilter !== 'all') {
             url += 'status=' + encodeURIComponent(currentFilter) + '&';
+        } else if (linkedOpenStatuses) {
+            url += 'statuses=open&';   // Watchtower's "open" count (discussion #388)
         }
         if (searchQuery) {
             url += 'search=' + encodeURIComponent(searchQuery) + '&';
@@ -515,6 +528,7 @@ async function loadChanges() {
 
         const response = await fetch(url);
         const data = await response.json();
+        if (generation !== changeListGeneration) return;   // a newer load has been asked for
 
         if (data.success) {
             changes = data.changes;
@@ -572,11 +586,28 @@ function renderChangeList() {
         ? window.t('change-management.list.count', { count: changes.length })
         : window.t('change-management.list.count_plural', { count: changes.length });
 
-    container.innerHTML = changes.map(c => {
+    /* Ed, 2026-11-20: four unlabelled pills - risk, type, priority, status - read as one
+       muddle ("MEDIUM ... Medium" was risk then priority). So the list has labelled COLUMNS:
+       a header row on a desktop, and on a phone a small label before each value. The values
+       are coloured text with a dot, or plain text (Preferences: Change list labels). The
+       colour classes are the same ones the detail view and table use. */
+    const colLabel = k => window.t('change-management.table.col_' + k);
+    // A status's own colour from Settings (statuses are configurable; a custom one has no CSS class).
+    const statusColourStyle = name => {
+        const st = changeStatuses.find(x => x.name === name);
+        return st && /^#[0-9a-f]{3,8}$/i.test(st.colour || '') ? ` style="color:${st.colour}"` : '';
+    };
+    const cell = (k, html) => `<span class="chg-cell chg-cell-${k}"><span class="chg-cell-label">${escapeHtml(colLabel(k))}</span>${html || '<span class="chg-cell-none">-</span>'}</span>`;
+    const head = `<div class="chg-list-head" aria-hidden="true"><span>${escapeHtml(colLabel('ref'))}</span><span>${escapeHtml(colLabel('title'))}</span>`
+        + ['risk', 'priority', 'type', 'status'].map(k => `<span>${escapeHtml(colLabel(k))}</span>`).join('') + `</div>`;
+
+    container.innerHTML = head + changes.map(c => {
         const ref = 'CHG-' + String(c.id).padStart(4, '0');
-        const statusClass = c.status.toLowerCase().replace(/\s+/g, '-');
-        const typeClass = c.change_type.toLowerCase();
-        const priorityClass = c.priority.toLowerCase();
+        // A change with no type, priority or status used to stop the WHOLE list drawing
+        // (null.toLowerCase()) - the count updated and no cards appeared.
+        const statusClass = String(c.status || '').toLowerCase().replace(/\s+/g, '-');
+        const typeClass = String(c.change_type || '').toLowerCase();
+        const priorityClass = String(c.priority || '').toLowerCase();
         const assignedName = c.assigned_to_name || window.t('change-management.list.unassigned');
         const workStart = c.work_start_datetime ? formatDate(c.work_start_datetime) : '';
 
@@ -592,10 +623,10 @@ function renderChangeList() {
                     </div>
                 </div>
                 <div class="change-card-badges">
-                    ${ChangeRisk.badge(c)}
-                    <span class="type-badge ${typeClass}">${escapeHtml(c.change_type)}</span>
-                    <span class="priority-badge ${priorityClass}">${escapeHtml(c.priority)}</span>
-                    <span class="status-badge ${statusClass}">${escapeHtml(c.status)}</span>
+                    ${cell('risk', ChangeRisk.badge(c))}
+                    ${cell('priority', c.priority ? `<span class="priority-badge ${priorityClass}">${escapeHtml(c.priority)}</span>` : '')}
+                    ${cell('type', c.change_type ? `<span class="type-badge ${typeClass}">${escapeHtml(c.change_type)}</span>` : '')}
+                    ${cell('status', c.status ? `<span class="status-badge ${statusClass}"${statusColourStyle(c.status)}>${escapeHtml(c.status)}</span>` : '')}
                 </div>
             </div>
         `;
@@ -723,8 +754,11 @@ function renderChangeDetail() {
                 ${badgesHtml ? `<div class="sticky-header-badges">${badgesHtml}</div>` : ''}
             </div>
             ${v('title') ? `<div class="change-detail-title">${escapeHtml(c.title)}</div>` : ''}
-            ${metaItems ? `<div class="detail-meta-grid">${metaItems}</div>` : ''}
         </div>
+        ${/* The details grid scrolls with the change (Ed, 2026-11-20): inside the sticky header it
+             stayed pinned and, at up to 13 items, left only a sliver of the change visible. Only
+             the actions, reference, title and status stay put. */ ''}
+        ${metaItems ? `<div class="detail-meta-grid chg-meta-below">${metaItems}</div>` : ''}
     `;
 
     // Approval panel (#180): the current round, the CAB or the approver, earlier rounds.
@@ -1176,10 +1210,71 @@ async function postComment() {
 /** Filters the change list to one status (or all) and highlights its filter row. */
 function filterByStatus(status) {
     currentFilter = status;
+    // Picking a row yourself replaces whatever a Watchtower link opened.
+    clearListLink();
     document.querySelectorAll('.status-filter').forEach(el => {
         el.classList.toggle('active', el.dataset.status === status);
     });
     loadChanges();
+}
+
+// ============ Opened from a Watchtower count (discussion #388) ============
+//
+// ?status_id=N      one status (by id - change-management/index.php resolves it to the
+//                   status, never a name in the URL) - the sidebar row lights up, the way the ticket
+//                   inbox lights a folder, and is the visible filter.
+// ?statuses=open    the card's "open" figure - no row stands for it, so a chip
+//                   above the list says what is showing and its x clears it.
+// (?open=ID is NOT this: it is an old alias for ?change_id=, kept for shared links.)
+// No parameter = the page exactly as before.
+
+let linkedOpenStatuses = false;
+
+/** Reads ?status= / ?statuses=open into the list's filter before the first load. */
+function readListLinkFromUrl() {
+    const p = new URLSearchParams(window.location.search);
+    const st = window.CHG_LINK_STATUS || null;
+    if (st) currentFilter = st;
+    else if (p.get('statuses') === 'open') linkedOpenStatuses = true;
+}
+
+/**
+ * Once the status rows exist: lights the linked row, or shows the "open" chip. A
+ * status name that is not an active status here falls back to the whole list.
+ */
+function settleListLink() {
+    if (currentFilter !== 'all') {
+        if (!changeStatuses.some(s => s.name === currentFilter)) {
+            currentFilter = 'all';
+            clearListLink();
+            loadChanges();
+            return;
+        }
+        document.querySelectorAll('.status-filter').forEach(el => {
+            el.classList.toggle('active', el.dataset.status === currentFilter);
+        });
+    } else if (linkedOpenStatuses) {
+        document.querySelectorAll('.status-filter').forEach(el => el.classList.remove('active'));
+        const bar = document.getElementById('changeLinkFilter');
+        if (bar) {
+            bar.innerHTML = `<span class="link-filter-chip"><span>${escapeHtml(window.t('change-management.link_filter.open'))}</span>`
+                + `<button type="button" class="link-filter-remove" onclick="filterByStatus('all')" title="${escapeHtml(window.t('change-management.link_filter.remove'))}" aria-label="${escapeHtml(window.t('change-management.link_filter.remove'))}">&times;</button></span>`;
+            bar.hidden = false;
+        }
+    }
+}
+
+/** Forgets the Watchtower link: hides the chip and drops the parameters from the address. */
+function clearListLink() {
+    linkedOpenStatuses = false;
+    const bar = document.getElementById('changeLinkFilter');
+    if (bar) { bar.hidden = true; bar.innerHTML = ''; }
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('status') || url.searchParams.has('statuses')) {
+        url.searchParams.delete('status_id');
+        url.searchParams.delete('statuses');
+        history.replaceState(history.state, '', url.pathname + url.search + url.hash);
+    }
 }
 
 // ============ Search Modal ============
@@ -2160,7 +2255,7 @@ function renderCabMemberChips() {
     if (!container) return;
 
     if (!cabEditorMembers.length) {
-        container.innerHTML = `<div style="color: #999; font-size: 13px; padding: 8px 0;">${window.t('change-management.cab.no_members')}</div>`;
+        container.innerHTML = `<div style="color: #999; font-size: var(--font-size-md, 13px); padding: 8px 0;">${window.t('change-management.cab.no_members')}</div>`;
         return;
     }
 
@@ -2682,12 +2777,25 @@ async function changePdfDocument(content) {
     const holder = document.createElement('div');
     // A PDF page is always white, so the text colour is set here rather than
     // inherited from the screen's theme - in dark mode it would be pale grey on white.
-    holder.style.cssText = 'position: fixed; left: -10000px; top: 0; background: #fff; color: #333; width: '
+    holder.style.cssText = 'position: fixed; left: -10000px; top: 0; background: #fff; color: #333; '
+        // The sections reuse the change view's own markup and classes (the risk matrix, the
+        // approvals panel...), whose colours are theme tokens - pale on dark. Light values here.
+        + '--text: #333; --text-muted: #666; --text-dim: #888; --surface: #fff; --surface-2: #f8f9fa; --surface-hover: #f3f4f6; '
+        + '--border: #ddd; --border-soft: #eee; --app-bg: #fff; --shadow: rgba(0,0,0,0.08); width: '
         + Math.round(pageW * 96 / 25.4) + 'px;';   // the printable width at 96 CSS px per inch
     holder.appendChild(content);
     document.body.appendChild(holder);
     try {
-        const canvas = await html2canvas(content, { scale: 2, backgroundColor: '#ffffff' });
+        // The logo must have loaded before the page is drawn, or the header is blank.
+        await Promise.all(Array.from(content.querySelectorAll('img')).map(img => img.complete ? null
+            : new Promise(done => { img.onload = img.onerror = done; })));
+        // A PDF page is white: html2canvas draws a COPY of the page, so that copy is put in the
+        // light theme (Ed, 2026-11-20: the approvals panel came out dark in dark mode) - the
+        // screen itself never changes.
+        const canvas = await html2canvas(content, { scale: 2, backgroundColor: '#ffffff', onclone: doc => {
+            doc.documentElement.setAttribute('data-theme', 'default');   // the built-in light theme (Theme::DEFAULT_THEME)
+            doc.documentElement.setAttribute('data-theme-mode', 'light');
+        } });
         const pxPerMm = canvas.width / pageW;
         const slice = Math.floor(pageH * pxPerMm);
         const page = document.createElement('canvas');
@@ -2830,8 +2938,21 @@ function buildPdfContent() {
     const c = currentChange;
     const ref = getChangeRef();
 
+    // The organisation's branding (Ed, 2026-11-20): its own logo - never FreeITSM's (GH #254) -
+    // and the system's name, as the other exported documents carry.
+    const brand = window.CHG_BRAND || {};
+    const brandHead = `
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 2px solid #00897b; padding-bottom: 10px; margin-bottom: 18px;">
+            <div>${brand.logo ? `<img src="${escapeHtml(brand.logo)}" alt="" style="max-height: 52px; max-width: 220px; display: block;">` : ''}</div>
+            <div style="text-align: right; color: #666; font-size: var(--font-size-sm, 12px); line-height: 1.5;">
+                ${brand.name ? `<div style="font-weight: 600; color: #333; font-size: var(--font-size-lg, 14px);">${escapeHtml(brand.name)}</div>` : ''}
+                <div>${escapeHtml(window.t('change-management.pdf.generated', { datetime: formatDateTime(new Date().toISOString()) }))}</div>
+            </div>
+        </div>`;
+
     let html = `
         <div style="font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px;">
+            ${brandHead}
             <h1 style="color: #00897b; margin-bottom: 5px;">${ref}</h1>
             <h2 style="color: #333; margin-top: 0; margin-bottom: 20px;">${escapeHtml(c.title)}</h2>
 
@@ -2848,6 +2969,14 @@ function buildPdfContent() {
                     <td style="padding: 8px; border: 1px solid #ddd; background: #f9f9f9;"><strong>${window.t('change-management.pdf.impact')}</strong></td>
                     <td style="padding: 8px; border: 1px solid #ddd;">${escapeHtml(c.impact)}</td>
                 </tr>
+                ${c.risk_level ? `<tr>
+                    <td style="padding: 8px; border: 1px solid #ddd; background: #f9f9f9;"><strong>${window.t('change-management.detail.risk_level')}</strong></td>
+                    <td style="padding: 8px; border: 1px solid #ddd;" colspan="3">${ChangeRisk.badge(c, true)}</td>
+                </tr>` : ''}
+                ${c.approval_datetime ? `<tr>
+                    <td style="padding: 8px; border: 1px solid #ddd; background: #f9f9f9;"><strong>${window.t('change-management.detail.approved')}</strong></td>
+                    <td style="padding: 8px; border: 1px solid #ddd;" colspan="3">${formatDateTime(c.approval_datetime)}</td>
+                </tr>` : ''}
                 ${c.category ? `<tr>
                     <td style="padding: 8px; border: 1px solid #ddd; background: #f9f9f9;"><strong>${window.t('change-management.pdf.category')}</strong></td>
                     <td style="padding: 8px; border: 1px solid #ddd;" colspan="3">${escapeHtml(c.category)}</td>
@@ -2896,9 +3025,27 @@ function buildPdfContent() {
         }
     });
 
+    // Everything else the change view shows (Ed: "includes all info about the change e.g. the
+    // score diagram"). The view's own renderers, so the PDF can never show something different;
+    // their buttons and inputs are taken out below.
+    if (c.risk_likelihood && c.risk_impact_score) html += `<div style="margin-top: 20px;">${ChangeRisk.matrix(c)}</div>`;
+    if (c.status_stage === 'done' && (c.pir_was_successful !== null || c.pir_actual_start || c.pir_lessons_learned)) html += renderPirDetail(c);
+    try { html += renderApprovalPanel(c); } catch (e) { /* approvals not in use */ }
+    html += renderLinkedIncidents(c);
+    if (c.attachments && c.attachments.length) {
+        html += `<h3 style="color: #00897b; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-top: 20px;">${escapeHtml(window.t('change-management.detail.attachments', { count: c.attachments.length }))}</h3>`
+            + `<ul style="margin: 6px 0 0 18px; padding: 0;">${c.attachments.map(a => `<li>${escapeHtml(a.file_name || a.filename || a.name || '')}</li>`).join('')}</ul>`;
+    }
+    // The activity history as it is on screen (loaded with the change).
+    const timeline = document.getElementById('activityTimeline');
+    if (timeline && timeline.textContent.trim()) {
+        html += `<h3 style="color: #00897b; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-top: 20px;">${escapeHtml(window.t('change-management.detail.activity'))}</h3>`
+            + `<div class="activity-timeline">${timeline.innerHTML}</div>`;
+    }
+
     html += `
             <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0 15px 0;">
-            <p style="font-size: 11px; color: #888;">
+            <p style="font-size: var(--font-size-xs, 11px); color: #888;">
                 ${c.created_by_name ? window.t('change-management.pdf.created_by', { datetime: formatDateTime(c.created_datetime), name: c.created_by_name }) : window.t('change-management.pdf.created', { datetime: formatDateTime(c.created_datetime) })}<br>
                 ${window.t('change-management.pdf.last_modified', { datetime: formatDateTime(c.modified_datetime) })}
             </p>
@@ -2907,6 +3054,16 @@ function buildPdfContent() {
 
     const container = document.createElement('div');
     container.innerHTML = html;
+    // A document has nothing to click: the reused sections' buttons, inputs and menus go.
+    container.querySelectorAll('button, input, textarea, select, .comment-input-area, .share-dropdown, [contenteditable="true"]').forEach(el => el.remove());
+    // html2canvas cannot draw rotated text or CSS outlines: the matrix's Likelihood label goes above
+    // the grid as plain text, and the change's own square gets a real border.
+    container.querySelectorAll('.risk-matrix-y-label').forEach(el => {
+        el.style.cssText = 'position: static; writing-mode: horizontal-tb; transform: none; margin: 0 0 6px; text-align: center; width: 100%;';
+        const gc = el.closest('.risk-matrix-grid-container');
+        if (gc) gc.style.flexDirection = 'column';
+    });
+    container.querySelectorAll('.risk-matrix-cell.active').forEach(el => { el.style.boxShadow = 'none'; el.style.outline = 'none'; el.style.border = '3px solid #333'; });
     return container;
 }
 

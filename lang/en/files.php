@@ -36,6 +36,9 @@ return [
         'storage_unavailable' => 'File storage can\'t be reached right now. Try again in a few minutes, or tell your administrator.',
     ],
     'ex' => [
+        'new_version' => 'Upload new version',   // GH #303
+        'version_history' => 'Version history',
+        'versions_n' => '{n} versions - right-click for Version history',
         // "Make available offline" (S3-compatible storage only)
         'offline_on' => 'Make available offline',
         'offline_off' => 'Remove offline copy',
@@ -43,9 +46,6 @@ return [
         'offline_folder' => 'Available offline (from a folder)',
         'offline_pending' => 'Being made available offline',
         'offline_bg' => 'Copies are being made in the background.',
-        'new_version' => 'Upload new version',   // GH #303
-        'version_history' => 'Version history',
-        'versions_n' => '{n} versions - right-click for Version history',
         'offline_exclude' => "Don't keep offline",
         'offline_include' => 'Keep offline again',
         'offline_excluded' => 'Not kept offline (left out of a folder kept offline)',
@@ -139,12 +139,12 @@ return [
         'note' => 'These choices are yours alone. The logo on the desktop is set by an administrator.',
     ],
     'props' => [
-        'offline' => 'Offline',
         'restore' => 'Restore',   // GH #303
         'restored' => 'Restored - it is now version {n}.',
         'restored_from' => 'Restored from version {n}',
         'delete_version' => 'Delete version {n}?',
         'delete_version_msg' => 'This version is deleted for good. The current version and the others are not touched.',
+        'offline' => 'Offline',
         'bytes' => 'bytes',
         'contains' => 'Contains',
         'contains_n' => '{files} files, {folders} folders',
@@ -243,7 +243,6 @@ return [
         'take_ok' => 'Take',
         'tab_folders' => 'Folders',
         'tab_storage' => 'Storage',
-        'tab_recycle' => 'Recycle bin',
         // Sharing tab (GH #303)
         'tab_sharing' => 'Sharing',
         'sharing_title' => 'Attaching to tasks and tickets',
@@ -316,9 +315,6 @@ return [
         's3_region' => 'Region',
         's3_bucket' => 'Bucket',
         's3_bucket_desc' => 'Create the bucket at your provider first, and keep it private: every download goes through FreeITSM, which checks permissions.',
-        's3_shared'      => 'S3 connection',
-        's3_shared_desc' => 'The connection below is the install\'s own, used by Files and the other stores. It is changed on',
-        's3_shared_link' => 'System → Storage',
         's3_key' => 'Access key ID',
         's3_secret' => 'Secret access key',
         's3_secret_desc' => 'Stored encrypted. Leave it as it is to keep the saved one.',
@@ -337,8 +333,6 @@ return [
         'move_removing' => 'Removing the old copies from {from}…',
         'move_last_error' => 'Last error: {error}',
         'move_locked' => 'The location cannot be changed while files are being moved.',
-        'storage_insecure' => 'The storage endpoint uses plain http:// to an address on the internet: files cross it unencrypted. Use https:// if the provider offers it.',
-        'location_no_permission' => 'Changing where files are stored needs the Storage and backups permission (System -> Roles). The largest upload can still be changed.',
         'retry_failed' => 'Retry',
         'skip_missing' => 'Skip',
         'finish_keep' => 'Finish',
@@ -595,8 +589,7 @@ return [
             'p2' => 'The default storage folder is `uploads/files/` inside FreeITSM, which the web server is told never to serve. On Docker it is the `files` volume. Moving it somewhere outside the web root is better still.',
             'p3' => 'System -> Branding -> Files desktop sets whether the desktop shows a logo, and in which corner. The logo is the person\'s company logo (System -> Companies), falling back to the organisation logo.',
             'p4' => 'Each person chooses their own desktop colour and top-bar behaviour in Personalise. Nothing else on the desktop is personal.',
-            'p5' => '**S3-compatible storage** works with any provider that speaks the S3 API - AWS S3, Backblaze B2, Wasabi, Cloudflare R2, MinIO and others. Keep the bucket private: downloads always go through FreeITSM, which checks the folder\'s permissions first. **Test** writes, reads and deletes a small file, and S3 settings are only saved once that works. Changing where files are stored copies the existing files to the new location in the background (Reporting -> System logs -> Background jobs, Storage move); each file is read from the old location until its copy has been checked, and the old copies stay until you choose **Remove** (or **Finish**, which ends the move and keeps them). Before removing anything FreeITSM checks again that the old and new locations really are different places, and that each new copy is there; if it cannot be sure, it removes nothing and tries again later. Because S3 settings decide where every file is sent, give the Storage and backups permission (below) only to people you would trust with all of them.',
-            'p6' => 'Changing **where** files are stored - another folder, another bucket or other S3 keys - also needs the **Storage and backups** permission (System -> Roles), because it can send every file somewhere new, past the folder permissions. It is never part of "Manage everything in Files". Without it the Storage tab shows the location read-only, and the largest upload can still be changed. Every administrator is told (a bell, and an email) when the location changes or a move ends.',
+            'p5' => '**S3-compatible storage** works with any provider that speaks the S3 API - AWS S3, Backblaze B2, Wasabi, Cloudflare R2, MinIO and others. Keep the bucket private: downloads always go through FreeITSM, which checks the folder\'s permissions first. **Test** writes, reads and deletes a small file, and S3 settings are only saved once that works. Changing where files are stored copies the existing files to the new location in the background (Reporting -> System logs -> Background jobs, Files storage move); each file is read from the old location until its copy has been checked, and the old copies stay until you choose **Remove** (or **Finish**, which ends the move and keeps them). Before removing anything FreeITSM checks again that the old and new locations really are different places, and that each new copy is there; if it cannot be sure, it removes nothing and tries again later. Because S3 settings decide where every file is sent, give the Storage permission (System -> Roles) only to people you would trust with all of them.',
         ],
         'phone' => [
             'nav' => 'On a phone',

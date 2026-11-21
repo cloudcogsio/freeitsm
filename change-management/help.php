@@ -29,8 +29,8 @@ $translationNamespaces = ['common', 'change-management'];
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('changes', t('change-management.nav.help'))); ?></title>
     <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=96">
-    <link rel="stylesheet" href="../assets/css/change-management.css?v=14">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../assets/css/change-management.css?v=20">
     <link rel="stylesheet" href="../assets/css/help.css?v=6">
     <style>
         /* The only thing a help page should need to say for itself: its colour. */
@@ -405,6 +405,21 @@ $translationNamespaces = ['common', 'change-management'];
                             <div class="help-card-icon plain">&#127970;</div>
                             <div><strong><?php echo htmlspecialchars(t('change-management.help.tip_company')); ?></strong><br><?php echo htmlspecialchars(t('change-management.help.tip_company_desc')); ?></div>
                         </div>
+                        <?php /* The list's labelled columns and the per-person label preference (Ed, 2026-11-20). */ ?>
+                        <div class="help-card row">
+                            <div class="help-card-icon plain">&#128203;</div>
+                            <div><strong><?php echo htmlspecialchars(t('change-management.help.tip_labels')); ?></strong><br><?php echo htmlspecialchars(t('change-management.help.tip_labels_desc')); ?></div>
+                        </div>
+                        <?php /* The branded PDF: logo, risk matrix, approvals, PIR, links, activity (Ed, 2026-11-20). */ ?>
+                        <div class="help-card row">
+                            <div class="help-card-icon plain">&#128196;</div>
+                            <div><strong><?php echo htmlspecialchars(t('change-management.help.tip_pdf')); ?></strong><br><?php echo htmlspecialchars(t('change-management.help.tip_pdf_desc')); ?></div>
+                        </div>
+                        <?php /* Saved views; the table reopens on the last one picked (GH #408). */ ?>
+                        <div class="help-card row">
+                            <div class="help-card-icon plain">&#128190;</div>
+                            <div><strong><?php echo htmlspecialchars(t('change-management.help.tip_views')); ?></strong><br><?php echo htmlspecialchars(t('change-management.help.tip_views_desc')); ?></div>
+                        </div>
                     </div>
                 </div>
 
@@ -470,6 +485,6 @@ $translationNamespaces = ['common', 'change-management'];
             });
         });
     </script>
-    <script src="<?php echo BASE_URL; ?>assets/js/mobile.js?v=83"></script>
+    <script src="<?php echo BASE_URL; ?>assets/js/mobile.js?v=87"></script>
 </body>
 </html>

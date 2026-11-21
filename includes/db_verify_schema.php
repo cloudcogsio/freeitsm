@@ -2550,6 +2550,21 @@ return [
         'sort_order'        => 'INT NOT NULL DEFAULT 0',
     ],
 
+    // GH #404: expected fields per asset type, and per-asset Not applicable.
+    'asset_type_expected_fields' => [
+        'id'                => 'INT NOT NULL AUTO_INCREMENT',
+        'asset_type_id'     => 'INT NOT NULL',
+        'field_key'         => 'VARCHAR(40) NOT NULL',
+    ],
+
+    'asset_field_not_applicable' => [
+        'id'                => 'INT NOT NULL AUTO_INCREMENT',
+        'asset_id'          => 'INT NOT NULL',
+        'field_key'         => 'VARCHAR(40) NOT NULL',
+        'set_by_analyst_id' => 'INT NULL',
+        'set_datetime'      => 'DATETIME NULL',
+    ],
+
     'asset_field_set_assets' => [
         'id'                    => 'INT NOT NULL AUTO_INCREMENT',
         'asset_id'              => 'INT NOT NULL',
@@ -3704,6 +3719,13 @@ return [
         'title'            => 'VARCHAR(255) NULL',
         'body'             => 'VARCHAR(500) NULL',
         'actor_name'       => 'VARCHAR(100) NULL',
+        // GH #365 (5.8.0): what really made the change - includes/notification_actor.php.
+        'actor_kind'       => 'VARCHAR(16) NULL',
+        'actor_analyst_id' => 'INT NULL',
+        'source'           => 'VARCHAR(16) NULL',
+        'workflow_id'      => 'INT NULL',
+        'api_key_id'       => 'INT NULL',
+        'reason'           => 'VARCHAR(24) NULL',   // why this person was told - the bell's "Why you"
         'event_count'      => 'INT NOT NULL DEFAULT 1',
         'created_datetime' => 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP',
         'updated_datetime' => 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP',
@@ -3759,6 +3781,12 @@ return [
         'CreatedDate'       => 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP',
         'ModifiedDate'      => 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP',
         'is_demo'           => 'TINYINT(1) NOT NULL DEFAULT 0',   // set by the demo data importer (#1297)
+        // GH #383: when the check falls due. ScheduleType NULL = every day (every check made
+        // before schedules). includes/morning_check_schedule.php reads these - nothing else.
+        'ScheduleType'      => 'VARCHAR(12) NULL',     // weekdays | weekly | monthly
+        'ScheduleDays'      => 'VARCHAR(20) NULL',     // weekly: ISO days, "1,4" = Mon and Thu
+        'ScheduleMonthWhen' => 'VARCHAR(16) NULL',     // monthly: day | first_weekday | last_weekday | last_day
+        'ScheduleMonthDay'  => 'TINYINT NULL',         // monthly 'day': 1-31 (31 = last day of a short month)
     ],
 
     // Tickets/tasks raised from a check. A link table rather than columns on the
@@ -5974,6 +6002,59 @@ return [
         'edited_datetime'  => 'DATETIME NULL',
         'deleted_datetime' => 'DATETIME NULL',
         'deleted_by'       => 'INT NULL',
+        'quote_of_id'      => 'INT NULL',        // 5.9.0: the message this one quotes
+        'changed_datetime' => 'DATETIME NULL',   // 5.9.0: a reaction changed it - the poll re-sends it
+        'lang'             => 'VARCHAR(16) NULL',  // 5.9.0: the language it is written in, detected once
+        'thread_root_id'   => 'INT NULL',          // 5.9.0: the first message of the thread it is in
+        'also_in_channel'  => 'TINYINT(1) NOT NULL DEFAULT 0',   // 5.9.0: a thread reply also sent to the conversation
+        'forwarded_from_id' => 'INT NULL',         // 5.9.0: a forward - the original's id (no FK)
+        'fwd_author'       => 'VARCHAR(150) NULL', // 5.9.0: the original's author, as forwarded
+        'fwd_channel'      => 'VARCHAR(150) NULL', // 5.9.0: where it was, as the forwarder saw it
+        'fwd_created'      => 'DATETIME NULL',     // 5.9.0: when the original was sent
+    ],
+
+    // Seen by (5.9.0): a row each time a read marker moves forward.
+    'warroom_read_marks' => [
+        'id'               => 'INT NOT NULL AUTO_INCREMENT',
+        'analyst_id'       => 'INT NOT NULL',
+        'channel_id'       => 'INT NOT NULL',
+        'up_to_message_id' => 'INT NOT NULL',
+        'read_datetime'    => 'DATETIME NOT NULL',
+    ],
+
+    // Translations (5.9.0): one per message per language, never per person.
+    'warroom_translations' => [
+        'id'               => 'INT NOT NULL AUTO_INCREMENT',
+        'message_id'       => 'INT NOT NULL',
+        'lang'             => 'VARCHAR(16) NOT NULL',
+        'body'             => 'TEXT NOT NULL',
+        'created_datetime' => 'DATETIME NOT NULL',
+    ],
+
+    // Emoji reactions (5.9.0). TRAP: emoji is utf8mb4_bin - unicode_ci weighs many
+    // emoji the same, so the unique key would refuse a different one.
+    'warroom_reactions' => [
+        'id'               => 'INT NOT NULL AUTO_INCREMENT',
+        'message_id'       => 'INT NOT NULL',
+        'analyst_id'       => 'INT NOT NULL',
+        'emoji'            => 'VARCHAR(32) COLLATE utf8mb4_bin NOT NULL',
+        'created_datetime' => 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP',
+    ],
+
+    // Pinned for everyone in the conversation (5.9.0); one pin per message.
+    'warroom_pins' => [
+        'id'               => 'INT NOT NULL AUTO_INCREMENT',
+        'channel_id'       => 'INT NOT NULL',
+        'message_id'       => 'INT NOT NULL',
+        'pinned_by'        => 'INT NULL',
+        'pinned_datetime'  => 'DATETIME NOT NULL',
+    ],
+    // A personal bookmark (5.9.0).
+    'warroom_saved' => [
+        'id'               => 'INT NOT NULL AUTO_INCREMENT',
+        'analyst_id'       => 'INT NOT NULL',
+        'message_id'       => 'INT NOT NULL',
+        'saved_datetime'   => 'DATETIME NOT NULL',
     ],
 
     // ⚠️ THERE IS NO content_type COLUMN, AND THAT IS THE POINT. The type an
@@ -7262,7 +7343,7 @@ return [
     'storage_migration_items' => [
         'id'                  => 'BIGINT NOT NULL AUTO_INCREMENT',
         'store'               => 'VARCHAR(20) NOT NULL',
-        'object_key'          => 'VARCHAR(500) COLLATE utf8mb4_bin NOT NULL',
+        'object_key'          => 'VARCHAR(255) NOT NULL',
         'size_bytes'          => 'BIGINT NOT NULL',
         'sha256'              => 'CHAR(64) NULL',
         'state'               => "VARCHAR(10) NOT NULL DEFAULT 'pending'",
@@ -7287,15 +7368,6 @@ return [
         'excluded'            => 'TINYINT(1) NOT NULL DEFAULT 0',
         'marked_by'           => 'INT NULL',
         'marked_datetime'     => 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP',
-    ],
-    // Checksums of objects in a store kept in S3, for backups (#284) - see freeitsm.sql.
-    'storage_object_hashes' => [
-        'store'               => 'VARCHAR(20) NOT NULL',
-        'object_key'          => 'VARCHAR(500) COLLATE utf8mb4_bin NOT NULL',
-        'size_bytes'          => 'BIGINT NOT NULL',
-        'mtime'               => 'BIGINT NOT NULL',
-        'sha256'              => 'CHAR(64) NOT NULL',
-        'updated_datetime'    => 'DATETIME NULL',
     ],
     // Backups (System -> Backups) - see freeitsm.sql.
     'backup_runs' => [
@@ -7453,5 +7525,159 @@ return [
         'download_count'     => 'INT NOT NULL DEFAULT 0',
         'last_downloaded_at' => 'DATETIME NULL',
         'file_deleted_at'    => 'DATETIME NULL',
+    ],
+
+    // ---- Consumables (5.8.0) - Assets -> Consumables; wiki Consumables-Design ----
+    'consumable_types' => [
+        'id'                       => 'INT NOT NULL AUTO_INCREMENT',
+        'name'                     => 'VARCHAR(100) NOT NULL',
+        'description'              => 'VARCHAR(255) NULL',
+        'is_active'                => 'TINYINT(1) NOT NULL DEFAULT 1',
+        'display_order'            => 'INT NOT NULL DEFAULT 0',
+        'created_datetime'         => 'DATETIME NULL DEFAULT CURRENT_TIMESTAMP',
+        'is_demo'                  => 'TINYINT(1) NOT NULL DEFAULT 0',   // set by the demo data importer (5.8.0)
+    ],
+    'consumable_stores' => [
+        'id'                       => 'INT NOT NULL AUTO_INCREMENT',
+        'tenant_id'                => 'INT NULL',
+        'name'                     => 'VARCHAR(150) NOT NULL',
+        'location_id'              => 'INT NULL',
+        'is_active'                => 'TINYINT(1) NOT NULL DEFAULT 1',
+        'created_datetime'         => 'DATETIME NULL DEFAULT CURRENT_TIMESTAMP',
+    ],
+    'consumable_items' => [
+        'id'                       => 'INT NOT NULL AUTO_INCREMENT',
+        'tenant_id'                => 'INT NULL',
+        'type_id'                  => 'INT NULL',
+        'name'                     => 'VARCHAR(200) NOT NULL',
+        'part_number'              => 'VARCHAR(100) NULL',
+        'unit'                     => 'VARCHAR(30) NULL',
+        'supplier_id'              => 'INT NULL',
+        'unit_cost'                => 'DECIMAL(12,2) NULL',
+        'notes'                    => 'TEXT NULL',
+        'is_active'                => 'TINYINT(1) NOT NULL DEFAULT 1',
+        'created_by_analyst_id'    => 'INT NULL',
+        'created_datetime'         => 'DATETIME NULL DEFAULT CURRENT_TIMESTAMP',
+        'updated_datetime'         => 'DATETIME NULL',
+        'is_demo'                  => 'TINYINT(1) NOT NULL DEFAULT 0',   // set by the demo data importer (5.8.0)
+    ],
+    'consumable_stock' => [
+        'id'                       => 'INT NOT NULL AUTO_INCREMENT',
+        'item_id'                  => 'INT NOT NULL',
+        'store_id'                 => 'INT NOT NULL',
+        'on_hand'                  => 'INT NOT NULL DEFAULT 0',
+        'min_level'                => 'INT NULL',
+        'reorder_point'            => 'INT NULL',
+        'low_notified_datetime'    => 'DATETIME NULL',
+        'updated_datetime'         => 'DATETIME NULL',
+        'is_demo'                  => 'TINYINT(1) NOT NULL DEFAULT 0',   // set by the demo data importer (5.8.0)
+    ],
+    'consumable_counts' => [
+        'id'                       => 'INT NOT NULL AUTO_INCREMENT',
+        'store_id'                 => 'INT NOT NULL',
+        'status'                   => 'VARCHAR(12) NOT NULL DEFAULT \'open\'',
+        'note'                     => 'VARCHAR(500) NULL',
+        'started_by_analyst_id'    => 'INT NULL',
+        'started_datetime'         => 'DATETIME NULL',
+        'finished_by_analyst_id'   => 'INT NULL',
+        'finished_datetime'        => 'DATETIME NULL',
+        'is_demo'                  => 'TINYINT(1) NOT NULL DEFAULT 0',   // set by the demo data importer (5.8.0)
+    ],
+    'consumable_count_lines' => [
+        'id'                       => 'INT NOT NULL AUTO_INCREMENT',
+        'count_id'                 => 'INT NOT NULL',
+        'item_id'                  => 'INT NOT NULL',
+        'expected'                 => 'INT NOT NULL',
+        'counted'                  => 'INT NOT NULL',
+        'difference'               => 'INT NOT NULL',
+        'unit_cost'                => 'DECIMAL(12,2) NULL',
+        'value_difference'         => 'DECIMAL(14,2) NULL',
+        'counted_by_analyst_id'    => 'INT NULL',
+        'counted_datetime'         => 'DATETIME NULL',
+        'movement_id'              => 'INT NULL',
+        'is_demo'                  => 'TINYINT(1) NOT NULL DEFAULT 0',   // set by the demo data importer (5.8.0)
+    ],
+    'consumable_deliveries' => [
+        'id'                       => 'INT NOT NULL AUTO_INCREMENT',
+        'store_id'                 => 'INT NOT NULL',
+        'tenant_id'                => 'INT NULL',
+        'supplier_id'              => 'INT NULL',
+        'order_ref'                => 'VARCHAR(100) NULL',
+        'invoice_ref'              => 'VARCHAR(100) NULL',
+        'invoice_date'             => 'DATE NULL',
+        'received_date'            => 'DATE NOT NULL',
+        'note'                     => 'VARCHAR(500) NULL',
+        'created_by_analyst_id'    => 'INT NULL',
+        'created_datetime'         => 'DATETIME NOT NULL',
+        'is_demo'                  => 'TINYINT(1) NOT NULL DEFAULT 0',   // set by the demo data importer (5.8.0)
+    ],
+    'consumable_movements' => [
+        'id'                       => 'INT NOT NULL AUTO_INCREMENT',
+        'item_id'                  => 'INT NOT NULL',
+        'store_id'                 => 'INT NOT NULL',
+        'kind'                     => 'VARCHAR(12) NOT NULL',
+        'quantity'                 => 'INT NOT NULL',
+        'balance_after'            => 'INT NOT NULL',
+        'unit_cost'                => 'DECIMAL(12,2) NULL',
+        'ticket_id'                => 'INT NULL',
+        'recipient_user_id'        => 'INT NULL',
+        'supplier_id'              => 'INT NULL',
+        'invoice_ref'              => 'VARCHAR(100) NULL',
+        'invoice_date'             => 'DATE NULL',
+        'reason'                   => 'VARCHAR(500) NULL',
+        'reverses_id'              => 'INT NULL',
+        'count_id'                 => 'INT NULL',
+        'delivery_id'              => 'INT NULL',
+        'analyst_id'               => 'INT NULL',
+        'source'                   => 'VARCHAR(20) NOT NULL DEFAULT \'app\'',
+        'created_datetime'         => 'DATETIME NOT NULL',
+        'is_demo'                  => 'TINYINT(1) NOT NULL DEFAULT 0',   // set by the demo data importer (5.8.0)
+    ],
+    'consumable_audit' => [
+        'id'                       => 'INT NOT NULL AUTO_INCREMENT',
+        'item_id'                  => 'INT NULL',
+        'type_id'                  => 'INT NULL',
+        'count_id'                 => 'INT NULL',
+        'delivery_id'              => 'INT NULL',
+        'analyst_id'               => 'INT NULL',
+        'field_name'               => 'VARCHAR(100) NOT NULL',
+        'old_value'                => 'VARCHAR(1000) NULL',
+        'new_value'                => 'VARCHAR(1000) NULL',
+        'source'                   => 'VARCHAR(20) NOT NULL DEFAULT \'app\'',
+        'created_datetime'         => 'DATETIME NOT NULL',
+        'is_demo'                  => 'TINYINT(1) NOT NULL DEFAULT 0',   // set by the demo data importer (5.8.0)
+    ],
+    'consumable_fields' => [
+        'id'                       => 'INT NOT NULL AUTO_INCREMENT',
+        'field_key'                => 'VARCHAR(100) NOT NULL',
+        'label'                    => 'VARCHAR(150) NOT NULL',
+        'field_type'               => 'VARCHAR(20) NOT NULL',
+        'config'                   => 'LONGTEXT NULL',
+        'help_text'                => 'VARCHAR(500) NULL',
+        'is_required'              => 'TINYINT(1) NOT NULL DEFAULT 0',
+        'display_order'            => 'INT NOT NULL DEFAULT 0',
+        'consumable_type_id'       => 'INT NULL',
+        'is_deleted'               => 'TINYINT(1) NOT NULL DEFAULT 0',
+        'created_datetime'         => 'DATETIME NULL DEFAULT CURRENT_TIMESTAMP',
+        'is_demo'                  => 'TINYINT(1) NOT NULL DEFAULT 0',   // set by the demo data importer (5.8.0)
+    ],
+    'consumable_field_options' => [
+        'id'                       => 'INT NOT NULL AUTO_INCREMENT',
+        'field_id'                 => 'INT NOT NULL',
+        'option_value'             => 'VARCHAR(255) NOT NULL',
+        'display_order'            => 'INT NOT NULL DEFAULT 0',
+        'is_demo'                  => 'TINYINT(1) NOT NULL DEFAULT 0',   // set by the demo data importer (5.8.0)
+    ],
+    'consumable_field_values' => [
+        'id'                       => 'INT NOT NULL AUTO_INCREMENT',
+        'item_id'                  => 'INT NOT NULL',
+        'field_id'                 => 'INT NOT NULL',
+        'seq'                      => 'INT NOT NULL DEFAULT 0',
+        'value_text'               => 'TEXT NULL',
+        'value_number'             => 'DECIMAL(20,4) NULL',
+        'value_date'               => 'DATETIME NULL',
+        'value_boolean'            => 'TINYINT(1) NULL',
+        'value_ref_id'             => 'INT NULL',
+        'is_demo'                  => 'TINYINT(1) NOT NULL DEFAULT 0',   // set by the demo data importer (5.8.0)
     ],
 ];

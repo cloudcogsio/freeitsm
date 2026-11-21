@@ -34,8 +34,8 @@ $translationNamespaces = ['common', 'lms'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('lms')); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/lms.css?v=11">
     <!-- Mobile layer: linked AFTER this page's own CSS so its @media rules win on ties. -->
     <link rel="stylesheet" href="../assets/css/mobile.css?v=196">
@@ -301,7 +301,7 @@ $translationNamespaces = ['common', 'lms'];
         <div class="modal-content" style="max-width: 800px; max-height: 90vh;">
             <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <span id="learnerDataTitle"><?php echo htmlspecialchars(t('lms.learner_modal.title')); ?></span>
-                <button style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--text-faint, #999);" onclick="LMS.closeModal('learnerDataModal')">&times;</button>
+                <button style="background:none;border:none;font-size:var(--font-size-4xl, 24px);cursor:pointer;color:var(--text-faint, #999);" onclick="LMS.closeModal('learnerDataModal')">&times;</button>
             </div>
             <div id="learnerDataBody" style="padding: 20px 24px; overflow-y: auto; flex: 1;"></div>
         </div>
@@ -310,6 +310,6 @@ $translationNamespaces = ['common', 'lms'];
     <!-- Toast -->
     <script>window.API_BASE = '../api/lms/';</script>
     <script src="../assets/js/lms.js?v=12"></script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

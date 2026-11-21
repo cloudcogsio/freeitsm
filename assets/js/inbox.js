@@ -771,8 +771,17 @@ document.addEventListener('DOMContentLoaded', function() {
     initTinyMCE();
     initAttachmentHandlers();
 
-    // Load all tickets by default
-    inboxPrefsReady.then(loadEmails);
+    // Load all tickets by default - or, arriving with ?status_id=N (Watchtower's status
+    // counts link here, discussion #388), All Tickets on that status: the GH #73 view,
+    // with its folder opened and lit so it is plain why the list is short. tickets/index.php
+    // resolves the id to the status (the folders work by name); never a name in the URL.
+    const startStatus = window.TICKET_LINK_STATUS || null;
+    if (startStatus) {
+        expandedFolders['all'] = true;
+        inboxPrefsReady.then(() => selectAllStatus(startStatus));   // loads the list itself
+    } else {
+        inboxPrefsReady.then(loadEmails);
+    }
 
     // Check for ticket_id in URL and auto-load that ticket
     const urlParams = new URLSearchParams(window.location.search);
@@ -834,6 +843,47 @@ function handleFiles(files) {
         }
     }
     renderAttachments();
+}
+
+// ===== From Files in the reply box (GH #397) =================================
+// A file already in Files, sent WITH the email as an ordinary attachment. Unlike a note
+// (where a link can stay in Files' hands) an email leaves FreeITSM, so it is always a
+// copy - fetched through api/files/download.php, which checks the person holds Download
+// on the folder and audits it, exactly as if they had downloaded it and attached it by
+// hand. It then joins emailAttachments like a file from the computer, so sending, the
+// Sent copy and the ticket's record of it are unchanged. The picker offers only files
+// the person can download.
+
+/** Shows the From Files link to someone who can open Files, on a ticket. */
+function syncReplyFromFiles() {
+    const wrap = document.getElementById('replyFromFilesWrap');
+    if (wrap) wrap.hidden = !(window.TICKET_SAVE_TO_FILES && window.FilesPicker && currentEmail);
+}
+
+/** Opens the Files picker; the pick is fetched and added to the email's attachments. */
+function replyFromFiles() {
+    if (!window.FilesPicker || !currentEmail) return;
+    window.FilesPicker.open({
+        mode: 'copy',
+        title: t('tickets.reply_modal.from_files_title'),
+        copyLabel: t('tickets.reply_modal.from_files_attach'),
+        copyTip: t('tickets.reply_modal.from_files_attach_tip'),
+        parentType: 'ticket', parentId: Number(currentEmail.ticket_id),
+        onPick: (itemId, how, name, picked) => addReplyFromFiles(itemId, name, picked)
+    });
+}
+
+/** Fetches a Files item and adds it to the email's attachments, as a File. */
+async function addReplyFromFiles(itemId, name, picked) {
+    try {
+        const r = await fetch(`../api/files/download.php?id=${Number(itemId)}`, { credentials: 'same-origin' });
+        // A refusal comes back as JSON; a file always as application/octet-stream.
+        if (!r.ok || (r.headers.get('Content-Type') || '').includes('json')) throw new Error('refused');
+        const blob = await r.blob();
+        handleFiles([new File([blob], name, { type: (picked && picked.mime) || '' })]);
+    } catch (e) {
+        showToast(t('tickets.reply_modal.from_files_failed'), 'error');
+    }
 }
 
 // Render attachment list
@@ -2156,8 +2206,8 @@ function renderEmailList() {
         const ticketId = email.ticket_id || email.id;
         const trashActions = inTrash ? `
                 <div style="display:flex;gap:8px;margin-top:7px;">
-                    <button onclick="event.stopPropagation(); restoreTicketFromTrash(${ticketId})" style="font-size:11px;padding:3px 9px;border:1px solid #c8d6cf;background:#eefaf2;color:#1b7a43;border-radius:4px;cursor:pointer;">↩ Restore</button>
-                    <button onclick="event.stopPropagation(); permanentlyDeleteFromTrash(${ticketId}, ${jsArg(email.ticket_number || '')})" style="font-size:11px;padding:3px 9px;border:1px solid #e6c4c4;background:#fdeceb;color:#b71c1c;border-radius:4px;cursor:pointer;">✕ Delete forever</button>
+                    <button onclick="event.stopPropagation(); restoreTicketFromTrash(${ticketId})" style="font-size:var(--font-size-xs, 11px);padding:3px 9px;border:1px solid #c8d6cf;background:#eefaf2;color:#1b7a43;border-radius:4px;cursor:pointer;">↩ Restore</button>
+                    <button onclick="event.stopPropagation(); permanentlyDeleteFromTrash(${ticketId}, ${jsArg(email.ticket_number || '')})" style="font-size:var(--font-size-xs, 11px);padding:3px 9px;border:1px solid #e6c4c4;background:#fdeceb;color:#b71c1c;border-radius:4px;cursor:pointer;">✕ Delete forever</button>
                 </div>` : '';
         // Reserve a slot for the SLA dot; populated asynchronously by loadInboxSlaIndicators()
         // once the batch endpoint responds. Stays empty (and invisible) for tickets without SLA.
@@ -3432,10 +3482,10 @@ function displayEmail(email, recordings) {
     const isTrashed = !!email.deleted_datetime;
     const trashBanner = isTrashed ? `
         <div style="background:#fdeceb;border:1px solid #e6c4c4;border-radius:8px;padding:12px 16px;margin:0 0 14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-            <span style="font-size:18px;">🗑️</span>
+            <span style="font-size:var(--font-size-2xl, 18px);">🗑️</span>
             <span style="color:#b71c1c;font-weight:600;flex:1;min-width:180px;">This ticket is in the trash — its actions are disabled until you restore it.</span>
-            <button onclick="restoreTicketFromTrash(${email.ticket_id})" style="font-size:12.5px;padding:6px 14px;border:1px solid #c8d6cf;background:#eefaf2;color:#1b7a43;border-radius:5px;cursor:pointer;font-weight:600;">↩ Restore</button>
-            <button onclick="permanentlyDeleteFromTrash(${email.ticket_id}, ${jsArg(email.ticket_number || '')})" style="font-size:12.5px;padding:6px 14px;border:1px solid #e6c4c4;background:#fff;color:#b71c1c;border-radius:5px;cursor:pointer;font-weight:600;">✕ Delete forever</button>
+            <button onclick="restoreTicketFromTrash(${email.ticket_id})" style="font-size:var(--font-size-md, 13px);padding:6px 14px;border:1px solid #c8d6cf;background:#eefaf2;color:#1b7a43;border-radius:5px;cursor:pointer;font-weight:600;">↩ Restore</button>
+            <button onclick="permanentlyDeleteFromTrash(${email.ticket_id}, ${jsArg(email.ticket_number || '')})" style="font-size:var(--font-size-md, 13px);padding:6px 14px;border:1px solid #e6c4c4;background:#fff;color:#b71c1c;border-radius:5px;cursor:pointer;font-weight:600;">✕ Delete forever</button>
         </div>` : '';
 
     const workspace = !!window.TicketWorkspace?.enabled(email);
@@ -3692,6 +3742,7 @@ function displayEmail(email, recordings) {
     loadTicketDomains(email.ticket_id);
     loadTicketProjects(email.ticket_id);
     loadTicketAssets(email.ticket_id);
+    loadTicketConsumables(email.ticket_id);   // Consumables (5.8.0)
     loadTicketTasks(email.ticket_id);
     loadTimeEntries(email.ticket_id);
     loadSlaState(email.ticket_id);
@@ -4146,6 +4197,7 @@ function buildLinksSection(email, workspace = false) {
         <span class="links-strip-pills">
             ${body}
             <span class="strip-pill-group" id="stripAssetPills"></span>
+            <span class="strip-pill-group" id="stripConsumablePills"></span>
             <span class="strip-pill-group" id="stripCmdbPills"></span>
             <span class="strip-pill-group" id="stripDomainPills"></span>
             <span class="strip-pill-group" id="stripProjectPills"></span>
@@ -4177,6 +4229,7 @@ function buildLinkActions() {
                 ${ticketModuleOn('changes') ? `<button type="button" onclick="linkAddChoose('change')">Change</button>` : ''}
                 <button type="button" onclick="linkAddChoose('ticket')">Ticket</button>
                 ${ticketModuleOn('assets') ? `<button type="button" onclick="linkAddChoose('equipment')">${escapeHtml(t('tickets.assets.menu_item'))}</button>` : ''}
+                ${ticketModuleOn('assets') ? `<button type="button" onclick="linkAddChoose('consumables')">${escapeHtml(t('tickets.consumables.menu_item'))}</button>` : ''}
                 ${ticketModuleOn('cmdb') ? `<button type="button" onclick="linkAddChoose('cmdb')">${escapeHtml(t('tickets.cmdb.menu_item'))}</button>` : ''}
                 ${window.TICKETS_SHOW_DOMAINS ? `<button type="button" onclick="linkAddChoose('domain')">${escapeHtml(t('tickets.domains.menu_item'))}</button>` : ''}
                 ${window.TICKETS_SHOW_PROJECTS ? `<button type="button" onclick="linkAddChoose('project')">${escapeHtml(t('tickets.projects.menu_item'))}</button>` : ''}
@@ -4199,7 +4252,8 @@ function syncLinksStripEmpty() {
     const c = document.getElementById('stripCmdbPills');
     const dm = document.getElementById('stripDomainPills');
     const pj = document.getElementById('stripProjectPills');
-    const has = (a && a.children.length) || (c && c.children.length) || (dm && dm.children.length) || (pj && pj.children.length);
+    const cs = document.getElementById('stripConsumablePills');
+    const has = (a && a.children.length) || (c && c.children.length) || (dm && dm.children.length) || (pj && pj.children.length) || (cs && cs.children.length);
     note.hidden = !!has;
 }
 
@@ -4261,6 +4315,8 @@ function linkAddChoose(kind) {
     else if (kind === 'change') openLinkChangeModal(id, ref, subj);
     else if (kind === 'tracker') openEscalateTrackerModal(id, ref);
     else if (kind === 'equipment') openLinkAssetPicker(id);
+    // Consumables (5.8.0): issue stock against this ticket - its own screen, filled in with the ticket and requester.
+    else if (kind === 'consumables') window.open('../asset-management/consumables/?ticket=' + encodeURIComponent(id), '_blank');
     else if (kind === 'cmdb') openLinkCmdbPicker(id);
     else if (kind === 'domain') openLinkDomainPicker(id);
     else if (kind === 'project') openLinkProjectPicker(id);
@@ -4656,9 +4712,9 @@ function renderEscalateAttachments(files) {
 
     const sending = files.filter(f => !f.skip_reason).length;
     box.innerHTML =
-        '<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:4px;">'
+        '<div style="font-size:var(--font-size-sm, 12px);font-weight:600;color:var(--text);margin-bottom:4px;">'
         + escapeHtml(t('tickets.tracker.attach_heading').replace('{count}', sending)) + '</div>'
-        + '<ul style="margin:0;padding-left:18px;font-size:12px;color:var(--text-muted);">' + rows + '</ul>';
+        + '<ul style="margin:0;padding-left:18px;font-size:var(--font-size-sm, 12px);color:var(--text-muted);">' + rows + '</ul>';
     box.style.display = '';
 }
 
@@ -4677,7 +4733,7 @@ function renderEscalateConfidential(isConfidential) {
     }
     if (!box) return;
     if (!isConfidential) { box.style.display = 'none'; box.innerHTML = ''; return; }
-    box.style.cssText = 'margin:10px 0;padding:10px 12px;border-radius:6px;font-size:13px;line-height:1.45;'
+    box.style.cssText = 'margin:10px 0;padding:10px 12px;border-radius:6px;font-size:var(--font-size-md, 13px);line-height:1.45;'
         + 'background:var(--warning-bg,#fff4ce);border:1px solid var(--warning-border,#f0d78c);color:var(--warning-text,#6b5900);';
     box.innerHTML = '<strong>' + escapeHtml(t('tickets.tracker.confidential_title')) + '</strong><br>'
         + escapeHtml(t('tickets.tracker.confidential_body'))
@@ -6275,7 +6331,7 @@ function refreshCurrentView() {
  */
 function requesterDialHtml(email) {
     return (email.requester_dial || []).map(d =>
-        ` · ${escapeHtml(d.number)} <a class="phone-dial" style="margin-left:4px;font-size:12px;font-weight:600;white-space:nowrap" href="${escapeHtml(d.href)}"`
+        ` · ${escapeHtml(d.number)} <a class="phone-dial" style="margin-left:4px;font-size:var(--font-size-sm, 12px);font-weight:600;white-space:nowrap" href="${escapeHtml(d.href)}"`
         + (/^https:/i.test(d.href) ? ' target="_blank" rel="noopener"' : '')
         + ` title="${escapeHtml(t('common.phone_dial.call_title', { number: d.number }))}">${escapeHtml(t('common.phone_dial.call'))}</a>`
     ).join('');
@@ -6873,6 +6929,131 @@ async function removeCmdbObject(ev, linkId, ticketId) {
     } catch (err) {
         showToast('Error: ' + err.message, 'error');
     }
+}
+
+// ─── Use a consumable (Assets -> Consumables, 5.8.0) ──────────────────────────
+// Ed: "right click and choose Use a consumable... the sub menu would list say 10
+// items and have an inline search". One ticket at a time: an issue is to ONE
+// requester. Picking an item issues one of it against the ticket, to its requester
+// (ConsumablesService::issueToTicket() - from the ticket's own company's stock,
+// never below zero, recorded in the ledger and the ticket's history). The ticket's
+// Links strip then shows it, with a cross to undo it.
+const CONSUMABLES_API = '../api/assets/consumables.php';
+
+/** Fills the "Use a consumable" flyout for the right-clicked ticket: the first 10 and a search. */
+async function populateContextConsumablesSubmenu() {
+    const item = document.getElementById('ctxConsumablesItem');
+    const sub = document.getElementById('ctxConsumablesSubmenu');
+    if (!item || !sub) return;
+    item.style.display = ctxActsOnSelection ? 'none' : '';
+    if (ctxActsOnSelection || !ctxTargetTicketId) return;
+    const forTicket = ctxTargetTicketId;
+    sub.innerHTML = '<div class="ticket-context-submenu-item" style="cursor:default;color:var(--text-muted, #888);">' + escapeHtml(t('tickets.consumables.loading')) + '</div>';
+    let d = null;
+    try { d = await (await fetch(CONSUMABLES_API + '?action=ticket_items&id=' + encodeURIComponent(forTicket))).json(); } catch (e) { d = null; }
+    if (ctxTargetTicketId !== forTicket) return;   // the menu moved on to another ticket
+    if (!d || !d.success) {
+        // No consumables yet (or tables not made): the item would lead nowhere.
+        item.style.display = 'none';
+        return;
+    }
+    if (!d.items.length) {
+        sub.innerHTML = '<div class="ticket-context-submenu-item" style="cursor:default;font-style:italic;color:var(--text-muted, #888);">' + escapeHtml(t('tickets.consumables.none')) + '</div>';
+        return;
+    }
+    sub.innerHTML = d.items.map(i => {
+        const out = i.on_hand <= 0;
+        const stock = out ? t('tickets.consumables.out') : t('tickets.consumables.in_stock', { n: i.on_hand });
+        return `<div class="ticket-context-submenu-item${out ? ' ctx-disabled' : ''}" ${out ? 'aria-disabled="true"' : `onclick="useConsumableFromContext(${i.id})"`}
+                     title="${escapeHtml(i.part_number || '')}">
+            <span class="ctx-status-name">${escapeHtml(i.name)}</span>
+            <span class="ctx-sub-note${out ? ' ctx-sub-out' : ''}">${escapeHtml(stock)}</span>
+        </div>`;
+    }).join('');
+    // The search box: assets/js/select-search.js, which only multi-company pages load -
+    // so fetched here the first time it is needed (a page that never uses this menu is unchanged).
+    await ensureSelectSearch();
+    if (ctxTargetTicketId !== forTicket) return;
+    if (window.FreeitsmSelectSearch) FreeitsmSelectSearch.filterList(sub, '.ticket-context-submenu-item', { cap: 10, always: true });
+}
+
+/** Loads assets/js/select-search.js once, if the page has not already. */
+function ensureSelectSearch() {
+    if (window.FreeitsmSelectSearch) return Promise.resolve();
+    if (ensureSelectSearch.p) return ensureSelectSearch.p;
+    ensureSelectSearch.p = new Promise(done => {
+        const s = document.createElement('script');
+        s.src = '../assets/js/select-search.js?v=' + Date.now().toString().slice(0, 7);
+        s.onload = s.onerror = () => done();
+        document.head.appendChild(s);
+    });
+    return ensureSelectSearch.p;
+}
+
+/** Uses one of an item on the right-clicked ticket. */
+async function useConsumableFromContext(itemId) {
+    closeTicketContextMenu();
+    if (!ctxTargetTicketId) return;
+    await useConsumableOnTicket(ctxTargetTicketId, itemId, 1);
+}
+
+/** Issues `qty` of an item against a ticket, to its requester; says so, and refreshes its pills. */
+async function useConsumableOnTicket(ticketId, itemId, qty) {
+    try {
+        const d = await (await fetch(CONSUMABLES_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'issue_to_ticket', ticket_id: ticketId, item_id: itemId, quantity: qty }) })).json();
+        if (!d.success) { showToast(d.error || t('tickets.consumables.failed'), 'error'); return; }
+        showToast(t('tickets.consumables.used', { n: qty, name: d.name, left: d.on_hand }), 'success');
+        if (currentEmail && currentEmail.ticket_id == ticketId) loadTicketConsumables(ticketId);
+    } catch (e) {
+        showToast(t('tickets.consumables.failed'), 'error');
+    }
+}
+
+/**
+ * The ticket's consumables as pills in the Links strip: each one used (with a cross to
+ * undo it - a reason is asked for, as everywhere in Consumables), and each one its form
+ * asked for that has not been used yet (click to use one).
+ */
+async function loadTicketConsumables(ticketId) {
+    const host = document.getElementById('stripConsumablePills');
+    if (!host || !ticketModuleOn('assets')) return;
+    let d = null;
+    try { d = await (await fetch(CONSUMABLES_API + '?action=ticket&id=' + encodeURIComponent(ticketId))).json(); } catch (e) { d = null; }
+    if (!currentEmail || currentEmail.ticket_id != ticketId) return;
+    if (!d || !d.success) { host.innerHTML = ''; syncLinksStripEmpty(); return; }
+    const undone = new Set(d.issued.filter(m => m.kind === 'reverse').map(m => m.reverses_id));
+    const used = d.issued.filter(m => m.kind === 'issue' && !undone.has(m.id));
+    const asked = d.requested.filter(r => r.issued_here === 0);
+    host.innerHTML = used.map(m => `<a class="pm-ticket-badge" href="../asset-management/consumables/?item=${m.item_id}" title="${escapeHtml(t('tickets.consumables.used_title', { who: m.analyst_name || '' }))}">
+            📦 <span class="pill-text">${escapeHtml(t('tickets.consumables.pill', { n: -m.quantity, name: m.item_name }))}</span>
+            <span class="pm-ticket-unlink" title="${escapeHtml(t('tickets.consumables.undo_title'))}" onclick="event.preventDefault();event.stopPropagation();undoTicketConsumable(${m.id}, ${ticketId});">✕</span>
+        </a>`).join('')
+        + asked.map(r => `<span class="pm-ticket-badge pm-badge-asked" role="button" tabindex="0" title="${escapeHtml(t('tickets.consumables.asked_title', { form: r.form, n: r.on_hand }))}"
+                onclick="useConsumableOnTicket(${ticketId}, ${r.item_id}, 1)">
+            📦 <span class="pill-text">${escapeHtml(t('tickets.consumables.asked', { name: r.name }))}</span>
+        </span>`).join('');
+    syncLinksStripEmpty();
+}
+
+/** Undo one use of a consumable on the ticket - with a reason, kept in the ledger beside it. */
+function undoTicketConsumable(movementId, ticketId) {
+    showConfirm({
+        title: t('tickets.consumables.undo_title'),
+        message: t('tickets.consumables.undo_message'),
+        okLabel: t('tickets.consumables.undo'),
+        textarea: { placeholder: t('tickets.consumables.undo_reason'), label: t('tickets.consumables.undo_reason'), focus: true },
+        onConfirm: async ({ text }) => {
+            if (!text || !text.trim()) { showToast(t('tickets.consumables.undo_reason'), 'error'); return; }
+            try {
+                const d = await (await fetch(CONSUMABLES_API, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'reverse', movement_id: movementId, reason: text.trim() }) })).json();
+                if (!d.success) { showToast(d.error || t('tickets.consumables.failed'), 'error'); return; }
+                showToast(t('tickets.consumables.undone'), 'success');
+                loadTicketConsumables(ticketId);
+            } catch (e) { showToast(t('tickets.consumables.failed'), 'error'); }
+        }
+    });
 }
 
 // ─── Linked assets (discussion #57) ──────────────────────────────────────────
@@ -7948,6 +8129,7 @@ function openReplyModal(fromEmail) {
 
     applyDefaultSignature();
     setReplyCleanupVisibility('reply');
+    syncReplyFromFiles();   // GH #397
     document.getElementById('emailModal').classList.add('active');
     // Tell colleagues we're writing, and show their warning if they already are.
     setPresenceComposing(true);
@@ -8009,6 +8191,7 @@ function openForwardModal(fromEmail) {
 
     applyDefaultSignature();
     setReplyCleanupVisibility('forward');
+    syncReplyFromFiles();   // GH #397
     document.getElementById('emailModal').classList.add('active');
     setPresenceComposing(true);
     renderComposerCollisionWarning();
@@ -8792,7 +8975,7 @@ function renderReplyTemplateMenu() {
 
     html += '<div class="reply-tpl-menu-sep"></div>';
     html += `<button type="button" class="reply-tpl-menu-action" onclick="event.stopPropagation(); openSaveReplyTemplateModal('new', null)">
-                <span style="font-size:15px;line-height:1;">+</span> ${escapeHtml(t('tickets.reply_modal.save_draft_as_template'))}
+                <span style="font-size:var(--font-size-xl, 16px);line-height:1;">+</span> ${escapeHtml(t('tickets.reply_modal.save_draft_as_template'))}
              </button>`;
 
     menu.innerHTML = html;
@@ -11242,6 +11425,7 @@ function openTicketContextMenu(event, ticketId, ticketRef) {
     populateContextChecklistSubmenu();
     if (typeof populateContextWatchItem === 'function') populateContextWatchItem();   // GH #277
     if (typeof populateContextFormsSubmenu === 'function') populateContextFormsSubmenu(ctxActsOnSelection ? selectedTicketIds() : [ctxTargetTicketId]);   // GH #272
+    populateContextConsumablesSubmenu();   // Consumables (5.8.0)
 
     // On a phone the menu is a full-screen sheet, not a popup at the finger:
     // a 220px flyout menu with hover submenus cannot be used with a thumb.
@@ -11252,11 +11436,25 @@ function openTicketContextMenu(event, ticketId, ticketRef) {
 
     // Position at cursor — flip if it would overflow the viewport
     menu.classList.add('active');
+    // Taller than the window (Ed, 2026-11-20: Trash, the last item, was below the bottom
+    // edge and could not be reached). First tighten the rows; if it still does not fit,
+    // cap it at the window and let it scroll - and then fitTicketContextSubmenu() pins
+    // each flyout to the window, because a scrolling box clips anything outside it.
+    const MENU_MARGIN = 6;
+    const roomY = window.innerHeight - 2 * MENU_MARGIN;
+    menu.classList.remove('ctx-compact', 'ctx-scroll');
+    menu.style.maxHeight = '';
+    menu.scrollTop = 0;
+    if (menu.getBoundingClientRect().height > roomY) menu.classList.add('ctx-compact');
+    if (menu.getBoundingClientRect().height > roomY) {
+        menu.classList.add('ctx-scroll');
+        menu.style.maxHeight = roomY + 'px';
+    }
     const rect = menu.getBoundingClientRect();
     let x = event.clientX;
     let y = event.clientY;
     if (x + rect.width  > window.innerWidth)  x = window.innerWidth  - rect.width  - 4;
-    if (y + rect.height > window.innerHeight) y = window.innerHeight - rect.height - 4;
+    if (y + rect.height > window.innerHeight - MENU_MARGIN) y = Math.max(MENU_MARGIN, window.innerHeight - rect.height - MENU_MARGIN);
     menu.style.left = x + 'px';
     menu.style.top  = y + 'px';
 
@@ -11612,7 +11810,7 @@ function populateContextAssigneeSubmenu() {
         // the row visually aligned with status / priority swatches without
         // inventing a colour per analyst.
         const initial = (a.full_name || '').charAt(0).toUpperCase() || '?';
-        const initialChip = `<span class="ctx-status-swatch" style="background:#e5e7eb; color:#374151; font-size:9px; font-weight:600; display:inline-flex; align-items:center; justify-content:center; border:none;">${escapeHtml(initial)}</span>`;
+        const initialChip = `<span class="ctx-status-swatch" style="background:#e5e7eb; color:#374151; font-size:var(--font-size-xs, 11px); font-weight:600; display:inline-flex; align-items:center; justify-content:center; border:none;">${escapeHtml(initial)}</span>`;
         return `<div class="ticket-context-submenu-item" data-analyst-id="${a.id}" onclick="setAssigneeFromContext(${a.id})">
             ${initialChip}<span class="ctx-status-name">${escapeHtml(a.full_name)}</span>${isCurrent ? '<span class="ctx-status-check">&#10003;</span>' : ''}
         </div>`;
@@ -11651,7 +11849,7 @@ function populateContextTeamSubmenu() {
     sub.innerHTML = clearRow + ticketTeams.map(tm => {
         const isCurrent = (currentTeamId != null && tm.id == currentTeamId);
         const initial = (tm.name || '').charAt(0).toUpperCase() || '?';
-        const chip = `<span class="ctx-status-swatch" style="background:#e0e7ff; color:#3730a3; font-size:9px; font-weight:600; display:inline-flex; align-items:center; justify-content:center; border:none;">${escapeHtml(initial)}</span>`;
+        const chip = `<span class="ctx-status-swatch" style="background:#e0e7ff; color:#3730a3; font-size:var(--font-size-xs, 11px); font-weight:600; display:inline-flex; align-items:center; justify-content:center; border:none;">${escapeHtml(initial)}</span>`;
         return `<div class="ticket-context-submenu-item" data-team-id="${tm.id}" onclick="setTeamFromContext(${tm.id})">
             ${chip}<span class="ctx-status-name">${escapeHtml(tm.name)}</span>${isCurrent ? '<span class="ctx-status-check">&#10003;</span>' : ''}
         </div>`;
@@ -12734,7 +12932,24 @@ function fitTicketContextSubmenu(parent) {
     const MARGIN = 6;
     sub.style.top = '';
     sub.style.maxHeight = '';
+    sub.style.position = sub.style.left = sub.style.right = '';
     if (ticketMenuIsSheet()) return;   // the phone sheet shows a second level instead
+
+    // The menu itself scrolls (taller than the window): a scrolling box clips anything
+    // outside it, so the flyout is placed against the WINDOW instead - beside the row,
+    // overlapping the menu's edge by a couple of pixels so the pointer never crosses a
+    // gap on its way in (the menu's scrollbar is hidden for the same reason).
+    const menu = parent.closest('.ticket-context-menu');
+    if (menu && menu.classList.contains('ctx-scroll')) {
+        const mr = menu.getBoundingClientRect(), pr = parent.getBoundingClientRect();
+        sub.style.position = 'fixed';
+        sub.style.right = 'auto';
+        sub.style.maxHeight = Math.min(parseFloat(getComputedStyle(sub).maxHeight) || Infinity, window.innerHeight - 2 * MARGIN) + 'px';
+        const w = sub.offsetWidth, h = sub.offsetHeight;
+        sub.style.left = (menu.classList.contains('flip-sub') ? mr.left - w + 2 : mr.right - 2) + 'px';
+        sub.style.top = Math.max(MARGIN, Math.min(pr.top - 5, window.innerHeight - MARGIN - h)) + 'px';
+        return;
+    }
     const cssMax = parseFloat(getComputedStyle(sub).maxHeight) || Infinity;
     sub.style.maxHeight = Math.min(cssMax, window.innerHeight - 2 * MARGIN) + 'px';
     const r = sub.getBoundingClientRect();
@@ -12752,6 +12967,12 @@ function fitTicketContextSubmenu(parent) {
         fitTicketContextSubmenu(parent);
     });
 });
+// A scrolling menu moves its rows under an open flyout: put the flyout back beside its row.
+document.addEventListener('scroll', function (e) {
+    const menu = e.target;
+    if (!(menu instanceof Element) || !menu.classList.contains('ctx-scroll')) return;
+    menu.querySelectorAll('.ticket-context-menu-parent:hover, .ticket-context-menu-parent:focus-within').forEach(fitTicketContextSubmenu);
+}, true);
 // Right-clicking a different row should reopen, not stack
 window.addEventListener('blur', closeTicketContextMenu);
 window.addEventListener('scroll', function (e) {
@@ -13302,7 +13523,7 @@ function openWriteUpModal() {
                     <button class="modal-close" onclick="closeWriteUpModal()">&times;</button>
                 </div>
                 <div class="modal-body" id="wuBody" style="max-height:60vh;overflow-y:auto;">
-                    <div id="wuStatus" style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Reading the ticket…</div>
+                    <div id="wuStatus" style="font-size:var(--font-size-md, 13px);color:var(--text-muted);margin-bottom:12px;">Reading the ticket…</div>
                     <div id="wuContent"></div>
                 </div>
                 <div class="modal-footer" id="wuFoot"></div>
@@ -13429,7 +13650,7 @@ function wuFinish(data) {
     if (data.verdict === 'article') {
         statusEl.textContent = 'Draft ready — read it before publishing.';
         contentEl.insertAdjacentHTML('beforeend',
-            '<div style="font-size:12px;color:var(--text-muted);margin-top:12px;">' +
+            '<div style="font-size:var(--font-size-sm, 12px);color:var(--text-muted);margin-top:12px;">' +
             'Saving puts this in the knowledge base as an unpublished draft. Nobody can read it until you publish it.</div>');
         footEl.innerHTML =
             '<button class="btn btn-secondary" onclick="closeWriteUpModal()">Cancel</button>' +
@@ -13444,10 +13665,10 @@ function wuFinish(data) {
     }
     if ((data.questions || []).length) {
         contentEl.insertAdjacentHTML('beforeend',
-            '<p style="font-size:13px;color:var(--text-muted);margin:0 0 14px;">Answer what you can and it will try again.</p>' +
+            '<p style="font-size:var(--font-size-md, 13px);color:var(--text-muted);margin:0 0 14px;">Answer what you can and it will try again.</p>' +
             data.questions.map(q =>
                 '<div class="wu-q" style="margin-bottom:14px;">' +
-                '<label style="display:block;font-size:13px;margin-bottom:5px;line-height:1.45;">' + escapeHtml(q) + '</label>' +
+                '<label style="display:block;font-size:var(--font-size-md, 13px);margin-bottom:5px;line-height:1.45;">' + escapeHtml(q) + '</label>' +
                 '<textarea class="form-textarea" style="width:100%;box-sizing:border-box;min-height:58px;"></textarea></div>').join(''));
         footEl.innerHTML =
             '<button class="btn btn-secondary" onclick="closeWriteUpModal()">Close</button>' +
@@ -13733,7 +13954,7 @@ async function loadAiSummary(ticketId) {
         // be, rather than leave the analyst wondering where it went.
         if (d.confidential && _aiSummaryTicketId === ticketId) {
             const slot = document.getElementById('aiSummarySlot');
-            if (slot) slot.innerHTML = '<div class="ai-summary-confidential" style="font-size:12px;color:var(--text-muted,#666);padding:6px 0;">' + escapeHtml(d.error || '') + '</div>';
+            if (slot) slot.innerHTML = '<div class="ai-summary-confidential" style="font-size:var(--font-size-sm, 12px);color:var(--text-muted,#666);padding:6px 0;">' + escapeHtml(d.error || '') + '</div>';
             return;
         }
         if (!d.success || d.disabled || _aiSummaryTicketId !== ticketId) return;
@@ -14122,9 +14343,9 @@ async function openChangeRequester() {
             const others = Math.max(0, (m.tickets || 0) - 1);
             picked.innerHTML = `<label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="crqMerge" checked>
                 <span>${escapeHtml(T(others ? 'merge' : 'merge_only', { name: m.from.name, email: m.from.email || '', into: m.to.name, n: others }))}
-                <br><span style="color:var(--text-muted);font-size:12px">${escapeHtml(m.delete ? T('merge_delete') : T('merge_keep'))}</span></span></label>`;
+                <br><span style="color:var(--text-muted);font-size:var(--font-size-sm, 12px)">${escapeHtml(m.delete ? T('merge_delete') : T('merge_keep'))}</span></span></label>`;
         } else if (m && m.reason && m.reason !== 'same') {
-            picked.innerHTML = `<div style="color:var(--text-muted);font-size:12px">${escapeHtml(T('no_merge_' + m.reason, { name: m.from.name || '' }))}</div>`;
+            picked.innerHTML = `<div style="color:var(--text-muted);font-size:var(--font-size-sm, 12px)">${escapeHtml(T('no_merge_' + m.reason, { name: m.from.name || '' }))}</div>`;
         } else {
             picked.innerHTML = '';
         }

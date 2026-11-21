@@ -72,8 +72,8 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('assets', t('asset-management.nav.table'))); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/data-table.css?v=7">
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <?php echo Tz::scriptTag(); ?>
@@ -98,7 +98,7 @@ try {
             margin: 10px 14px 0;
             padding: 9px 14px;
             border-radius: 6px;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             background: #fffbeb;
             color: #92400e;
             border: 1px solid #fde68a;
@@ -123,12 +123,13 @@ try {
 
     <div class="dt-page">
         <?php /* Filled in by asset-table.js when the page is opened as
-                 ?stale=N from the Watchtower "not seen" count (#97). Empty and
-                 hidden otherwise — the table is unfiltered in every other case. */ ?>
+                 ?stale=N from the Watchtower "not seen" count (#97), or as
+                 ?due=warranty / ?due=lease from its expiry counts (discussion #388).
+                 Empty and hidden otherwise — the table is unfiltered in every other case. */ ?>
         <div id="assetStaleNotice" class="asset-stale-notice" hidden></div>
         <?php /* Retired assets: the same switch as the Assets list. Reloads the page,
                  which reloads the table with or without them. */ ?>
-        <label class="asset-show-retired" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;margin:0 0 6px;cursor:pointer">
+        <label class="asset-show-retired" style="display:inline-flex;align-items:center;gap:4px;font-size:var(--font-size-sm, 12px);margin:0 0 6px;cursor:pointer">
             <input type="checkbox" id="assetShowRetired" onchange="try{localStorage.setItem('assets_show_retired',this.checked?'1':'0')}catch(e){};location.reload()">
             <?php echo htmlspecialchars(t('asset-management.retired.show')); ?></label>
         <script>try{document.getElementById('assetShowRetired').checked=localStorage.getItem('assets_show_retired')==='1'}catch(e){}</script>
@@ -137,8 +138,8 @@ try {
 
     <script>window.assetCustomColumns = <?php echo json_encode($assetCustomColumns, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <script src="../assets/js/data-table.js?v=11"></script>
-    <script src="../assets/js/asset-table.js?v=14"></script>
+    <script src="../assets/js/asset-table.js?v=15"></script>
     <?php /* Loaded last so it can wrap this page's globals; inert on desktop. */ ?>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

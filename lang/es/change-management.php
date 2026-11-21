@@ -44,6 +44,11 @@ return [
         'work' => 'Trabajo: {date}',
         'unassigned' => 'Sin asignar',
     ],
+    // A list opened from a Watchtower count (discussion #388).
+    'link_filter' => [
+        'open' => 'Cambios abiertos, según el recuento de Watchtower',
+        'remove' => 'Quitar filtro',
+    ],
     'detail' => [
         'back' => 'Atrás',
         'share' => 'Compartir',
@@ -333,6 +338,7 @@ return [
         'created' => 'Creado: {datetime}',
         'created_by' => 'Creado: {datetime} por {name}',
         'last_modified' => 'Última modificación: {datetime}',
+        'generated' => 'Generado el {datetime}',   // the branded header (Ed, 2026-11-20)
     ],
     'approvals' => [
         'filter' => 'Filtrar',
@@ -367,6 +373,14 @@ return [
         'assigned_to' => 'Asignado a',
         'open_change' => 'Abrir cambio',
     ],
+    // Preferences → Change list labels (Ed, 2026-11-20).
+    'list_labels' => [
+        'heading' => 'Etiquetas de la lista de cambios',
+        'colour' => 'En color',
+        'plain' => 'Texto sin formato',
+        'note' => 'Cómo se muestran Riesgo, Prioridad, Tipo y Estado en la lista de cambios: en color, con un punto, o como texto sin formato.',
+    ],
+
     'table' => [
         'col_ref' => 'Ref',
         'col_title' => 'Título',
@@ -869,6 +883,14 @@ return [
         'tip_attachments' => 'Adjuntos',
         'tip_attachments_desc' => 'Suba capturas de pantalla, copias de seguridad de la configuración o correos de aprobación junto con el cambio. Añadir o quitar un archivo queda registrado, con una huella digital del archivo.',
         'tip_audit' => 'Registro de auditoría',
+        'tip_company'   => 'Mover a otra empresa',
+        'tip_company_desc' => '¿Archivado en la empresa equivocada? Haz clic derecho en el cambio y elige Mover a empresa (o usa POST /changes/{id}/move-to-company en la API). Las tareas vinculadas al cambio se mueven con él (para eso también necesitas acceso de escritura a Tareas). Los tickets asociados no: deben estar ya en la nueva empresa, así que desvincula los que no lo estén. El movimiento queda registrado en la cronología de Actividad.',
         'tip_audit_desc' => 'Cada cambio de campo se registra en la cronología de Actividad, y cada versión del texto largo se conserva íntegra - ábrala desde "Ver" o desde el enlace Versiones de una sección.',
+        'tip_labels' => 'Columnas con encabezado',
+        'tip_labels_desc' => 'La lista de cambios muestra Riesgo, Prioridad, Tipo y Estado en columnas con encabezado (en un teléfono, con una pequeña etiqueta delante de cada valor). Elige para ti valores en color con un punto o texto sin formato en Preferencias → Etiquetas de la lista de cambios.',
+        'tip_pdf' => 'Un cambio en PDF',
+        'tip_pdf_desc' => 'Compartir → Exportar como PDF genera un documento encabezado con el logotipo de tu organización (si hay uno configurado en Marca) y su nombre, seguido de los detalles, los planes, la matriz de riesgo, las aprobaciones, la revisión posterior a la implementación, los tickets vinculados, los nombres de los adjuntos y la actividad. Siempre se dibuja con el tema claro, uses el tema que uses.',
+        'tip_views' => 'Vistas guardadas de la tabla',
+        'tip_views_desc' => 'En la tabla, Guardar vista guarda las columnas, el orden y los filtros con un nombre, y Vistas abre la biblioteca. La tabla recuerda la última vista que elegiste y se abre con ella la próxima vez, en cualquier navegador, hasta que elijas otra o uses Restablecer; después vuelve a abrirse con tu vista predeterminada.',
     ],
 ];

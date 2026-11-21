@@ -490,8 +490,6 @@ if ($kindAvailable['Email attachment']) {
                 'size'      => $r['file_size'] === null ? null : (int) $r['file_size'],
                 'hash'      => null,
                 'url'       => $baseUrl . 'api/tickets/get_attachment.php?id=' . (int) $r['id'],
-                'store'     => 'tickets',
-                'key'       => (string) $r['file_path'],
                 'note'      => 'email id ' . (int) $r['email_id'] . ((int) $r['is_inline'] === 1 ? ', inline image' : '') . ', declared ' . d012_trim($r['content_type'], 60),
                 'created'   => $r['created_datetime'],
                 'skip'      => null,
@@ -555,8 +553,6 @@ if ($kindAvailable['Document']) {
                 'id'        => (int) $r['id'],
                 'name'      => (string) ($r['original_name'] !== null && $r['original_name'] !== '' ? $r['original_name'] : $r['title']),
                 'stored'    => (string) $r['storage_key'],
-                'store'     => 'documents',
-                'key'       => (string) $r['storage_key'],
                 'abs'       => $abs,
                 'base'      => ($appRoot === false ? null : $appRoot . DIRECTORY_SEPARATOR . 'uploads' . DIRECTORY_SEPARATOR . 'documents'),
                 // download.php checks is_file() only; the search indexer is the one
@@ -588,8 +584,6 @@ if ($kindAvailable['Screen recording']) {
                 'id'        => (int) $r['id'],
                 'name'      => (string) ($r['original_filename'] !== null && $r['original_filename'] !== '' ? $r['original_filename'] : $r['filename']),
                 'stored'    => $stored,
-                'store'     => 'recordings',
-                'key'       => (string) substr($stored, strlen('recordings/')),
                 'abs'       => ($appRoot === false ? null : $appRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $stored)),
                 'base'      => ($appRoot === false ? null : $appRoot . DIRECTORY_SEPARATOR . 'recordings'),
                 'contained' => false,
@@ -637,8 +631,6 @@ addSection($sections, "WHAT IS ATTACHED TO THIS TICKET", $inventory);
 
 $results = [];
 $fileLines = [];
-$storeTemps = [];   // temporary copies of files kept in S3, removed after the checks
-require_once __DIR__ . '/../../../includes/storage/stores.php';
 $tmpRoot = sys_get_temp_dir();
 $fileLines[] = 'Temp folder used for the download round trip: ' . ($tmpRoot === '' ? '(none reported by PHP)' : $tmpRoot);
 $fileLines[] = 'Files above ' . d012_bytes(D012_COPY_MAX_BYTES) . ' are hashed but not copied.';
@@ -684,30 +676,6 @@ foreach ($items as $idx => $it) {
         $results[] = ['n' => $n, 'kind' => $it['kind'], 'id' => $it['id'], 'name' => $it['name'], 'verdict' => 'NO STORED PATH', 'dir' => $it['base']];
         $fileLines = array_merge($fileLines, $L, ['']);
         continue;
-    }
-
-    // A store kept in S3 (or moving), System -> Storage: the file is checked THROUGH the
-    // store, on a temporary copy, so everything below reads it as it reads a local file.
-    if (!empty($it['store']) && function_exists('storeIsPlainLocal') && !storeIsPlainLocal($conn, $it['store'])) {
-        $L[] = '    store             : ' . $it['store'] . ' - ' . storeLocation($conn, $it['store'])
-             . (storePrevious($conn, $it['store']) !== null ? ' (moving)' : '') . ', key ' . d012_trim((string) $it['key'], 90);
-        try {
-            $lp = storeLocalPath($conn, $it['store'], (string) $it['key']);
-            $storeTemps[] = $lp;
-            $it['abs'] = $lp['path'];
-            $it['base'] = dirname($lp['path']);
-            $it['contained'] = true;   // the store refuses keys that leave it
-        } catch (StorageNotFound $e) {
-            $L[] = '    RESULT            : MISSING — the store does not hold this key.';
-            $results[] = ['n' => $n, 'kind' => $it['kind'], 'id' => $it['id'], 'name' => $it['name'], 'verdict' => 'MISSING', 'dir' => null];
-            $fileLines = array_merge($fileLines, $L, ['']);
-            continue;
-        } catch (Throwable $e) {
-            $L[] = '    RESULT            : NOT CHECKED — the store cannot be reached: ' . d012_trim($e->getMessage(), 120);
-            $results[] = ['n' => $n, 'kind' => $it['kind'], 'id' => $it['id'], 'name' => $it['name'], 'verdict' => 'NOT CHECKED', 'dir' => null];
-            $fileLines = array_merge($fileLines, $L, ['']);
-            continue;
-        }
     }
 
     $L[] = '    resolves to       : ' . $it['abs'];
@@ -840,7 +808,6 @@ foreach ($items as $idx => $it) {
 }
 
 if (!$items) $fileLines[] = '(nothing to verify)';
-foreach ($storeTemps as $lp) storeReleaseLocal($lp);
 addSection($sections, "FILE-BY-FILE VERIFICATION", $fileLines);
 
 // ---- 9. THE PERMISSION GUARDS ------------------------------------------

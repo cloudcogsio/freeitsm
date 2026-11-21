@@ -61,6 +61,7 @@ return [
         'intro' => 'Siapa melapor kepada siapa, berdasarkan manajer yang tercatat pada setiap orang - melalui sinkronisasi direktori, atau secara manual di Tiket → Pengguna.',
         'search' => 'Cari seseorang',
         'search_ph' => 'Nama, email, jabatan...',
+        'search_ph_names' => 'Nama, jabatan, departemen...',   // the portal's search, which does not look in email (GH #414)
         'no_results' => 'Tidak ada yang cocok.',
         'view' => 'Tampilan',
         'view_tree' => 'Pohon',
@@ -69,7 +70,9 @@ return [
         'loading' => 'Memuat...',
         'empty' => 'Belum ada orang yang memiliki manajer tercatat, jadi tidak ada bagan yang dapat digambar. Manajer berasal dari sinkronisasi direktori, atau diatur di Tiket → Pengguna.',
         'not_found' => 'Orang itu tidak ada di bagan yang dapat Anda lihat.',
+        'on_own' => '{name} tidak punya atasan dan tidak punya bawahan, jadi ditampilkan sendiri.',   // GH #414
         'leaver' => 'Sudah keluar',
+        'you' => 'Anda',   // the reader, on the portal's chart (GH #414)
         'reports_n' => '{n} melapor kepadanya',
         'reports_total' => '{n} melapor kepadanya, {total} secara keseluruhan di bawahnya',
         'expand' => 'Tampilkan siapa yang melapor kepada {name}',
@@ -328,7 +331,7 @@ return [
         'first_seen' => 'Pertama terlihat',
         'left' => 'Keluar',
         'leaver' => 'Karyawan keluar',
-        'edit_in' => 'Ubah di',
+        'open_in' => 'Buka di',   // GH #397: Edit is on the page; these only open
         'tickets_app' => 'Tiket',
         'assets_app' => 'Aset',
         'org' => 'Organisasi',
@@ -519,8 +522,8 @@ return [
         'edit' => [
             'nav' => 'Mengubah seseorang',
             'title' => 'Mengubah detail seseorang',
-            'intro' => 'Orang hanya membaca. Detail disimpan, dan diubah, di tempat asalnya.',
-            'p1' => '**Ubah di → Tiket** atau **Aset** di bagian atas halaman seseorang membukanya di Tiket → Pengguna atau Aset → Pengguna, tempat detail, manajer, dan login mereka diubah - editor yang sama dari keduanya.',
+            'intro' => 'Sebagian besar data dapat diubah langsung di sini.',
+            'p1' => '**Edit** di bagian atas halaman seseorang mengubah detail, manajer, dan login mereka tanpa meninggalkan Orang - editor yang sama dengan Tiket → Pengguna dan Aset → Pengguna, tersedia bagi siapa pun yang dapat membuka salah satunya. **Buka di → Tiket** atau **Aset** membuka orang tersebut di modul itu.',
             'p2' => 'Orang yang detailnya berasal dari direktori atau buku alamat diperbarui di sana, seperti sebelumnya; halaman mereka di sini hanya menampilkan hasilnya.',
         ],
         'who' => [

@@ -47,8 +47,8 @@ $query   = trim($_GET['q'] ?? '');   // lets you link someone straight to a sear
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('system', 'Help')); ?></title>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../../assets/css/help.css?v=6">
     <style>
         /* Pin the shared --accent (header/inbox.css primitives) to the System accent. */
@@ -72,15 +72,15 @@ $query   = trim($_GET['q'] ?? '');   // lets you link someone straight to a sear
         .syshelp-searchbar { margin: 20px auto 0; max-width: 520px; text-align: left; }
         .syshelp-search { position: relative; }
         .syshelp-search svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 17px; height: 17px; color: rgba(255,255,255,0.75); pointer-events: none; }
-        .syshelp-search input { width: 100%; box-sizing: border-box; padding: 11px 40px 11px 40px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.28); background: rgba(255,255,255,0.14); color: #fff; font-size: 14px; }
+        .syshelp-search input { width: 100%; box-sizing: border-box; padding: 11px 40px 11px 40px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.28); background: rgba(255,255,255,0.14); color: #fff; font-size: var(--font-size-lg, 14px); }
         .syshelp-search input::placeholder { color: rgba(255,255,255,0.7); }
         .syshelp-search input:focus { outline: none; border-color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.2); }
         /* Hide the browser's native clear "x" — we render our own, in the same spot. */
         .syshelp-search input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
-        .syshelp-search-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: none; padding: 4px 8px; border: none; background: transparent; color: rgba(255,255,255,0.8); font-size: 16px; cursor: pointer; border-radius: 5px; }
+        .syshelp-search-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: none; padding: 4px 8px; border: none; background: transparent; color: rgba(255,255,255,0.8); font-size: var(--font-size-xl, 16px); cursor: pointer; border-radius: 5px; }
         .syshelp-search-clear:hover { background: rgba(255,255,255,0.18); color: #fff; }
         .syshelp-search.has-value .syshelp-search-clear { display: block; }
-        .syshelp-search-hint { margin-top: 8px; font-size: 12.5px; opacity: 0.75; min-height: 16px; }
+        .syshelp-search-hint { margin-top: 8px; font-size: var(--font-size-md, 13px); opacity: 0.75; min-height: 16px; }
 
         /* Edge to edge — no content cap. A "tasteful" 1100px column is still a
            cap, and these pages follow the same full-width rule as the settings
@@ -96,19 +96,19 @@ $query   = trim($_GET['q'] ?? '');   // lets you link someone straight to a sear
            dark-mode override to keep in step. */
         .syshelp-tile-icon { flex-shrink: 0; width: 44px; height: 44px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; }
         .syshelp-tile-icon svg { width: 24px; height: 24px; }
-        .syshelp-tile h3 { margin: 0 0 4px; font-size: 15px; color: var(--text, #1f2330); }
-        .syshelp-tile p { margin: 0; font-size: 12.5px; color: var(--text-muted, #6b7280); line-height: 1.5; }
+        .syshelp-tile h3 { margin: 0 0 4px; font-size: var(--font-size-xl, 16px); color: var(--text, #1f2330); }
+        .syshelp-tile p { margin: 0; font-size: var(--font-size-md, 13px); color: var(--text-muted, #6b7280); line-height: 1.5; }
 
         /* Section deep-links: hidden until a search matches a heading inside the page. */
         .syshelp-hits { display: none; padding: 0 18px 14px 76px; flex-wrap: wrap; gap: 6px; }
         .syshelp-tile.has-hits .syshelp-hits { display: flex; }
-        .syshelp-hit { font-size: 12px; padding: 3px 9px; border-radius: 20px; background: var(--accent-soft); color: var(--accent); text-decoration: none; }
+        .syshelp-hit { font-size: var(--font-size-sm, 12px); padding: 3px 9px; border-radius: 20px; background: var(--accent-soft); color: var(--accent); text-decoration: none; }
         .syshelp-hit:hover { filter: brightness(0.95); }
         .syshelp-hit[hidden] { display: none; }
 
         .syshelp-empty { display: none; padding: 10px 32px 40px; }
-        .syshelp-empty p { font-size: 14px; color: var(--text-muted, #6b7280); line-height: 1.6; }
-        .syshelp-gaps { padding: 0 32px 48px; font-size: 12.5px; color: var(--text-dim, #9ca3af); }
+        .syshelp-empty p { font-size: var(--font-size-lg, 14px); color: var(--text-muted, #6b7280); line-height: 1.6; }
+        .syshelp-gaps { padding: 0 32px 48px; font-size: var(--font-size-md, 13px); color: var(--text-dim, #9ca3af); }
 
         @media (max-width: 700px) { .syshelp-grid { padding: 22px; } .syshelp-gaps { padding: 0 22px 32px; }  .syshelp-hits { padding-left: 18px; } }
 
@@ -225,6 +225,6 @@ $query   = trim($_GET['q'] ?? '');   // lets you link someone straight to a sear
         apply();   // honours any ?q= in the URL
     })();
     </script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

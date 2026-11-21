@@ -58,6 +58,7 @@ return [
         'intro'          => 'Who reports to whom, from the manager recorded against each person - by directory sync, or by hand in Tickets → Users.',
         'search'         => 'Find someone',
         'search_ph'      => 'Name, email, job title...',
+        'search_ph_names' => 'Name, job title, department...',   // the portal's search, which does not look in email (GH #414)
         'no_results'     => 'Nobody matches.',
         'view'           => 'View',
         'view_tree'      => 'Tree',
@@ -66,7 +67,9 @@ return [
         'loading'        => 'Loading...',
         'empty'          => 'Nobody has a manager recorded yet, so there is no chart to draw. Managers come from directory sync, or are set in Tickets → Users.',
         'not_found'      => 'That person is not in the chart you can see.',
+        'on_own' => '{name} has no manager and nobody reporting to them, so they are shown on their own.',   // GH #414
         'leaver'         => 'Leaver',
+        'you'        => 'You',   // the reader, on the portal's chart (GH #414)
         'reports_n'      => '{n} report to them',
         'reports_total'  => '{n} report to them, {total} in all under them',
         'expand'         => 'Show who reports to {name}',
@@ -334,7 +337,7 @@ return [
         'first_seen'  => 'First seen',
         'left'        => 'Left',
         'leaver'      => 'Leaver',
-        'edit_in'     => 'Edit in',
+        'open_in' => 'Open in',   // GH #397: Edit is on the page; these only open
         'tickets_app' => 'Tickets',
         'assets_app'  => 'Assets',
         'org'         => 'Organisation',
@@ -535,8 +538,8 @@ return [
         'edit' => [
             'nav'   => 'Changing someone',
             'title' => 'Changing someone\'s details',
-            'intro' => 'People reads. Details are kept, and changed, where they always were.',
-            'p1'    => '**Edit in → Tickets** or **Assets** at the top of a person\'s page opens them in Tickets → Users or Assets → Users, where their details, manager and sign-in are edited - the same editor from either.',
+            'intro' => 'Most details can be changed right here.',
+            'p1' => '**Edit** at the top of a person\'s page changes their details, manager and sign-in without leaving People - the same editor as Tickets → Users and Assets → Users, there for anyone who can open either. **Open in → Tickets** or **Assets** opens the person in that module instead.',
             'p2'    => 'A person whose details come from a directory or an address book is updated there, as before; their page here simply shows the result.',
         ],
         'who' => [

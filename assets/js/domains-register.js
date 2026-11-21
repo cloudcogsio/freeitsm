@@ -19,6 +19,14 @@
     let view = 'all';
     let sort = { key: 'expiry', dir: 1 };
     let accountFilter = null;      // ?account= from Domains → Accounts
+    // Watchtower's Domains card links here already filtered (discussion #388):
+    // ?expiring=N (registration ending within N days) or ?ssl=due (certificate
+    // expired or inside the warning window). The SERVER works out which domains
+    // its card counted (domainWatchtowerMatchIds) - the register's own Expiring
+    // and Certificate views count differently - and the page narrows to those ids.
+    let watch = null;              // { key: 'expiring', days } or { key: 'ssl' }
+    let watchIds = null;           // Set of ids, from list.php
+    let watchDays = null;          // the certificate warning window, for the chip
     const selected = new Set();
 
     // ---- views: the questions people ask --------------------------------------
@@ -69,6 +77,11 @@
         if (p.get('view') && VIEWS.some(v => v[0] === p.get('view'))) view = p.get('view');
         if (p.get('q')) document.getElementById('domSearch').value = p.get('q');
         if (p.get('account')) accountFilter = p.get('account');
+        const exp = parseInt(p.get('expiring'), 10);
+        if (exp >= 1 && exp <= 366) watch = { key: 'expiring', days: exp };
+        else if (p.has('ssl')) watch = { key: 'ssl' };
+        // The Watchtower filter is the whole question - a ?view= would only narrow it further.
+        if (watch) view = 'all';
         wire();
         await load(true);
         if (p.get('add') === '1') openAdd();
@@ -81,8 +94,12 @@
      */
     async function load(withLookups) {
         try {
-            const d = await api('list.php' + (withLookups || !L.statuses ? '?with_lookups=1' : ''));
+            const qs = new URLSearchParams();
+            if (withLookups || !L.statuses) qs.set('with_lookups', '1');
+            if (watch) qs.set(watch.key, watch.key === 'expiring' ? String(watch.days) : '1');
+            const d = await api('list.php' + (qs.toString() ? '?' + qs.toString() : ''));
             rows = d.domains || [];
+            if (watch) { watchIds = new Set((d.watch_ids || []).map(Number)); watchDays = d.watch_days || null; }
             multi = !!d.multi_company;
             if (d.lookups && d.lookups.statuses) { L = d.lookups; fillLookups(); }
             const alive = new Set(rows.map(r => r.id));
@@ -140,6 +157,7 @@
         const fn = VIEWS.find(x => x[0] === view)[1];
         return rows.filter(r => {
             if (!fn(r)) return false;
+            if (watch && watchIds && !watchIds.has(Number(r.id))) return false;
             if (accountFilter && String(r.registrar_account_id) !== accountFilter) return false;
             if (q && ![r.domain_name, r.display_name, r.registrar_name, r.supplier_name, r.tags, r.company_name, r.owner_name, r.status_name]
                 .some(x => x && String(x).toLowerCase().includes(q))) return false;
@@ -163,6 +181,7 @@
 
     /** Redraws the views, stats, table head and sorted body, the row count and the select-all box. */
     function render() {
+        renderWatchChip();
         renderViews();
         renderStats();
         const list = filtered();
@@ -192,6 +211,26 @@
         renderSelBar();
     }
 
+    /** Draws the Watchtower filter chip (discussion #388), or hides its row when the register is unfiltered. */
+    function renderWatchChip() {
+        const box = document.getElementById('domWatchChips');
+        if (!box) return;
+        box.hidden = !watch;
+        if (!watch) { box.innerHTML = ''; return; }
+        const label = watch.key === 'expiring'
+            ? T('watch_filter.expiring', { days: watch.days })
+            : T('watch_filter.ssl', { days: watchDays || '' });
+        box.innerHTML = '<button type="button" class="view-filter-chip" id="domWatchChip" title="' + esc(T('watch_filter.remove')) + '" aria-label="'
+            + esc(T('watch_filter.remove') + ': ' + label) + '">' + esc(label) + ' &#x2715;</button>';
+    }
+
+    /** Removes the Watchtower filter: back to the full register, and off the address so a reload stays unfiltered. */
+    function clearWatch() {
+        if (!watch) return;
+        try { const u = new URL(location.href); u.searchParams.delete('expiring'); u.searchParams.delete('ssl'); history.replaceState(null, '', u); } catch (e) { /* the list still clears */ }
+        watch = null; watchIds = null; watchDays = null;
+    }
+
     /** Draws the sidebar view buttons with their counts, flagging alert views that have anything in them. */
     function renderViews() {
         document.getElementById('domViews').innerHTML = VIEWS.map(([k, fn]) => {
@@ -219,7 +258,7 @@
             [c(r => r.transfer_lock === false), T('stat.unlocked'), c(r => r.transfer_lock === false) ? 'red' : 'green', 'unlocked'],
         ];
         let html = stats.map(([v, l, cls, vw]) => '<div class="dom-stat clickable ' + cls + '" data-view="' + vw + '"><div class="v">' + v + '</div><div class="l">' + esc(l) + '</div></div>').join('');
-        if (cost > 0) html += '<div class="dom-stat accent"><div class="v" style="font-size:20px">' + esc(money(cost, cur)) + '</div><div class="l">' + esc(T('stat.annual_cost')) + '</div></div>';
+        if (cost > 0) html += '<div class="dom-stat accent"><div class="v" style="font-size:var(--font-size-3xl, 20px)">' + esc(money(cost, cur)) + '</div><div class="l">' + esc(T('stat.annual_cost')) + '</div></div>';
         document.getElementById('domStats').innerHTML = html;
     }
 
@@ -247,7 +286,11 @@
         scopeToggle('aScope', 'aPurposeWrap', 'aScopeHint'); scopeToggle('mScope', 'mPurposeWrap', null);
         document.getElementById('domClearFilters').addEventListener('click', () => {
             ['fStatus', 'fScope', 'fPurpose', 'fOwner', 'fRegistrar', 'fTag', 'fCompany'].forEach(id => { document.getElementById(id).value = ''; });
-            document.getElementById('domSearch').value = ''; view = 'all'; accountFilter = null; render();
+            document.getElementById('domSearch').value = ''; view = 'all'; accountFilter = null; clearWatch(); render();
+        });
+        document.getElementById('domWatchChips').addEventListener('click', e => {
+            if (!e.target.closest('#domWatchChip')) return;
+            clearWatch(); render();
         });
         document.getElementById('domViews').addEventListener('click', e => {
             const b = e.target.closest('button[data-view]'); if (!b) return;
@@ -403,7 +446,7 @@
         let done = 0, failed = 0;
         /** Redraws the progress line and bar. */
         const draw = () => {
-            holder.innerHTML = '<div style="font-size:13px">' + esc(label) + ' ' + done + ' / ' + ids.length + (failed ? ' · ' + esc(T('progress.failed', { n: failed })) : '') + '</div>'
+            holder.innerHTML = '<div style="font-size:var(--font-size-md, 13px)">' + esc(label) + ' ' + done + ' / ' + ids.length + (failed ? ' · ' + esc(T('progress.failed', { n: failed })) : '') + '</div>'
                 + '<div class="dom-progress"><div style="width:' + Math.round(done / ids.length * 100) + '%"></div></div>';
         };
         draw();

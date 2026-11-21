@@ -79,16 +79,16 @@ function backupMaintenancePage(array $st, bool $owner, Closure $t): void
     body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; color: #263238; }
     .mm { max-width: 720px; margin: 8vh auto; padding: 0 20px; }
     .mm-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 28px; }
-    h1 { font-size: 20px; margin: 0 0 10px; }
-    p { font-size: 14px; line-height: 1.5; margin: 0 0 12px; }
+    h1 { font-size: var(--font-size-3xl, 20px); margin: 0 0 10px; }
+    p { font-size: var(--font-size-lg, 14px); line-height: 1.5; margin: 0 0 12px; }
     .mm-state { font-weight: 600; margin: 16px 0 8px; }
     .mm-log { background: #f1f3f5; border-radius: 6px; padding: 10px 12px; font: 12px/1.5 ui-monospace, Consolas, monospace; max-height: 320px; overflow: auto; white-space: pre-wrap; }
-    .mm-msg { border-radius: 6px; padding: 10px 12px; font-size: 14px; margin: 12px 0; }
+    .mm-msg { border-radius: 6px; padding: 10px 12px; font-size: var(--font-size-lg, 14px); margin: 12px 0; }
     .mm-msg.ok { background: #e8f5e9; color: #1b5e20; }
     .mm-msg.err { background: #ffebee; color: #b71c1c; }
     .mm-msg.warn { background: #fff8e1; color: #5d4037; }
     .mm-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-    .mm-btn { padding: 8px 16px; border-radius: 5px; border: 1px solid #546e7a; background: #546e7a; color: #fff; font-size: 14px; cursor: pointer; text-decoration: none; }
+    .mm-btn { padding: 8px 16px; border-radius: 5px; border: 1px solid #546e7a; background: #546e7a; color: #fff; font-size: var(--font-size-lg, 14px); cursor: pointer; text-decoration: none; }
     .mm-btn.plain { background: #fff; color: #263238; border-color: #ccc; }
     .mm-hidden { display: none; }
     @media (prefers-color-scheme: dark) {

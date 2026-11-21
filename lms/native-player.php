@@ -36,8 +36,8 @@ $translationNamespaces = ['common', 'lms'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('lms', $course['title'])); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/lms.css?v=11">
     <!-- Mobile layer: linked AFTER this page's own CSS so its @media rules win on ties. -->
     <link rel="stylesheet" href="../assets/css/mobile.css?v=196">
@@ -57,7 +57,7 @@ $translationNamespaces = ['common', 'lms'];
                     <div class="lms-native-progress-fill" id="progressFill"></div>
                 </div>
                 <span class="lms-native-step" id="stepLabel"></span>
-                <a href="<?php echo htmlspecialchars($backHref ?? './'); ?>" class="btn btn-secondary" style="font-size: 12px; padding: 5px 12px;"><?php echo htmlspecialchars($backLabel ?? t('lms.player.back')); ?></a>
+                <a href="<?php echo htmlspecialchars($backHref ?? './'); ?>" class="btn btn-secondary" style="font-size: var(--font-size-sm, 12px); padding: 5px 12px;"><?php echo htmlspecialchars($backLabel ?? t('lms.player.back')); ?></a>
             </div>
         </div>
 
@@ -84,6 +84,6 @@ $translationNamespaces = ['common', 'lms'];
         window.COURSE_ID = <?php echo (int)$courseId; ?>;
     </script>
     <script src="../assets/js/lms-native-player.js?v=4"></script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

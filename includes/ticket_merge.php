@@ -253,9 +253,9 @@ function unmergeTicket(PDO $conn, int $actorId, int $mergeId): array {
             try {
                 $af = $conn->prepare("SELECT file_path FROM email_attachments WHERE email_id = ?");
                 $af->execute([$sid]);
-                require_once __DIR__ . '/storage/stores.php';   // the tickets store: a server folder or S3
+                $base = dirname(__DIR__) . '/tickets/attachments/';
                 foreach ($af->fetchAll(PDO::FETCH_COLUMN) as $path) {
-                    if ($path) storeDelete($conn, 'tickets', (string)$path);
+                    if ($path && is_file($base . $path)) @unlink($base . $path);
                 }
                 $conn->prepare("DELETE FROM email_attachments WHERE email_id = ?")->execute([$sid]);
                 $conn->prepare("DELETE FROM emails WHERE id = ? AND ticket_id = ?")->execute([$sid, $targetId]);
@@ -832,8 +832,11 @@ function mergeAttachSnapshot(PDO $conn, int $targetId, array $source, string $ht
     ]);
     $emailId = (int)$conn->lastInsertId();
 
-    // Same layout the mailbox importer uses, in the tickets store (a server folder or S3).
-    require_once __DIR__ . '/storage/stores.php';
+    // Same on-disk layout the mailbox importer uses, so anything that already walks
+    // tickets/attachments keeps working.
+    $baseDir = dirname(__DIR__) . '/tickets/attachments';
+    $subDir  = (string)floor($emailId / 1000);
+    $dir     = $baseDir . '/' . $subDir . '/' . $emailId;
 
     // ⚠️ THE SNAPSHOT GOES THROUGH includes/uploads.php LIKE EVERYTHING ELSE.
     //
@@ -853,12 +856,10 @@ function mergeAttachSnapshot(PDO $conn, int $targetId, array $source, string $ht
     // The feature is unaffected: `filename` in the database is still `SDREF.html`, so
     // the analyst downloads a file that opens in a browser as before. What changed is
     // that the copy sitting on our disk is inert, and its name is unguessable.
-    $stored = storeSaveBytes(
-        $conn,
-        'tickets',
-        storeTicketDir($emailId),
+    $stored = uploadStoreBytes(
         $html,
         preg_replace('/[^a-zA-Z0-9._-]/', '_', (string)$ref) . '.html',
+        $dir,
         ATTACHMENT_POLICY_STORE
     );
     if (empty($stored['stored'])) {
@@ -867,7 +868,7 @@ function mergeAttachSnapshot(PDO $conn, int $targetId, array $source, string $ht
     }
 
     $filename = preg_replace('/[^a-zA-Z0-9._-]/', '_', (string)$ref) . '.html';
-    $relPath  = $stored['key'];
+    $relPath  = $subDir . '/' . $emailId . '/' . $stored['stored_name'];
 
     $conn->prepare(
         "INSERT INTO email_attachments (email_id, filename, content_type, file_path, file_size, is_inline, created_datetime)

@@ -32,9 +32,9 @@ $translationNamespaces = ['common', 'tasks'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('tasks', t('tasks.nav.table'))); ?></title>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=96">
-    <link rel="stylesheet" href="../../assets/css/tasks.css?v=61">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
+    <link rel="stylesheet" href="../../assets/css/tasks.css?v=62">
     <link rel="stylesheet" href="../../assets/css/data-table.css?v=7">
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <?php echo Tz::scriptTag(); ?>
@@ -128,6 +128,6 @@ $translationNamespaces = ['common', 'tasks'];
     <script src="../../assets/js/safe-html.js?v=4"></script>
     <script src="../../assets/js/tasks-quick-panel.js?v=5"></script>
     <script src="../../assets/js/tasks-table.js?v=7"></script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

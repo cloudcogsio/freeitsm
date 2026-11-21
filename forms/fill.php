@@ -41,8 +41,8 @@ $translationNamespaces = ['common', 'forms', 'tasks'];   // tasks: filling a tas
          visibility. Mirrors includes/form_logic.php, which decides on submit. -->
     <script src="../assets/js/form-logic.js?v=9"></script>
     <script src="../assets/js/form-render.js?v=3"></script>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <!-- Presentation shared with the portal and the builder preview: blocks
          (notes, images) and label position. A notice panel and a picture have no
          reason to look different in the three places; an INPUT does. -->
@@ -101,14 +101,14 @@ $translationNamespaces = ['common', 'forms', 'tasks'];   // tasks: filling a tas
         .form-logo.align-right { margin: 0 0 28px auto; }
 
         .fill-title {
-            font-size: 22px;
+            font-size: var(--font-size-4xl, 24px);
             font-weight: 600;
             color: var(--text, #333);
             margin: 0 0 4px;
         }
 
         .fill-desc {
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             color: var(--text-dim, #888);
             margin: 0 0 24px;
         }
@@ -126,7 +126,7 @@ $translationNamespaces = ['common', 'forms', 'tasks'];   // tasks: filling a tas
         }
         .form-section:first-child { margin-top: 0; }
         .form-section h2 {
-            font-size: 16px;
+            font-size: var(--font-size-xl, 16px);
             font-weight: 600;
             color: var(--text, #333);
             margin: 0;
@@ -138,7 +138,7 @@ $translationNamespaces = ['common', 'forms', 'tasks'];   // tasks: filling a tas
 
         .form-field label {
             display: block;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             font-weight: 500;
             color: var(--text, #333);
             margin-bottom: 5px;
@@ -161,7 +161,7 @@ $translationNamespaces = ['common', 'forms', 'tasks'];   // tasks: filling a tas
             padding: 10px 12px;
             border: 1px solid var(--border, #ddd);
             border-radius: 5px;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             font-family: inherit;
             box-sizing: border-box;
             background: var(--surface, #fff);
@@ -219,7 +219,7 @@ $translationNamespaces = ['common', 'forms', 'tasks'];   // tasks: filling a tas
             margin: 0;
             cursor: pointer;
             font-weight: normal;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             color: var(--text, #333);
         }
 
@@ -237,7 +237,7 @@ $translationNamespaces = ['common', 'forms', 'tasks'];   // tasks: filling a tas
         }
 
         .field-error {
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--danger-text, #d32f2f);
             margin-top: 4px;
             display: none;
@@ -258,7 +258,7 @@ $translationNamespaces = ['common', 'forms', 'tasks'];   // tasks: filling a tas
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             font-weight: 500;
             text-decoration: none;
             display: inline-flex;
@@ -274,7 +274,7 @@ $translationNamespaces = ['common', 'forms', 'tasks'];   // tasks: filling a tas
         .submit-message {
             padding: 12px 16px;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             margin-top: 16px;
             display: none;
         }
@@ -311,10 +311,10 @@ $translationNamespaces = ['common', 'forms', 'tasks'];   // tasks: filling a tas
         }
         .lookup-option {
             display: block; width: 100%; text-align: left; background: none; border: 0;
-            padding: 9px 12px; font-size: 14px; color: var(--text, #333); cursor: pointer;
+            padding: 9px 12px; font-size: var(--font-size-lg, 14px); color: var(--text, #333); cursor: pointer;
         }
         .lookup-option:hover { background: var(--surface-hover, #f3f4f6); }
-        .lookup-empty { padding: 9px 12px; font-size: 13px; color: var(--text-muted, #666); }
+        .lookup-empty { padding: 9px 12px; font-size: var(--font-size-md, 13px); color: var(--text-muted, #666); }
 
         /* ---- Field widths, in twelfths (docs/design/form-layout-and-grid.md) ----
            12 divides by 1, 2, 3, 4 and 6, so full / three-quarters / two-thirds /
@@ -366,7 +366,7 @@ $translationNamespaces = ['common', 'forms', 'tasks'];   // tasks: filling a tas
         body.fill-embed .fill-content { padding: 0; max-width: none; }
         body.fill-embed .fill-card { box-shadow: none; margin: 0; border: 0; padding: 4px 2px; }
         body.fill-embed .fill-title, body.fill-embed .fill-task-banner, body.fill-embed .form-logo { display: none; }
-        .fill-task-banner { margin: -4px 0 14px; padding: 8px 12px; border-radius: 6px; font-size: 13px;
+        .fill-task-banner { margin: -4px 0 14px; padding: 8px 12px; border-radius: 6px; font-size: var(--font-size-md, 13px);
             background: var(--accent-soft, #eef4ff); color: var(--text, #333); border: 1px solid var(--border, #ddd); }
     </style>
     <link rel="stylesheet" href="../assets/css/mobile.css?v=196">
@@ -502,6 +502,16 @@ $translationNamespaces = ['common', 'forms', 'tasks'];   // tasks: filling a tas
                     formData = data.form;
                     renderForm();
                     restoreDraft();
+                    // Opened by Reorder in Assets -> Consumables (5.8.0): its answers, keyed by
+                    // question id, handed over in this tab's sessionStorage - read once, then gone.
+                    try {
+                        const k = 'freeitsm.formPrefill.' + id, p = sessionStorage.getItem(k);
+                        if (p && !taskFill) {
+                            sessionStorage.removeItem(k);
+                            applyDraftValues(JSON.parse(p) || {});
+                            if (typeof applyVisibility === 'function') applyVisibility();
+                        }
+                    } catch (e) { /* the form opens empty, as before */ }
                 } else {
                     document.getElementById('formCard').innerHTML = '<p style="color:var(--danger-text, #c00);text-align:center">' + esc(data.error) + '</p>';
                 }
@@ -1165,6 +1175,6 @@ $translationNamespaces = ['common', 'forms', 'tasks'];   // tasks: filling a tas
     </script>
     <!-- Mobile layer. Adds the views hamburger and the module drawer on a phone.
          Loaded last so it can wrap the page's own globals rather than edit them. -->
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

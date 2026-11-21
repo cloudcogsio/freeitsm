@@ -12,6 +12,11 @@
 
 return [
     'portal' => 'Portal de autoservicio',
+    // GH #414: the organisation chart (self-service/org-chart.php).
+    'org_chart' => [
+        'title'        => 'Organigrama',
+        'subtitle'     => 'Quién depende de quién. Busca un nombre, un puesto o un departamento, o abre un equipo con la flecha.',
+    ],
     'equipment' => [
         'title' => 'Mi equipo',
         'subtitle' => 'El equipo que tiene asignado. Si algo de aquí no es correcto, o tiene material que no aparece, cree un ticket y el centro de servicio se encargará.',
@@ -50,6 +55,7 @@ return [
         'team_tickets' => 'Tickets del equipo',
         'help_centre' => 'Conocimiento',
         'equipment' => 'Mi equipo',
+        'org_chart'   => 'Organización',   // GH #414
         'training' => 'Formación',
         'help' => 'Ayuda',
         'menu' => 'Menú',
@@ -175,6 +181,10 @@ return [
         'req_sent' => 'Enviada',
         'req_cancelled' => 'Cancelada',
         'req_cancel' => 'Cancelar',
+        // Discussion #298: answers changed after it was sent.
+        'req_changed' => 'Respuestas cambiadas después de enviarla ({n})',
+        'req_changed_line' => '{field}: {old} → {new}',
+        'req_changed_blank' => '(vacío)',
         'req_cancel_title' => '¿Cancelar esta solicitud?',
         'req_cancel_text' => 'Se cancelará su solicitud de «{what}». Quien debía aprobarla dejará de verla como pendiente.',
         'req_cancel_reason' => '¿Por qué la cancela?',
@@ -448,6 +458,13 @@ return [
         'tr_li4' => 'Se le muestra el resultado de inmediato, junto con qué respuestas fueron incorrectas y por qué. Si no aprobó, puede intentarlo de nuevo.',
         'tr_p2' => 'Su progreso se guarda sobre la marcha, así que puede hacer un curso en varias sesiones, en cualquier dispositivo, y continuar donde lo dejó.',
         'tr_tip' => '<strong>Fechas límite y recordatorios:</strong> un curso puede tener una fecha límite. Dispone de todo ese día. Si su equipo de TI ha activado los recordatorios, recibirá un correo a medida que se acerque la fecha, y otro si se pasa — esos recordatorios se detienen en cuanto termine el curso.',
+        // GH #414: the organisation chart, for people who have the tab
+        'org_title' => 'Organigrama',
+        'org_p1' => 'Si tu equipo de TI lo ha activado, <strong>Organización</strong> en la navegación superior muestra quién depende de quién en tu empresa. Se abre en tu propio lugar, con la línea que tienes por encima desplegada.',
+        'org_li1' => 'Haz clic en la flecha junto a una persona para mostrar u ocultar su equipo. Los números junto a un nombre indican cuántas personas dependen directamente de ella y, tras el punto, cuántas hay por debajo en total.',
+        'org_li2' => 'Escribe en <strong>Buscar personas</strong> un nombre, un puesto o un departamento y elige a la persona para ir a ella en el organigrama.',
+        'org_li3' => '<strong>Gráfico</strong> dibuja lo mismo con cajas y líneas, empezando por ti. Haz clic en una persona para ver quién es, doble clic para dibujar a partir de ella y usa <strong>Exportar</strong> para guardarlo como imagen o PDF.',
+        'org_tip' => '<strong>¿Algo no cuadra?</strong> El organigrama se basa en el responsable registrado para cada persona. Si el tuyo es incorrecto, crea un ticket y el equipo de TI lo corregirá.',
         'team_title' => 'Tickets del equipo',
         'team_p1' => 'Puede ver los tickets creados por las personas a su cargo. Están en <strong>Tickets del equipo</strong> en el menú, aparte de los suyos en Mis tickets.',
         'team_li_who' => '<strong>Quién forma parte de su equipo</strong> lo configuró su equipo de TI &mdash; a partir del campo Responsable del directorio de su organización, o elegido por ellos. Consúltelo con ellos si falta alguien o si alguien no debería estar.',
