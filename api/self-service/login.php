@@ -174,6 +174,7 @@ try {
         $_SESSION['mfa_pending_ss_user_id'] = (int)$user['id'];
         $_SESSION['mfa_pending_ss_email']   = $user['email'];
         $_SESSION['mfa_pending_ss_name']    = $displayName;
+        sessionStampEpoch();   // a restore before the code is entered ends this half-signed-in session
 
         echo json_encode(['success' => true, 'mfa_required' => true]);
         exit;
