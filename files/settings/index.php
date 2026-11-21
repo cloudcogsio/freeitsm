@@ -112,7 +112,7 @@ $tt = fn(string $k) => htmlspecialchars(t('files.settings.' . $k));
         <div class="tab-content<?php echo $activeTabId === 'storage' ? ' active' : ''; ?>" id="storage-tab" data-capability="<?php echo capKey(Cap::FILES_STORAGE); ?>">
             <h2 style="margin:0 0 4px;font-size:var(--font-size-2xl, 18px)"><?php echo $tt('storage_title'); ?></h2>
             <div class="set-box" id="stoState"></div>
-            <div class="set-actions" id="stoOffline" hidden><button type="button" class="fil-btn" id="stoOfflineClear"><?php echo $tt('offline_clear'); ?></button><span id="stoOfflineMsg" style="font-size:13px"></span></div>
+            <div class="set-actions" id="stoOffline" hidden><button type="button" class="fil-btn" id="stoOfflineClear"><?php echo $tt('offline_clear'); ?></button><span id="stoOfflineMsg" style="font-size:var(--font-size-md, 13px)"></span></div>
             <div class="set-box" id="stoMove" hidden>
                 <div id="stoMoveText"></div>
                 <div class="set-actions" style="margin-top:10px">
