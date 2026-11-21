@@ -11211,7 +11211,7 @@ CREATE TABLE IF NOT EXISTS `files_purge_pending` (
 -- See includes/backup/runner.php.
 CREATE TABLE IF NOT EXISTS `backup_runs` (
     `id`                    INT NOT NULL AUTO_INCREMENT,
-    `kind`                  VARCHAR(10) NOT NULL,                   -- scheduled | manual
+    `kind`                  VARCHAR(10) NOT NULL,                   -- scheduled | manual | safety (taken by a restore first) | restore
     `status`                VARCHAR(10) NOT NULL DEFAULT 'running', -- running | ok | failed
     `set_name`              VARCHAR(20) NULL,                       -- sets/<set_name>/ on the target
     `started_at`            DATETIME NOT NULL,

@@ -695,6 +695,7 @@ return [
             'backup' => [
                 'changed' => 'Pengaturan cadangan berubah',
                 'failed' => 'Pencadangan atau pemeriksaannya gagal',
+                'restore' => 'Pemulihan dimulai atau selesai',
             ],
             'hyperv' => [
                 'collector' => 'Collector Hyper-V memerlukan perhatian Anda',
@@ -761,6 +762,7 @@ return [
             'backup' => [
                 'changed' => 'Tujuan cadangan, frasa sandi cadangan, atau jadwal cadangan berubah (administrator dan pemegang izin Penyimpanan dan cadangan)',
                 'failed' => 'Pencadangan atau pemeriksaan cadangan gagal (administrator dan pemegang izin Penyimpanan dan cadangan)',
+                'restore' => 'Sebuah cadangan dipulihkan ke instalasi ini: saat dimulai, dan saat selesai atau gagal (administrator dan pemegang izin Penyimpanan dan cadangan)',
             ],
             'hyperv' => [
                 'collector' => 'Collector Hyper-V berhenti melapor, atau penyimpanan sebuah cluster tidak dapat dibaca (orang yang mengelola koneksi Hyper-V)',
