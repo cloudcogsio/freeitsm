@@ -213,10 +213,12 @@ function isSecretSettingName($key) {
 
 /**
  * Load the encryption key from the key file
+ *
+ * @param bool $reload  read the file again: a restore (System -> Backups) may have replaced it in this process
  */
-function getEncryptionKey() {
+function getEncryptionKey($reload = false) {
     static $key = null;
-    if ($key === null) {
+    if ($key === null || $reload) {
         if (!file_exists(ENCRYPTION_KEY_PATH)) {
             throw new Exception('Encryption key file not found at ' . ENCRYPTION_KEY_PATH);
         }
