@@ -29,8 +29,8 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('system', t('system.storage.title'))); ?></title>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=79">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <style>
         body { --accent: var(--sys-accent, #546e7a); --accent-hover: var(--sys-accent-hover, #37474f); --on-accent: var(--sys-on-accent, #fff); }
         /* Page layout, title, subtitle and panels: assets/css/system-page.css (.sys-page, .sys-panel).
@@ -70,7 +70,7 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
         .st-where { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
         .st-hidden { display: none !important; }
     </style>
-    <link rel="stylesheet" href="../../assets/css/mobile.css?v=196">
+    <link rel="stylesheet" href="../../assets/css/mobile.css?v=200">
 </head>
 <body data-mobile-module="system" data-mobile-page="storage">
     <?php include '../includes/header.php'; ?>
@@ -138,9 +138,9 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
 
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <script>window.ST_API = '<?php echo $path_prefix; ?>api/system/storage.php'; window.ST_FILES_SETTINGS = '<?php echo $path_prefix; ?>files/settings/?tab=storage';</script>
-    <script src="../../assets/js/i18n.js?v=3"></script>
+    <script src="../../assets/js/i18n.js?v=4"></script>
     <script src="../../assets/js/confirm.js?v=7"></script>
     <script src="../../assets/js/system-storage.js?v=6"></script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>
