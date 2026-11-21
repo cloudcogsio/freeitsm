@@ -316,10 +316,10 @@ $translationNamespaces = ['common', 'system'];
         }
         .ui-choice-opt:has(input:checked) { border-color: var(--accent, #0078d4); box-shadow: 0 0 0 1px var(--accent, #0078d4); }
         .ui-choice-opt input { margin-top: 3px; }
-        .ui-choice-opt span { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--text, #333); }
-        .ui-choice-opt small { font-size: 12px; color: var(--text-dim, #888); line-height: 1.45; }
+        .ui-choice-opt span { display: flex; flex-direction: column; gap: 2px; font-size: var(--font-size-md, 13px); color: var(--text, #333); }
+        .ui-choice-opt small { font-size: var(--font-size-sm, 12px); color: var(--text-dim, #888); line-height: 1.45; }
         .brand-row { display: flex; flex-direction: column; gap: 6px; }
-        .brand-label { font-size: 13px; font-weight: 600; color: var(--text, #333); }
+        .brand-label { font-size: var(--font-size-md, 13px); font-weight: 600; color: var(--text, #333); }
         .brand-inputs { display: flex; gap: 8px; align-items: center; }
         .brand-inputs input[type="color"] { width: 40px; height: 34px; padding: 2px; border: 1px solid var(--border, #ccc); border-radius: 6px; background: var(--surface, #fff); cursor: pointer; }
         .brand-inputs .slot-input { max-width: 120px; font-family: ui-monospace, Consolas, monospace; }
@@ -333,7 +333,7 @@ $translationNamespaces = ['common', 'system'];
         .brand-swatch i { width: 20px; height: 20px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
         .brand-swatch:hover, .brand-swatch[aria-pressed="true"] { border-color: var(--accent, #0078d4); }
         .brand-preview { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; max-width: 620px; }
-        .bp-pane { border-radius: 8px; overflow: hidden; border: 1px solid rgba(22,32,44,.12); font-size: 12.5px; }
+        .bp-pane { border-radius: 8px; overflow: hidden; border: 1px solid rgba(22,32,44,.12); font-size: var(--font-size-md, 13px); }
         .bp-light { background: #f6f7f9; color: #16202c; }
         .bp-dark  { background: #0f1318; color: #e7ebf0; border-color: rgba(231,235,240,.12); }
         .bp-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; font-weight: 600; box-shadow: inset 0 3px 0 var(--bp-module, #0078d4); }

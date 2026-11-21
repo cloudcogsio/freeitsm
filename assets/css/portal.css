@@ -63,7 +63,7 @@
     background: var(--accent-soft);
     color: var(--accent-text);
     border: 1px solid var(--border);
-    font-size: 12px;
+    font-size: var(--font-size-sm, 12px);
     font-weight: 700;
 }
 :root[data-ui="modern"][data-ui-page="portal"][data-theme-mode="dark"] .ss-user-avatar { color: var(--text); }

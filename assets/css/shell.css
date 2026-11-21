@@ -54,7 +54,7 @@
     object-fit: contain;
 }
 :root[data-ui="modern"] .ui-brand-logo .ui-logo-dark { display: none; }
-:root[data-ui="modern"] .ui-brand-name { font-weight: 700; font-size: 15px; letter-spacing: -.01em; white-space: nowrap; }
+:root[data-ui="modern"] .ui-brand-name { font-weight: 700; font-size: var(--font-size-xl, 16px); letter-spacing: -.01em; white-space: nowrap; }
 /* Dark: the dark-background logo when there is one; otherwise the logo sits on
    a small light panel so a dark or transparent logo stays visible. */
 :root[data-ui="modern"][data-theme-mode="dark"] .ui-brand-logo.has-dark .ui-logo-light { display: none; }
@@ -129,7 +129,7 @@
     background: var(--accent-soft);
     color: var(--accent-text);
     border: 1px solid var(--border);
-    font-size: 12px;
+    font-size: var(--font-size-sm, 12px);
     font-weight: 700;
 }
 :root[data-ui="modern"][data-theme-mode="dark"] :is(.header, .landing-header) .user-avatar { color: var(--text); }
