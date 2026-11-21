@@ -692,6 +692,10 @@ return [
             'consumable' => [
                 'low_stock' => 'Bestand wird knapp - Zeit zum Nachbestellen',
             ],
+            'backup' => [
+                'changed' => 'Eine Sicherungseinstellung wurde geändert',
+                'failed' => 'Eine Sicherung oder ihre Prüfung ist fehlgeschlagen',
+            ],
             'hyperv' => [
                 'collector' => 'Ein Hyper-V-Collector braucht Ihre Aufmerksamkeit',
             ],
@@ -753,6 +757,10 @@ return [
             ],
             'consumable' => [
                 'low_stock' => 'Ein Verbrauchsmaterial erreicht seinen Meldebestand (wer benachrichtigt wird, legen Sie unter Assets -> Einstellungen -> Verbrauchsmaterial fest)',
+            ],
+            'backup' => [
+                'changed' => 'Das Sicherungsziel, die Sicherungspassphrase oder der Sicherungszeitplan ändert sich (Administratoren und Personen mit Speicher und Sicherungen)',
+                'failed' => 'Eine Sicherung oder die Prüfung einer Sicherung schlägt fehl (Administratoren und Personen mit Speicher und Sicherungen)',
             ],
             'hyperv' => [
                 'collector' => 'Ein Hyper-V-Collector meldet sich nicht mehr, oder der Speicher eines Clusters kann nicht gelesen werden (Personen, die Hyper-V-Verbindungen verwalten)',
