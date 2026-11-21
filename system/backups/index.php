@@ -79,7 +79,7 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
         .bk-row-actions { white-space: nowrap; }
         .bk-row-actions .btn + .btn { margin-left: 6px; }
         .bk-restore { border: 1px solid var(--danger, #c62828); border-radius: 8px; padding: 16px; margin-bottom: 14px; }
-        .bk-restore h4 { margin: 0 0 10px 0; font-size: 15px; color: var(--text, #333); }
+        .bk-restore h4 { margin: 0 0 10px 0; font-size: var(--font-size-xl, 16px); color: var(--text, #333); }
         .btn-danger { background: var(--danger, #c62828); border-color: var(--danger, #c62828); color: #fff; }
         #bkLastRestore { display: block; margin-bottom: 12px; }
     </style>
