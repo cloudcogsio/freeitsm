@@ -278,7 +278,24 @@ class BackupRestoreRefused extends RuntimeException {}
  */
 final class BackupRestore
 {
-    private array $result = ['ok' => false, 'restored_files' => 0, 'skipped_files' => 0, 'warnings' => [], 'errors' => []];
+    /**
+     * fn(PDO $db, string $keyHex): void - run instead of the default after-database step (pause
+     * backups, new install id) - a rollback re-applies this install's own settings instead.
+     * $keyHex is the restored encryption key.
+     */
+    public ?Closure $afterDatabaseHook = null;
+
+    /**
+     * A true rollback: after the files are restored, delete what the backup does not list -
+     * in the upload folders (by BackupRunner::uploadFolderFiles(), with this as the Files root
+     * to skip) and in the Files store (Files keys only). Null: delete nothing (the CLI restore).
+     */
+    public ?string $removeExtrasFilesRoot = null;
+
+    /** fn(): void - after each file (a rollback's heartbeat). */
+    public ?Closure $onFile = null;
+
+    private array $result = ['ok' => false, 'restored_files' => 0, 'skipped_files' => 0, 'removed_files' => 0, 'warnings' => [], 'errors' => []];
     private string $tmp = '';
     private StorageDriver&StorageLister $t;
     private string $set;
@@ -341,10 +358,16 @@ final class BackupRestore
             if (!backupCheckDump($this->tmp . '/db.dump')['ended']) throw new BackupCorrupt(BACKUP_DUMP_INCOMPLETE);
             ($this->log)(backupT('log_db'));
             $this->dropEverything();
-            $n = backupReplayDump($this->db, $this->tmp . '/db.dump');
+            // The dump sets this connection's session (sql_mode, checks, time zone); a rollback carries on
+            // using the connection afterwards, so it is put back as it was.
+            $session = $this->db->query('SELECT @@SESSION.sql_mode, @@SESSION.time_zone')->fetch(PDO::FETCH_NUM);
+            $n = backupReplayDump($this->db, $this->tmp . '/db.dump', $this->onFile ? fn() => ($this->onFile)() : null);
             @unlink($this->tmp . '/db.dump');
+            $this->db->prepare('SET SESSION sql_mode = ?, SESSION time_zone = ?')->execute([(string)$session[0], (string)$session[1]]);
+            $this->db->exec('SET FOREIGN_KEY_CHECKS = 1, UNIQUE_CHECKS = 1');
             ($this->log)(backupT('log_db_done', ['n' => $n]));
-            $this->afterDatabase();
+            if ($this->afterDatabaseHook) ($this->afterDatabaseHook)($this->db, trim($keyBytes));
+            else $this->afterDatabase();
 
             // The key.
             if ($existing === null || $keyDiffers) {
@@ -356,6 +379,7 @@ final class BackupRestore
             $files = $this->filesStore ?? $this->restoredFilesStore(trim($keyBytes));
             $this->restoreFiles($open, $files);
             $this->rewriteRfpPaths();
+            if ($this->removeExtrasFilesRoot !== null) $this->removeExtras($open, $files, $this->removeExtrasFilesRoot);
         } finally {
             backupCloseSet($open);
             BackupRunner::rmTree($this->tmp);
@@ -441,6 +465,7 @@ final class BackupRestore
         $i = 0;
         foreach (backupSetFiles($open) as $f) {
             $i++;
+            if ($this->onFile) ($this->onFile)();
             $label = $f['store'] . ': ' . $f['path'];
             if (!isset($f['pool'])) {
                 $this->result['warnings'][] = backupT('warn_not_in_backup', ['file' => $label]);
@@ -466,6 +491,47 @@ final class BackupRestore
             if ($i % 500 === 0) ($this->log)(backupT('log_files', ['i' => $i, 'total' => $total]));
         }
         ($this->log)(backupT('log_files_done', ['restored' => $this->result['restored_files'], 'skipped' => $this->result['skipped_files'], 'failed' => count($this->result['errors'])]));
+    }
+
+    /**
+     * A true rollback: deletes what the backup does not list. Only where a backup looks
+     * (BackupRunner::uploadFolderFiles(), and Files keys - yyyy/mm/dd/<hex>.bin - in the Files
+     * store), never a file the app ships beside the uploads (.htaccess, web.config:
+     * backupIsProtectionFile()), and nothing in the Files store that is not a Files key (_incoming/, anything else).
+     */
+    private function removeExtras(array $open, StorageDriver $files, string $filesRoot): void
+    {
+        // The backup's own names (the walk below names files the same way), as a compact set: an integer
+        // (64 bits of a hash) per file, not arrays of paths - a large install must not run out of memory
+        // here, after the database has already been replaced. A collision can only keep a file.
+        $key = fn(string $store, string $path): int => unpack('J', hash('sha256', $store . "\0" . $path, true))[1];
+        $listed = [];
+        foreach (backupSetFiles($open) as $f) $listed[$key((string)$f['store'], (string)$f['path'])] = true;
+        $removed = 0;
+        foreach (BackupRunner::uploadFolderFiles($this->appRoot, $filesRoot) as $f) {
+            if (isset($listed[$key($f['store'], $f['path'])]) || backupIsProtectionFile($f['path'])) continue;
+            $p = $f['base'] . '/' . $f['path'];
+            if (@unlink($p)) $removed++;
+            else $this->result['errors'][] = $f['store'] . ': ' . $f['path'] . ' could not be removed.';
+        }
+        if ($files instanceof StorageLister) {
+            $drop = [];   // what the backup does not hold: usually few; deleted after the (streamed) listing
+            $files->eachObject('', function (string $k) use (&$drop, $listed, $key) {
+                if (filesStorageKeyIsValid($k) && !isset($listed[$key('files', $k)])) $drop[] = $k;
+            });
+            foreach ($drop as $k) {
+                try {
+                    $files->delete($k);
+                    $removed++;
+                } catch (Throwable $e) {
+                    $this->result['errors'][] = "files: $k could not be removed: " . $e->getMessage();
+                }
+            }
+        } else {
+            $this->result['warnings'][] = 'The Files storage cannot be listed, so Files content added since the backup was not removed.';
+        }
+        $this->result['removed_files'] = $removed;
+        ($this->log)("Removed $removed files that are not in the backup.");
     }
 
     /** One pooled file, decrypted to a temp file whose checksum has been checked. */

@@ -25,7 +25,7 @@ final class BackupNotify
     public static $mailer = null;
 
     /** The notification types (NotificationsService::types()), by event. */
-    public const TYPES = ['changed' => 'backup.changed', 'failed' => 'backup.failed'];
+    public const TYPES = ['changed' => 'backup.changed', 'failed' => 'backup.failed', 'restore' => 'backup.restore'];
 }
 
 /**
@@ -74,7 +74,8 @@ function backupNotifyRecipients(PDO $conn): array
 /**
  * A bell and an email to everyone concerned (backupNotifyRecipients()) but the actor.
  *
- * @param string $event    'changed' (target, passphrase, schedule) or 'failed' (a backup or a Verify)
+ * @param string $event    'changed' (target, passphrase, schedule), 'failed' (a backup or a Verify) or
+ *                         'restore' (a restore over this install started or ended)
  * @param string $title    one line, e.g. 'Backup target changed'
  * @param string $message  what happened - never a secret
  * @param ?int   $actorId  who did it (not told); null = nobody (a scheduled backup) - never 0
@@ -131,4 +132,17 @@ function backupT(string $key, array $params = []): string
 {
     require_once __DIR__ . '/../i18n.php';
     return I18n::t('system.backups.' . $key, $params);
+}
+
+/** An analyst's name for a message, or "someone" when the id names nobody (or the table cannot be read). */
+function backupAnalystName(PDO $conn, int $id): string
+{
+    try {
+        $s = $conn->prepare('SELECT full_name FROM analysts WHERE id = ?');
+        $s->execute([$id]);
+        $n = trim((string)$s->fetchColumn());
+    } catch (Throwable $e) {
+        $n = '';
+    }
+    return $n !== '' ? $n : 'someone';
 }
