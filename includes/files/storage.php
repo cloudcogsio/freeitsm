@@ -169,12 +169,30 @@ function filesServeBytes(PDO $conn, array $version, int $start, int $end, callab
     if (!filesStorageKeyIsValid($key)) return 404;
     $started = false;
     try {
-        filesStoreFor($conn, $key)->readRange($key, $start, $end, function (string $chunk) use (&$started, $begin) {
+        $store = filesStoreFor($conn, $key);
+        $sink = function (string $chunk) use (&$started, $begin) {
             if (!$started) { $started = true; $begin(); }
             echo $chunk;
             flush();
             return !connection_aborted();
-        });
+        };
+        $served = false;
+        if (!($store instanceof LocalDriver)) {
+            // "Make available offline": a complete copy on this server is read first, so
+            // the file opens while S3 is unreachable. Keys are never rewritten, so a copy
+            // of the right size holds the right bytes (includes/files/offline.php).
+            require_once __DIR__ . '/offline.php';
+            if (filesOfflineHasCopy($conn, $key, (int)($version['size_bytes'] ?? -1))) {
+                try {
+                    (new LocalDriver(filesOfflineRoot($conn)))->readRange($key, $start, $end, $sink);
+                    $served = true;
+                } catch (StorageNotFound $e) {
+                    // Removed between the check and the read (the job, or a purge): use the store.
+                    if ($started) throw $e;
+                }
+            }
+        }
+        if (!$served) $store->readRange($key, $start, $end, $sink);
         if (!$started) $begin();   // an empty range still needs its headers
         return 0;
     } catch (StorageNotFound $e) {
@@ -185,6 +203,33 @@ function filesServeBytes(PDO $conn, array $version, int $start, int $end, callab
         error_log("files: storage unavailable reading {$key}: " . $e->getMessage());
         return $started ? 0 : 503;
     }
+}
+
+/**
+ * Copies a whole stored file into a local file - for code that needs the bytes on this
+ * server (Attach as a copy). Like filesServeBytes(), a complete offline copy ("Make
+ * available offline") is used first when the store is not a server folder, so this
+ * works while S3 is unreachable.
+ *
+ * @param int $size  the version's size_bytes - a copy of any other size is not used
+ * @throws StorageNotFound|StorageUnavailable as the store's readTo()
+ */
+function filesReadToLocal(PDO $conn, string $key, int $size, string $localPath): void
+{
+    $store = filesStoreFor($conn, $key);
+    if (!($store instanceof LocalDriver)) {
+        require_once __DIR__ . '/offline.php';
+        if (filesOfflineHasCopy($conn, $key, $size)) {
+            try {
+                (new LocalDriver(filesOfflineRoot($conn)))->readTo($key, $localPath);
+                clearstatcache(true, $localPath);
+                if ((int)@filesize($localPath) === $size) return;
+            } catch (Throwable $e) {
+                // removed between the check and the read, or could not be read: use the store
+            }
+        }
+    }
+    $store->readTo($key, $localPath);
 }
 
 /**

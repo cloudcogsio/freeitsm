@@ -11205,6 +11205,47 @@ CREATE TABLE IF NOT EXISTS `files_purge_pending` (
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_files_purge_pending_path` (`storage_path`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Files kept on the server as well as in S3-compatible storage ("Make available offline").
+-- A mark on a folder covers everything in it, now and later; only the current version
+-- of each file is copied, to <storage root>/offline/<key>. See includes/files/offline.php.
+CREATE TABLE IF NOT EXISTS `files_offline` (
+    `id`                    INT NOT NULL AUTO_INCREMENT,
+    `target_type`           VARCHAR(10) NOT NULL,                   -- folder | item
+    `target_id`             INT NOT NULL,
+    -- 1 = "Don't keep offline": left out of a folder kept offline (the nearest mark wins).
+    `excluded`              TINYINT(1) NOT NULL DEFAULT 0,
+    `marked_by`             INT NULL,
+    `marked_datetime`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_files_offline_target` (`target_type`, `target_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- The offline copies on the server, one row per stored file: 'ready' (a complete copy of
+-- size_bytes) or 'failed' (its copy failed at failed_datetime; tried again a day later).
+-- Written by includes/services/files_offline.php; read for the ticks and the Storage tab.
+CREATE TABLE IF NOT EXISTS `files_offline_copies` (
+    `id`                    INT NOT NULL AUTO_INCREMENT,
+    `storage_path`          VARCHAR(255) NOT NULL,                  -- yyyy/mm/dd/<hex>.bin
+    `size_bytes`            BIGINT NOT NULL DEFAULT 0,
+    `state`                 VARCHAR(10) NOT NULL,                   -- ready | failed
+    `failed_datetime`       DATETIME NULL,
+    `updated_datetime`      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_files_offline_copies_path` (`storage_path`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Where the kept files directly in each folder stand (0 ready, 1 failed, 2 pending), so a
+-- folder's offline tick is one lookup. Rewritten by the files_offline_sync job each run;
+-- set to pending by the service when something is added to copy.
+CREATE TABLE IF NOT EXISTS `files_offline_folders` (
+    `id`                    INT NOT NULL AUTO_INCREMENT,
+    `folder_id`             INT NOT NULL,
+    `state`                 TINYINT NOT NULL DEFAULT 2,
+    `updated_datetime`      DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),   -- to the millisecond: a run keeps rows marked pending after it began
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_files_offline_folders_folder` (`folder_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- Seed: the project roles a fresh install starts with (PRINCE2-style, in our
