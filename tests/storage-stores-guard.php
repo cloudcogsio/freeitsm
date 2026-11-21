@@ -35,6 +35,8 @@ const ZZ_GUARD_PATTERNS = [
  */
 const ZZ_GUARD_ALLOWED = [
     'includes/storage/stores.php'                       => '*',   // the layer itself
+    'includes/file_stores.php'                          => '*',   // FILE_STORES: each store's folder (fileStoreDir())
+    'includes/storage_inventory.php'                    => '*',   // System -> Storage usage: the folders it measures
     'includes/storage_persistence.php'                  => '*',   // the list of folders that must persist (Docker volumes)
     'includes/uploads.php'                              => '*',   // the folders' .htaccess / web.config guards
     'includes/documents.php'                            => ['documents folder'],   // documentStoragePath(): kept for the folder path only

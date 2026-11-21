@@ -46,7 +46,7 @@ final class StorageService
                 'location' => storeLocation($conn, $s),
                 'files'    => $usage[0],
                 'bytes'    => $usage[1],
-                'folder'   => STORAGE_STORES[$s],
+                'folder'   => FILE_STORES[STORAGE_STORES[$s]]['folder'],
                 'move'     => storeMoveSummary($conn, $s),
             ];
         }

@@ -26,15 +26,19 @@
 
 require_once __DIR__ . '/driver.php';
 require_once __DIR__ . '/../uploads.php';
+require_once __DIR__ . '/../file_stores.php';
 require_once __DIR__ . '/../encryption.php';
 
-/** Store id => folder relative to the app root. */
+/**
+ * Store id => its FILE_STORES id (includes/file_stores.php). The folder on the server comes
+ * from fileStoreDir(), so it is always the one the rest of FreeITSM uses for that store.
+ */
 const STORAGE_STORES = [
-    'tickets'    => 'tickets/attachments',
-    'changes'    => 'change-management/attachments',
-    'documents'  => 'uploads/documents',
+    'tickets'    => 'ticket-attachments',
+    'changes'    => 'change-attachments',
+    'documents'  => 'documents',
     'recordings' => 'recordings',
-    'warroom'    => 'war-room/attachments',
+    'warroom'    => 'war-room',
 ];
 
 /** Where an upload to a store kept in S3 is checked before it is sent. */
@@ -74,7 +78,7 @@ function storeLocalRoot(string $store): string
 {
     storeCheckId($store);
     if (isset(StoreCache::$roots[$store])) return rtrim(str_replace('\\', '/', StoreCache::$roots[$store]), '/');
-    return str_replace('\\', '/', dirname(__DIR__, 2)) . '/' . STORAGE_STORES[$store];
+    return rtrim(str_replace('\\', '/', fileStoreDir(STORAGE_STORES[$store])), '/');
 }
 
 /**
