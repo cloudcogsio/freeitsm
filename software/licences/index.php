@@ -31,8 +31,8 @@ $translationNamespaces = ['common', 'software'];
     <script src="../../assets/js/i18n.js?v=4"></script>
     <?php echo Money::scriptTag(); ?>
     <script src="../../assets/js/money.js?v=1"></script>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <style>
         /* Module accent (indigo). */
         body { --accent: var(--sw-accent, #5c6bc0); --accent-hover: var(--sw-accent-hover, #3f51b5); }
@@ -55,7 +55,7 @@ $translationNamespaces = ['common', 'software'];
 
         .licence-toolbar h3 {
             margin: 0;
-            font-size: 16px;
+            font-size: var(--font-size-xl, 16px);
             color: var(--text, #333);
         }
 
@@ -70,7 +70,7 @@ $translationNamespaces = ['common', 'software'];
             padding: 8px 12px;
             border: 1px solid var(--border, #ddd);
             border-radius: 4px;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             box-sizing: border-box;
         }
 
@@ -81,7 +81,7 @@ $translationNamespaces = ['common', 'software'];
         }
 
         .licence-count {
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             color: var(--text-dim, #888);
             white-space: nowrap;
         }
@@ -90,7 +90,7 @@ $translationNamespaces = ['common', 'software'];
             padding: 8px 16px;
             border: none;
             border-radius: 4px;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             font-weight: 500;
             cursor: pointer;
             display: inline-flex;
@@ -130,7 +130,7 @@ $translationNamespaces = ['common', 'software'];
         .btn-export {
             background: var(--sw-accent, #5c6bc0);
             color: white;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             padding: 8px 14px;
         }
 
@@ -155,7 +155,7 @@ $translationNamespaces = ['common', 'software'];
             padding: 12px 20px;
             text-align: left;
             font-weight: 600;
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--text-muted, #555);
             border-bottom: 2px solid var(--border, #e0e0e0);
             text-transform: uppercase;
@@ -175,7 +175,7 @@ $translationNamespaces = ['common', 'software'];
 
         .licence-table thead th .sort-icon {
             margin-left: 4px;
-            font-size: 10px;
+            font-size: var(--font-size-xs, 11px);
         }
 
         .licence-table tbody tr {
@@ -190,7 +190,7 @@ $translationNamespaces = ['common', 'software'];
         .licence-table tbody td {
             padding: 10px 20px;
             border-bottom: 1px solid var(--border-soft, #eee);
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             color: var(--text, #333);
         }
 
@@ -200,7 +200,7 @@ $translationNamespaces = ['common', 'software'];
             color: var(--sw-accent-hover, #3f51b5);
             padding: 2px 10px;
             border-radius: 12px;
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             font-weight: 500;
         }
 
@@ -210,7 +210,7 @@ $translationNamespaces = ['common', 'software'];
             color: #2e7d32;
             padding: 2px 10px;
             border-radius: 12px;
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             font-weight: 500;
         }
 
@@ -220,7 +220,7 @@ $translationNamespaces = ['common', 'software'];
             color: #999;
             padding: 2px 10px;
             border-radius: 12px;
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             font-weight: 500;
         }
 
@@ -230,7 +230,7 @@ $translationNamespaces = ['common', 'software'];
             color: #c62828;
             padding: 2px 10px;
             border-radius: 12px;
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             font-weight: 500;
         }
 
@@ -291,7 +291,7 @@ $translationNamespaces = ['common', 'software'];
 
         .detail-header h3 {
             margin: 0;
-            font-size: 16px;
+            font-size: var(--font-size-xl, 16px);
             font-weight: 600;
         }
 
@@ -299,7 +299,7 @@ $translationNamespaces = ['common', 'software'];
             background: rgba(255, 255, 255, 0.2);
             border: none;
             color: white;
-            font-size: 20px;
+            font-size: var(--font-size-3xl, 20px);
             cursor: pointer;
             width: 32px;
             height: 32px;
@@ -334,7 +334,7 @@ $translationNamespaces = ['common', 'software'];
 
         .form-label {
             display: block;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             font-weight: 500;
             color: var(--text, #333);
             margin-bottom: 6px;
@@ -346,7 +346,7 @@ $translationNamespaces = ['common', 'software'];
             padding: 9px 12px;
             border: 1px solid var(--border, #ddd);
             border-radius: 4px;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             box-sizing: border-box;
             font-family: inherit;
         }
@@ -406,7 +406,7 @@ $translationNamespaces = ['common', 'software'];
             justify-content: center;
             padding: 60px;
             color: var(--text-dim, #888);
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             gap: 12px;
         }
 
@@ -415,7 +415,7 @@ $translationNamespaces = ['common', 'software'];
         }
 
         .publisher-text {
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--text-dim, #888);
         }
 
@@ -430,7 +430,11 @@ $translationNamespaces = ['common', 'software'];
 
     <div class="main-container licence-container">
         <div class="licence-toolbar">
-            <h3><?php echo htmlspecialchars(t('software.licences.heading')); ?></h3>
+            <div class="email-list-title-wrap">
+                <h3><?php echo htmlspecialchars(t('software.licences.heading')); ?></h3>
+                <?php /* The filter a Watchtower link opened the list with (discussion #388) - shown so a short list is never a mystery. */ ?>
+                <span class="view-filter-chips" id="watchFilterChips"></span>
+            </div>
             <div class="toolbar-right">
                 <input type="text" class="search-box" id="licenceSearch"
                        placeholder="<?php echo htmlspecialchars(t('software.licences.search')); ?>" autocomplete="off"
@@ -609,9 +613,41 @@ $translationNamespaces = ['common', 'software'];
             }
         }
 
+        // Watchtower's Software card links here already filtered (discussion #388):
+        // ?expiring=N (renewing within N days) or ?notice=N (notice period starts
+        // within N days). The server applies the card's own conditions; this only
+        // carries the number across and shows it as a chip.
+        const watchFilter = (function () {
+            const p = new URLSearchParams(location.search);
+            for (const key of ['expiring', 'notice']) {
+                const n = parseInt(p.get(key), 10);
+                if (n >= 1 && n <= 366) return { key: key, days: n };
+            }
+            return null;
+        })();
+        let watchFilterOn = !!watchFilter;
+
+        /** Draws the Watchtower filter chip, or nothing when the list is unfiltered. */
+        function renderWatchFilterChip() {
+            const box = document.getElementById('watchFilterChips');
+            if (!box) return;
+            if (!watchFilterOn) { box.innerHTML = ''; return; }
+            const label = window.t('software.watch_filter.' + watchFilter.key, { days: watchFilter.days });
+            box.innerHTML = '<button type="button" class="view-filter-chip" onclick="clearWatchFilter()" title="' + escapeHtml(window.t('software.watch_filter.remove')) + '" aria-label="' + escapeHtml(window.t('software.watch_filter.remove') + ': ' + label) + '">' + escapeHtml(label) + ' &#x2715;</button>';
+        }
+
+        /** Removes the Watchtower filter: back to the full list, and off the address so a reload stays unfiltered. */
+        function clearWatchFilter() {
+            watchFilterOn = false;
+            try { const u = new URL(location.href); u.searchParams.delete(watchFilter.key); history.replaceState(null, '', u); } catch (e) { /* the list still clears */ }
+            // Keep whatever is typed in the search box applied to the full list.
+            loadLicences().then(() => { if (document.getElementById('licenceSearch').value.trim()) searchLicences(); });
+        }
+
         async function loadLicences() {
             try {
-                const response = await fetch(API_BASE + 'get_licences.php');
+                renderWatchFilterChip();
+                const response = await fetch(API_BASE + 'get_licences.php' + (watchFilterOn ? '?' + watchFilter.key + '=' + watchFilter.days : ''));
                 const data = await response.json();
                 if (data.success) {
                     allLicences = data.licences;
@@ -979,6 +1015,6 @@ $translationNamespaces = ['common', 'software'];
             if (e.key === 'Escape') closeLicenceModal();
         });
     </script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

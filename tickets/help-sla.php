@@ -27,8 +27,8 @@ $translationNamespaces = ['common', 'tickets'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('tickets', t('tickets.nav.help'), t('tickets.help_sla.page_title'))); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/help.css?v=6">
     <style>
         /* The only thing a help page should need to say for itself: its colour. */
@@ -144,7 +144,7 @@ $translationNamespaces = ['common', 'tickets'];
 
                 <h4><?php echo t('tickets.help_sla.blocks.pause_heading'); ?></h4>
                 <p><?php echo t('tickets.help_sla.blocks.pause_intro'); ?></p>
-                <ul style="font-size:14px;color:var(--text-muted, #555);line-height:1.7;margin:8px 0 8px 24px;">
+                <ul style="font-size:var(--font-size-lg, 14px);color:var(--text-muted, #555);line-height:1.7;margin:8px 0 8px 24px;">
                     <li><?php echo t('tickets.help_sla.blocks.pause_awaiting'); ?></li>
                     <li><?php echo t('tickets.help_sla.blocks.pause_vendor'); ?></li>
                     <li><?php echo t('tickets.help_sla.blocks.pause_change'); ?></li>
@@ -422,6 +422,6 @@ $translationNamespaces = ['common', 'tickets'];
         });
     });
 </script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

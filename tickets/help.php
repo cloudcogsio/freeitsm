@@ -38,8 +38,8 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('tickets', t('tickets.nav.help'))); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/help.css?v=6">
     <style>
         /* Tickets is the one module with no accent of its own — it uses the
@@ -201,6 +201,7 @@ try {
                     <p><?php echo t('tickets.help.inbox.switch_body'); ?></p>
                     <!-- Discussion #292: hiding the folder panel. -->
                     <p><?php echo t('tickets.help.inbox.folders_hide'); ?></p>
+                    <p><?php echo t('tickets.help.inbox.folders_narrow'); ?></p>   <!-- GH #413 -->
 
                     <p><?php echo t('tickets.help.inbox.p_actions'); ?></p>
                     <p><?php echo t('tickets.help.inbox.filter_body'); ?></p>
@@ -739,10 +740,10 @@ try {
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:30px;height:30px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><polyline points="9,16 11,18 15,14"></polyline></svg>
                         </div>
                         <div style="flex:1;">
-                            <div style="font-size:18px;font-weight:700;margin-bottom:4px;">Calendar Sync &mdash; full guide</div>
-                            <div style="font-size:13px;opacity:0.9;line-height:1.5;">Put your scheduled tickets in the calendar you actually use. Subscription links vs Microsoft 365, the Azure permission and its blast radius, which mailbox is whose, changes coming back from Outlook, the scheduled job vs notifications, and troubleshooting.</div>
+                            <div style="font-size:var(--font-size-2xl, 18px);font-weight:700;margin-bottom:4px;">Calendar Sync &mdash; full guide</div>
+                            <div style="font-size:var(--font-size-md, 13px);opacity:0.9;line-height:1.5;">Put your scheduled tickets in the calendar you actually use. Subscription links vs Microsoft 365, the Azure permission and its blast radius, which mailbox is whose, changes coming back from Outlook, the scheduled job vs notifications, and troubleshooting.</div>
                         </div>
-                        <div style="flex-shrink:0;font-size:24px;opacity:0.7;">&rarr;</div>
+                        <div style="flex-shrink:0;font-size:var(--font-size-4xl, 24px);opacity:0.7;">&rarr;</div>
                     </a>
 
                     <p style="margin-top: 16px;"><?php echo t('tickets.help.cal_rota.rota_heading'); ?></p>
@@ -805,10 +806,10 @@ try {
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:30px;height:30px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                         </div>
                         <div style="flex:1;">
-                            <div style="font-size:18px;font-weight:700;margin-bottom:4px;"><?php echo t('tickets.help.settings.sla_callout_title'); ?></div>
-                            <div style="font-size:13px;opacity:0.9;line-height:1.5;"><?php echo t('tickets.help.settings.sla_callout_body'); ?></div>
+                            <div style="font-size:var(--font-size-2xl, 18px);font-weight:700;margin-bottom:4px;"><?php echo t('tickets.help.settings.sla_callout_title'); ?></div>
+                            <div style="font-size:var(--font-size-md, 13px);opacity:0.9;line-height:1.5;"><?php echo t('tickets.help.settings.sla_callout_body'); ?></div>
                         </div>
-                        <div style="flex-shrink:0;font-size:24px;opacity:0.7;">&rarr;</div>
+                        <div style="flex-shrink:0;font-size:var(--font-size-4xl, 24px);opacity:0.7;">&rarr;</div>
                     </a>
 
                     <!-- Prominent Mailbox Authentication callout -->
@@ -817,10 +818,10 @@ try {
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:30px;height:30px;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
                         </div>
                         <div style="flex:1;">
-                            <div style="font-size:18px;font-weight:700;margin-bottom:4px;">Mailbox Authentication — Admin Guide</div>
-                            <div style="font-size:13px;opacity:0.9;line-height:1.5;">Connect a Microsoft 365 or Google mailbox: delegated vs app-only, the "reading from the right inbox" safeguards, email aliases, OAuth scopes &amp; Azure setup, and troubleshooting.</div>
+                            <div style="font-size:var(--font-size-2xl, 18px);font-weight:700;margin-bottom:4px;">Mailbox Authentication — Admin Guide</div>
+                            <div style="font-size:var(--font-size-md, 13px);opacity:0.9;line-height:1.5;">Connect a Microsoft 365 or Google mailbox: delegated vs app-only, the "reading from the right inbox" safeguards, email aliases, OAuth scopes &amp; Azure setup, and troubleshooting.</div>
                         </div>
-                        <div style="flex-shrink:0;font-size:24px;opacity:0.7;">&rarr;</div>
+                        <div style="flex-shrink:0;font-size:var(--font-size-4xl, 24px);opacity:0.7;">&rarr;</div>
                     </a>
 
                     <!-- Prominent Automatic emails & signatures callout -->
@@ -829,10 +830,10 @@ try {
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:30px;height:30px;"><path d="M3 17c3.5 0 3.5-10 7-10s3.5 10 7 10c1.5 0 2.5-.7 4-2"></path><line x1="3" y1="21" x2="21" y2="21"></line></svg>
                         </div>
                         <div style="flex:1;">
-                            <div style="font-size:18px;font-weight:700;margin-bottom:4px;">Automatic emails &amp; signatures — Admin Guide</div>
-                            <div style="font-size:13px;opacity:0.9;line-height:1.5;">Merge codes and <code style="background:rgba(255,255,255,0.18);padding:1px 5px;border-radius:4px;">[ticket_url]</code>, the public web address links depend on, limiting a template to particular senders, checking who would get what, and per-analyst signatures.</div>
+                            <div style="font-size:var(--font-size-2xl, 18px);font-weight:700;margin-bottom:4px;">Automatic emails &amp; signatures — Admin Guide</div>
+                            <div style="font-size:var(--font-size-md, 13px);opacity:0.9;line-height:1.5;">Merge codes and <code style="background:rgba(255,255,255,0.18);padding:1px 5px;border-radius:4px;">[ticket_url]</code>, the public web address links depend on, limiting a template to particular senders, checking who would get what, and per-analyst signatures.</div>
                         </div>
-                        <div style="flex-shrink:0;font-size:24px;opacity:0.7;">&rarr;</div>
+                        <div style="flex-shrink:0;font-size:var(--font-size-4xl, 24px);opacity:0.7;">&rarr;</div>
                     </a>
 
                     <div class="help-cards cols-3">
@@ -1040,6 +1041,7 @@ try {
                     </div>
 
                     <p><?php echo t('tickets.help.companies.switcher_body'); ?></p>
+                    <p><?php echo t('tickets.help.companies.switcher_remember'); ?></p>
 
                     <!-- Two kinds of mailbox -->
                     <p style="margin-top: 8px;"><?php echo t('tickets.help.companies.mailboxes_heading'); ?></p>
@@ -1351,7 +1353,7 @@ try {
                     <p><?php echo t('tickets.help.workspace.' . $k); ?></p>
                     <?php endforeach; ?>
                     <h4><?php echo htmlspecialchars(t('tickets.help.workspace.tb_title')); ?></h4>
-                    <?php foreach (['tb_what', 'tb_columns', 'tb_same', 'tb_export'] as $k): ?>
+                    <?php foreach (['tb_what', 'tb_remember', 'tb_columns', 'tb_same', 'tb_export'] as $k): ?>
                     <p><?php echo t('tickets.help.workspace.' . $k); ?></p>
                     <?php endforeach; ?>
                 </div>
@@ -1403,6 +1405,6 @@ try {
             });
         });
     </script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

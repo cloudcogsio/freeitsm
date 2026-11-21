@@ -32,8 +32,8 @@ $translationNamespaces = ['common', 'service-status'];
     <?php echo Tz::scriptTag(); ?>
     <script src="../assets/js/tz.js?v=5"></script>
     <script src="../assets/js/i18n.js?v=4"></script>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/help.css?v=6">
     <style>
         /* The only thing a help page should need to say for itself: its colour. */
@@ -245,7 +245,7 @@ $translationNamespaces = ['common', 'service-status'];
                         <div class="help-flow-arrow">&rarr;</div>
                         <div class="help-flow-step"><?php echo htmlspecialchars(t('service-status.help.workflow_resolved')); ?></div>
                     </div>
-                    <p style="font-size: 13px; color: var(--text-muted, #555); text-align: center; margin-top: 4px;"><?php echo t('service-status.help.workflow_note_html'); ?></p>
+                    <p style="font-size: var(--font-size-md, 13px); color: var(--text-muted, #555); text-align: center; margin-top: 4px;"><?php echo t('service-status.help.workflow_note_html'); ?></p>
 
                     <p class="help-note"><?php echo htmlspecialchars(t('service-status.help.services_tip')); ?></p>
                 </div>
@@ -433,6 +433,6 @@ $translationNamespaces = ['common', 'service-status'];
             });
         });
     </script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

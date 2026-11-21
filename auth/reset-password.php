@@ -40,12 +40,18 @@ $token = $_GET['token'] ?? '';
         }
 
         .container {
-            background: white;
+            background: var(--surface, #fff);
             padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            width: 100%;
+            border-radius: var(--radius-xl, 10px);
+            box-shadow: var(--shadow-3, 0 10px 40px rgba(0, 0, 0, 0.2));
+            /* Full width less a margin each side, so on a phone the card never
+               touches the screen edges. */
+            width: calc(100% - 2 * var(--space-5, 20px));
             max-width: 400px;
+        }
+        /* On a phone the 40px padding leaves the fields a narrow column. */
+        @media (max-width: 480px) {
+            .container { padding: var(--space-6, 24px) var(--space-5, 20px); }
         }
 
         .header {
@@ -62,13 +68,13 @@ $token = $_GET['token'] ?? '';
 
         .header h1 {
             color: #333;
-            font-size: 22px;
+            font-size: var(--font-size-4xl, 24px);
             margin-bottom: 8px;
         }
 
         .header p {
             color: #666;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             line-height: 1.5;
         }
 
@@ -81,7 +87,7 @@ $token = $_GET['token'] ?? '';
             margin-bottom: 6px;
             color: #333;
             font-weight: 500;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
         }
 
         .form-group input {
@@ -89,7 +95,7 @@ $token = $_GET['token'] ?? '';
             padding: 12px;
             border: 1px solid #ddd;
             border-radius: 5px;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             transition: border-color 0.3s;
         }
 
@@ -102,7 +108,7 @@ $token = $_GET['token'] ?? '';
             padding: 10px 14px;
             border-radius: 5px;
             margin-bottom: 16px;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             display: none;
             line-height: 1.5;
         }
@@ -128,7 +134,7 @@ $token = $_GET['token'] ?? '';
             color: white;
             border: none;
             border-radius: 5px;
-            font-size: 15px;
+            font-size: var(--font-size-xl, 16px);
             font-weight: 600;
             cursor: pointer;
             transition: transform 0.2s;
@@ -144,7 +150,7 @@ $token = $_GET['token'] ?? '';
             margin-top: 16px;
             color: #999;
             text-decoration: none;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
         }
 
         .back-link:hover { color: #666; }

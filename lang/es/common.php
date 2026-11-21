@@ -85,6 +85,16 @@ return [
         'field_phone' => 'teléfono',
         'field_mobile' => 'móvil',
     ],
+    // GH #399: a settings page as tabs or as one page.
+    'settings_view' => [
+        'view' => 'Vista',
+        'tabs' => 'Pestañas',
+        'page' => 'Una página',
+        'search' => 'Buscar en la configuración',
+        'none' => 'Ninguna opción coincide',
+        'index' => 'Secciones de configuración',
+        'elsewhere' => 'En otra página',
+    ],
     'left_panel' => [
         'tab' => 'Panel izquierdo',
         'visibility' => 'Visibilidad',
@@ -565,6 +575,59 @@ return [
         'loading' => 'Cargando…',
         'load_failed' => 'No se han podido cargar las notificaciones.',
         'someone' => 'Alguien',
+        // GH #365: named after "by" when no person did it.
+        'actor_workflow' => 'el flujo de trabajo «{name}»',
+        'actor_system' => 'FreeITSM',
+        'actor_email' => 'correo electrónico',
+        // The bell's (i) panel - "why is this here?" (5.8.0).
+        'explain' => [
+            'info' => '¿Por qué está aquí?',
+            'title' => 'Por qué está aquí',
+            'loading' => 'Cargando...',
+            'failed' => 'No se pudo cargar la explicación.',
+            'by' => 'Hecho por',
+            'how' => 'Cómo',
+            'when' => 'Cuándo',
+            'why' => 'Por qué usted',
+            'history' => 'Historial del ticket',
+            'workflows' => 'Flujos de trabajo entonces',
+            'auto' => 'automático',
+            'via_api' => 'a través de la API REST',
+            'by_system' => 'Sistema (automático)',
+            'by_former' => 'un antiguo analista',
+            'hist_by' => 'por {who}',
+            'hist_note' => 'una nota',
+            'hist_email' => 'un correo',
+            'agrees' => 'El historial del ticket coincide.',
+            'differs' => 'Según el historial del ticket, {who} hizo este cambio.',
+            'grouped' => 'Se combinaron {n} actualizaciones en esta fila; esto explica la más reciente.',
+            'old_row' => 'Escrita antes de 5.8.0: solo se guardó un nombre, no qué hizo el cambio.',
+            'source' => [
+                'screen' => 'Cambiado en pantalla',
+                'portal' => 'En el portal de autoservicio',
+                'api' => 'A través de la API REST',
+                'workflow' => 'Por un flujo de trabajo',
+                'mail_import' => 'Al llegar correo nuevo',
+                'scheduled' => 'Por una tarea programada',
+            ],
+            'reason' => [
+                'new_owner' => 'Se le asignó a usted',
+                'ticket_owner' => 'Usted es el responsable de este ticket',
+                'team_member' => 'Está en el equipo al que se pasó',
+                'watcher' => 'Está siguiendo este ticket',
+                'task_owner' => 'Usted es el responsable de esta tarea',
+                'task_involved' => 'Participa en esta tarea',
+                'project' => 'Proyectos le indica para esto',
+                'domain_owner' => 'Este dominio es suyo',
+                'owner' => 'Es suyo',
+                'unknown' => 'No registrado',
+            ],
+            'hist_notes' => [
+                'no_access' => 'Ya no puede ver este ticket.',
+                'not_found' => 'Ninguna línea coincidente en el historial del ticket.',
+                'none' => 'Este tipo de notificación no tiene línea en el historial del ticket.',
+            ],
+        ],
         'just_now' => 'ahora mismo',
         'minutes' => 'hace {n} min',
         'hours' => 'hace {n} h',
@@ -626,6 +689,9 @@ return [
             'help' => [
                 'unanswered' => 'El asistente de ayuda no pudo responder una pregunta',
             ],
+            'consumable' => [
+                'low_stock' => 'Queda poco: hora de volver a pedir',
+            ],
             'hyperv' => [
                 'collector' => 'Un recopilador de Hyper-V requiere su atención',
             ],
@@ -684,6 +750,9 @@ return [
             ],
             'help' => [
                 'unanswered' => 'El asistente de ayuda no puede responder una pregunta que alguien hizo (administradores)',
+            ],
+            'consumable' => [
+                'low_stock' => 'Un consumible baja a su punto de pedido (a quién se avisa se elige en Activos -> Ajustes -> Consumibles)',
             ],
             'hyperv' => [
                 'collector' => 'Un recopilador de Hyper-V deja de informar, o no se puede leer el almacenamiento de un clúster (personas que gestionan conexiones de Hyper-V)',

@@ -7,6 +7,7 @@
  * engine, as ticket fields are. Two tabs:
  *   - Companies: one list for the whole install (Ed, 15 Nov 2026);
  *   - People: shared by every company, or one company's own.
+ *   - Consumables (5.8.0): shared by every consumable type, or one type's own.
  * Answers are entered on the company (System -> Companies) and the person
  * (the person editor), and through the REST API as custom_fields.
  *
@@ -34,8 +35,8 @@ $e = fn(string $k, array $p = []) => htmlspecialchars(t('system.custom_fields.' 
     <title><?php echo htmlspecialchars(pageTitle('system', t('system.custom_fields.heading'))); ?></title>
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <script src="../../assets/js/i18n.js?v=4"></script>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <style>
         body {
             --accent: var(--sys-accent, #546e7a);
@@ -45,33 +46,33 @@ $e = fn(string $k, array $p = []) => htmlspecialchars(t('system.custom_fields.' 
         /* Layout: assets/css/system-page.css (.sys-page, .sys-page-head). Only the scroll box is local. */
         .cf-wrap { height: calc(100vh - 48px); overflow-y: auto; background: var(--app-bg, #f5f7fa); }
         .cf-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border, #e5e7eb); margin: 0 0 16px; }
-        .cf-tab { background: none; border: none; border-bottom: 2px solid transparent; padding: 9px 14px; font-size: 13px; font-weight: 600; color: var(--text-muted, #666); cursor: pointer; }
+        .cf-tab { background: none; border: none; border-bottom: 2px solid transparent; padding: 9px 14px; font-size: var(--font-size-md, 13px); font-weight: 600; color: var(--text-muted, #666); cursor: pointer; }
         .cf-tab.active { color: var(--sys-accent, #546e7a); border-bottom-color: var(--sys-accent, #546e7a); }
         .cf-bar { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 0 0 12px; flex-wrap: wrap; }
-        .cf-intro { font-size: 13px; color: var(--text-muted, #555); margin: 0; max-width: 760px; }
+        .cf-intro { font-size: var(--font-size-md, 13px); color: var(--text-muted, #555); margin: 0; max-width: 760px; }
         table.cf { width: 100%; border-collapse: collapse; background: var(--surface, #fff); border: 1px solid var(--border, #e5e7eb); border-radius: 10px; overflow: hidden; }
-        table.cf th, table.cf td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border-soft, #f2f2f2); font-size: 13px; color: var(--text, #444); vertical-align: middle; }
-        table.cf th { background: var(--surface-3, #f9fafb); font-weight: 600; font-size: 12px; }
+        table.cf th, table.cf td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border-soft, #f2f2f2); font-size: var(--font-size-md, 13px); color: var(--text, #444); vertical-align: middle; }
+        table.cf th { background: var(--surface-3, #f9fafb); font-weight: 600; font-size: var(--font-size-sm, 12px); }
         table.cf tr:last-child td { border-bottom: none; }
-        .cf-key { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: var(--text-dim, #888); }
-        .cf-dim { color: var(--text-dim, #888); font-size: 12px; }
+        .cf-key { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: var(--font-size-sm, 12px); color: var(--text-dim, #888); }
+        .cf-dim { color: var(--text-dim, #888); font-size: var(--font-size-sm, 12px); }
         .cf-actions { white-space: nowrap; text-align: right; }
-        .cf-actions button { background: none; border: 1px solid var(--border, #ddd); border-radius: 5px; padding: 4px 8px; font-size: 12px; cursor: pointer; color: var(--text, #444); margin-left: 4px; }
+        .cf-actions button { background: none; border: 1px solid var(--border, #ddd); border-radius: 5px; padding: 4px 8px; font-size: var(--font-size-sm, 12px); cursor: pointer; color: var(--text, #444); margin-left: 4px; }
         .cf-actions button:hover { background: var(--surface-hover, #f3f4f6); }
         .cf-empty td { text-align: center; color: var(--text-faint, #aaa); padding: 24px; font-style: italic; }
         .cf-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 2100; align-items: center; justify-content: center; }
         .cf-modal-overlay.open { display: flex; }
         .form-field { margin-bottom: 14px; }
-        .form-field label { display: block; font-size: 13px; font-weight: 600; color: var(--text, #444); margin-bottom: 4px; }
-        .form-field .hint { font-size: 12px; color: var(--text-faint, #999); font-weight: 400; margin-bottom: 6px; }
-        .form-field input[type=text], .form-field input[type=number], .form-field select, .form-field textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border, #ddd); border-radius: 5px; font-size: 13px; font-family: inherit; box-sizing: border-box; background: var(--surface, #fff); color: var(--text, #333); }
+        .form-field label { display: block; font-size: var(--font-size-md, 13px); font-weight: 600; color: var(--text, #444); margin-bottom: 4px; }
+        .form-field .hint { font-size: var(--font-size-sm, 12px); color: var(--text-faint, #999); font-weight: 400; margin-bottom: 6px; }
+        .form-field input[type=text], .form-field input[type=number], .form-field select, .form-field textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border, #ddd); border-radius: 5px; font-size: var(--font-size-md, 13px); font-family: inherit; box-sizing: border-box; background: var(--surface, #fff); color: var(--text, #333); }
         .form-field textarea { min-height: 90px; }
-        .checkbox-field { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 13px; color: var(--text, #444); }
-        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; }
+        .checkbox-field { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: var(--font-size-md, 13px); color: var(--text, #444); }
+        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 6px; font-size: var(--font-size-md, 13px); font-weight: 600; border: none; cursor: pointer; }
         .btn-primary { background: var(--sys-accent, #546e7a); color: var(--sys-on-accent, #fff); }
         .btn-primary:hover { background: var(--sys-accent-hover, #455a64); }
         .btn-secondary { background: var(--surface-2, #eceff1); color: var(--text, #333); }
-        .cf-error { color: var(--danger-text, #c0392b); font-size: 13px; }
+        .cf-error { color: var(--danger-text, #c0392b); font-size: var(--font-size-md, 13px); }
     </style>
     <link rel="stylesheet" href="../../assets/css/mobile.css?v=196">
 </head>
@@ -87,6 +88,7 @@ $e = fn(string $k, array $p = []) => htmlspecialchars(t('system.custom_fields.' 
         <div class="cf-tabs" role="tablist">
             <button type="button" class="cf-tab active" data-entity="company" role="tab"><?php echo $e('tab_companies'); ?></button>
             <button type="button" class="cf-tab" data-entity="person" role="tab"><?php echo $e('tab_people'); ?></button>
+            <button type="button" class="cf-tab" data-entity="consumable" role="tab"><?php echo $e('tab_consumables'); ?></button>
         </div>
         <div class="cf-bar">
             <p class="cf-intro" id="cfTabIntro"></p>
@@ -143,6 +145,11 @@ $e = fn(string $k, array $p = []) => htmlspecialchars(t('system.custom_fields.' 
                     <div class="hint"><?php echo $e('f_company_hint'); ?></div>
                     <select id="cfCompany"></select>
                 </div>
+                <div class="form-field" id="cfTypeWrap" hidden>
+                    <label for="cfScope"><?php echo $e('f_consumable_type'); ?></label>
+                    <div class="hint"><?php echo $e('f_consumable_type_hint'); ?></div>
+                    <select id="cfScope"></select>
+                </div>
                 <p class="cf-error" id="cfErr"></p>
             </div>
             <div class="sys-modal-foot">
@@ -159,7 +166,7 @@ $e = fn(string $k, array $p = []) => htmlspecialchars(t('system.custom_fields.' 
         'use strict';
         var T = function (k, p) { return window.t('system.custom_fields.' + k, p); };
         var API = '../../api/system/custom_fields.php';
-        var entity = 'company', fields = [], companies = [], multi = false;
+        var entity = 'company', fields = [], companies = [], multi = false, ctypes = [];
         function $(id) { return document.getElementById(id); }
         function esc(s) {
             return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -170,7 +177,7 @@ $e = fn(string $k, array $p = []) => htmlspecialchars(t('system.custom_fields.' 
         }
 
         async function load() {
-            $('cfTabIntro').textContent = T(entity === 'company' ? 'intro_companies' : 'intro_people');
+            $('cfTabIntro').textContent = T({ company: 'intro_companies', person: 'intro_people', consumable: 'intro_consumables' }[entity]);
             var d;
             try { d = await (await fetch(API + '?entity=' + entity, { credentials: 'same-origin' })).json(); }
             catch (e) { $('cfList').innerHTML = '<p class="cf-error">' + esc(T('load_failed')) + '</p>'; return; }
@@ -178,19 +185,22 @@ $e = fn(string $k, array $p = []) => htmlspecialchars(t('system.custom_fields.' 
             if (d.ready === false) { $('cfList').innerHTML = '<p class="cf-error">' + esc(T('not_ready')) + '</p>'; return; }
             fields = d.fields || [];
             if (entity === 'person') { companies = d.companies || []; multi = !!d.multi; }
+            if (entity === 'consumable') ctypes = d.types || [];
             render();
         }
 
         function render() {
-            var person = entity === 'person' && multi;
+            var person = entity === 'person' && multi, typed = entity === 'consumable';
             var html = '<table class="cf"><thead><tr><th>' + esc(T('col_name')) + '</th><th>' + esc(T('col_type')) + '</th>'
                 + (person ? '<th>' + esc(T('col_company')) + '</th>' : '')
+                + (typed ? '<th>' + esc(T('col_consumable_type')) + '</th>' : '')
                 + '<th>' + esc(T('col_required')) + '</th><th>' + esc(T('col_answers')) + '</th><th></th></tr></thead><tbody>';
-            if (!fields.length) html += '<tr class="cf-empty"><td colspan="' + (person ? 6 : 5) + '">' + esc(T('none')) + '</td></tr>';
+            if (!fields.length) html += '<tr class="cf-empty"><td colspan="' + (person || typed ? 6 : 5) + '">' + esc(T('none')) + '</td></tr>';
             fields.forEach(function (f, i) {
                 html += '<tr><td><strong>' + esc(f.label) + '</strong><div class="cf-key">' + esc(f.key) + '</div></td>'
                     + '<td>' + esc(T('type_' + f.type)) + '</td>'
                     + (person ? '<td>' + esc(f.tenant_id ? (f.company_name || '#' + f.tenant_id) : T('every_company')) + '</td>' : '')
+                    + (typed ? '<td>' + esc(f.scope_id ? (f.scope_name || '#' + f.scope_id) : T('every_type')) + '</td>' : '')
                     + '<td>' + esc(f.required_on_create ? T('yes') : T('no')) + '</td>'
                     + '<td><span class="cf-dim">' + Number(f.answered || 0) + '</span></td>'
                     + '<td class="cf-actions">'
@@ -233,6 +243,13 @@ $e = fn(string $k, array $p = []) => htmlspecialchars(t('system.custom_fields.' 
                 $('cfCompany').innerHTML = '<option value="">' + esc(T('every_company')) + '</option>'
                     + companies.map(function (co) { return '<option value="' + co.id + '">' + esc(co.name) + '</option>'; }).join('');
             }
+            // A consumable field's type is chosen once, when it is made - as a people field's company is.
+            var showType = entity === 'consumable' && !f;
+            $('cfTypeWrap').hidden = !showType;
+            if (showType) {
+                $('cfScope').innerHTML = '<option value="">' + esc(T('every_type')) + '</option>'
+                    + ctypes.map(function (ct) { return '<option value="' + ct.id + '">' + esc(ct.name) + '</option>'; }).join('');
+            }
             $('cfErr').textContent = '';
             showTypeBits();
             $('cfModal').classList.add('open');
@@ -250,6 +267,7 @@ $e = fn(string $k, array $p = []) => htmlspecialchars(t('system.custom_fields.' 
                 help_text: $('cfHelp').value.trim(), is_required: $('cfRequired').checked ? 1 : 0
             };
             if (!$('cfCompanyWrap').hidden && $('cfCompany').value) body.tenant_id = Number($('cfCompany').value);
+            if (!$('cfTypeWrap').hidden && $('cfScope').value) body.scope_id = Number($('cfScope').value);
             $('cfSave').disabled = true;
             try {
                 var d = await post(body);
@@ -297,9 +315,11 @@ $e = fn(string $k, array $p = []) => htmlspecialchars(t('system.custom_fields.' 
         $('cfType').addEventListener('change', showTypeBits);
         $('cfCancel').addEventListener('click', closeModal);
         $('cfSave').addEventListener('click', save);
+        var hashTab = document.querySelector('.cf-tab[data-entity="' + location.hash.slice(1) + '"]');
+        if (hashTab) { document.querySelectorAll('.cf-tab').forEach(function (x) { x.classList.toggle('active', x === hashTab); }); entity = hashTab.dataset.entity; }
         load();
     })();
     </script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

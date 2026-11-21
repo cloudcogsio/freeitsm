@@ -32,8 +32,8 @@ $translationNamespaces = ['common', 'network-mapper'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('network-mapper', t('network-mapper.nav.help'))); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/help.css?v=6">
     <style>
         /* The only thing a help page should need to say for itself: its colour. */
@@ -370,6 +370,6 @@ $translationNamespaces = ['common', 'network-mapper'];
             });
         });
     </script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

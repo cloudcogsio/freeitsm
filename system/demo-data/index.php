@@ -28,8 +28,8 @@ if (!isset($_SESSION['analyst_id'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('system', t('system.demo.heading'))); ?></title>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <style>
         /* System module accent (blue-grey) */
         body {
@@ -64,7 +64,7 @@ if (!isset($_SESSION['analyst_id'])) {
         .warning-card svg { color: #f9a825; flex-shrink: 0; margin-top: 2px; }
 
         .warning-card .warning-text {
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             color: #6d4c00;
             line-height: 1.5;
         }
@@ -85,7 +85,7 @@ if (!isset($_SESSION['analyst_id'])) {
         .tip-card svg { color: #1976d2; flex-shrink: 0; }
 
         .tip-card .tip-text {
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             color: #1565c0;
             line-height: 1.4;
         }
@@ -93,7 +93,7 @@ if (!isset($_SESSION['analyst_id'])) {
         .tip-card .tip-text strong { color: #0d47a1; }
 
         .section-label {
-            font-size: 11px;
+            font-size: var(--font-size-xs, 11px);
             text-transform: uppercase;
             letter-spacing: 1px;
             color: var(--text-dim, #888);
@@ -116,19 +116,19 @@ if (!isset($_SESSION['analyst_id'])) {
 
         .core-card .core-info h3 {
             margin: 0 0 4px 0;
-            font-size: 16px;
+            font-size: var(--font-size-xl, 16px);
             color: var(--text, #333);
         }
 
         .core-card .core-info p {
             margin: 0;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             color: var(--text-muted, #666);
         }
 
         .core-card .core-info .core-detail {
             margin: 8px 0 0 0;
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--text-dim, #888);
         }
 
@@ -151,12 +151,12 @@ if (!isset($_SESSION['analyst_id'])) {
 
         .module-card h4 {
             margin: 0 0 4px 0;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             color: var(--text, #333);
         }
 
         .module-card .module-desc {
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--text-dim, #888);
             margin: 0 0 14px 0;
             line-height: 1.4;
@@ -176,7 +176,7 @@ if (!isset($_SESSION['analyst_id'])) {
             border: none;
             padding: 8px 18px;
             border-radius: 5px;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             font-weight: 500;
             cursor: pointer;
             transition: background 0.2s;
@@ -200,16 +200,16 @@ if (!isset($_SESSION['analyst_id'])) {
 
         .import-btn-lg {
             padding: 10px 24px;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
         }
 
         .record-count {
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--text-faint, #999);
         }
 
         .error-text {
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: #c62828;
             margin-top: 8px;
         }
@@ -251,20 +251,20 @@ if (!isset($_SESSION['analyst_id'])) {
 
         .bonus-card .bonus-info h4 {
             margin: 0 0 4px 0;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             color: var(--text, #333);
         }
 
         .bonus-card .bonus-info p {
             margin: 0;
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--text-dim, #888);
             line-height: 1.4;
         }
 
         .bonus-card .bonus-info .bonus-detail {
             margin: 8px 0 0 0;
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--text-faint, #999);
         }
 
@@ -372,6 +372,16 @@ if (!isset($_SESSION['analyst_id'])) {
                     <button class="import-btn" id="btn-assets" onclick="importModule('assets', this)" disabled><?php echo htmlspecialchars(t('system.demo.import')); ?></button>
                 </div>
                 <div class="error-text" id="err-assets" style="display:none"></div>
+            </div>
+
+            <div class="module-card" data-module="consumables">
+                <h4>Consumables</h4>
+                <p class="module-desc">A stock room with four months of history: 15 items (toner, mice, keyboards, cables, batteries), four deliveries with order numbers, stock used on tickets and handed to people, two stock takes that found some missing, and a few items running low. Best imported after <strong>Core</strong>, <strong>Tickets</strong> and <strong>Contracts</strong>, so the stock goes to real demo people and tickets and comes from a demo supplier.</p>
+                <div class="module-footer">
+                    <span class="record-count">~42 records</span>
+                    <button class="import-btn" id="btn-consumables" onclick="importModule('consumables', this)" disabled><?php echo htmlspecialchars(t('system.demo.import')); ?></button>
+                </div>
+                <div class="error-text" id="err-consumables" style="display:none"></div>
             </div>
 
             <div class="module-card" data-module="knowledge">
@@ -665,7 +675,7 @@ if (!isset($_SESSION['analyst_id'])) {
         }
 
         function enableModuleButtons() {
-            const modules = ['tickets', 'assets', 'knowledge', 'changes', 'calendar', 'checks', 'checklists', 'contracts', 'domains', 'cost-centres', 'services', 'software', 'forms', 'tasks', 'starters', 'process-mapper', 'cmdb', 'lms', 'workflow', 'network-mapper'];
+            const modules = ['tickets', 'assets', 'consumables', 'knowledge', 'changes', 'calendar', 'checks', 'checklists', 'contracts', 'domains', 'cost-centres', 'services', 'software', 'forms', 'tasks', 'starters', 'process-mapper', 'cmdb', 'lms', 'workflow', 'network-mapper'];
             modules.forEach(function(m) {
                 const btn = document.getElementById('btn-' + m);
                 if (btn && !btn.classList.contains('success')) {
@@ -783,6 +793,6 @@ if (!isset($_SESSION['analyst_id'])) {
             } catch (e) { /* ignore - user can still click Import */ }
         })();
     </script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

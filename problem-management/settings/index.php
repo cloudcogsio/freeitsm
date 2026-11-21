@@ -33,8 +33,8 @@ $path_prefix = '../../';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('problems', 'Settings')); ?></title>
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/inbox.css?v=97">
     <style>
         /* Pin the shared accent to the module red so the tabs, Add buttons,
            toggles, modal primary button and focus rings read on-brand. */
@@ -181,5 +181,5 @@ $path_prefix = '../../';
     pmsLoad();
     </script>
 </body>
-    <script src="<?php echo BASE_URL; ?>assets/js/mobile.js?v=83"></script>
+    <script src="<?php echo BASE_URL; ?>assets/js/mobile.js?v=87"></script>
 </html>

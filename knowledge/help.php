@@ -29,8 +29,8 @@ $translationNamespaces = ['common', 'knowledge'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('knowledge', t('knowledge.nav.help'))); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <?php echo Tz::scriptTag(); ?>
     <script src="../assets/js/tz.js?v=5"></script>
@@ -63,7 +63,7 @@ $translationNamespaces = ['common', 'knowledge'];
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             font-weight: 700;
             flex-shrink: 0;
             background: var(--accent-soft);
@@ -73,7 +73,7 @@ $translationNamespaces = ['common', 'knowledge'];
         .kb-help-ai-bubble {
             padding: 10px 14px;
             border-radius: 8px;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             line-height: 1.55;
             color: var(--text-muted, #444);
             max-width: 80%;
@@ -687,6 +687,6 @@ $translationNamespaces = ['common', 'knowledge'];
             });
         });
     </script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

@@ -71,8 +71,8 @@ $translationNamespaces = ['common'];
     <title><?php echo htmlspecialchars(pageTitle()); ?></title>
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <script src="assets/js/i18n.js?v=4"></script>
-    <link rel="stylesheet" href="assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="assets/css/inbox.css?v=97">
     <style>
         body {
             background: var(--login-bg, linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%));
@@ -106,7 +106,7 @@ $translationNamespaces = ['common'];
         }
 
         .landing-header h1 {
-            font-size: 20px;
+            font-size: var(--font-size-3xl, 20px);
             font-weight: 600;
             margin: 0;
         }
@@ -129,7 +129,7 @@ $translationNamespaces = ['common'];
             z-index: 5;
             padding: 10px 16px;
             text-align: center;
-            font-size: 13.5px;
+            font-size: var(--font-size-lg, 14px);
             line-height: 1.4;
         }
         .login-strip-banner { background: var(--login-banner-bg, #111827); color: var(--login-banner-fg, #fff); font-weight: 600; }
@@ -139,7 +139,7 @@ $translationNamespaces = ['common'];
             bottom: 0;
             color: var(--login-footer-fg, #fff);
             text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-            font-size: 12.5px;
+            font-size: var(--font-size-md, 13px);
         }
         body:has(.login-strip-banner[data-at="bottom"]) .login-strip-footer { bottom: 42px; }
         body[data-logo-pos="hidden"] .company-logo { display: none; }
@@ -185,7 +185,7 @@ $translationNamespaces = ['common'];
         }
 
         .welcome-text p {
-            font-size: 16px;
+            font-size: var(--font-size-xl, 16px);
             color: var(--text-muted, #666);
             margin: 0;
         }
@@ -241,7 +241,7 @@ $translationNamespaces = ['common'];
         <?php endforeach; ?>
 
         .module-name {
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             font-weight: 600;
         }
 
@@ -249,7 +249,7 @@ $translationNamespaces = ['common'];
             text-align: center;
             padding: 20px;
             color: var(--text-faint, #999);
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
         }
 
         /* ====================================================================
@@ -261,7 +261,7 @@ $translationNamespaces = ['common'];
            ==================================================================== */
         @media (max-width: 768px) {
             .landing-header { padding: 12px 14px; }
-            .landing-header h1 { font-size: 16px; }
+            .landing-header h1 { font-size: var(--font-size-xl, 16px); }
 
             .landing-container { padding: 24px 14px 32px; justify-content: flex-start; }
 
@@ -271,8 +271,8 @@ $translationNamespaces = ['common'];
             .company-logo { max-width: min(220px, 70%); margin-bottom: 20px; }
 
             .welcome-text { margin-bottom: 28px; }
-            .welcome-text h2 { font-size: 24px; }
-            .welcome-text p { font-size: 14px; }
+            .welcome-text h2 { font-size: var(--font-size-4xl, 24px); }
+            .welcome-text p { font-size: var(--font-size-lg, 14px); }
 
             /* Fixed 7 columns → an adaptive icon grid that fits any phone width
                (~3 across on a 360px screen, 4 on a larger phone). */
@@ -282,7 +282,7 @@ $translationNamespaces = ['common'];
             }
             .module-card { padding: 14px 6px; border-radius: 12px; }
             .module-icon { width: 42px; height: 42px; margin-bottom: 8px; }
-            .module-name { font-size: 12px; line-height: 1.25; }
+            .module-name { font-size: var(--font-size-sm, 12px); line-height: 1.25; }
 
             /* Keep the account dropdown from overflowing off a narrow screen. */
             .user-menu { right: 8px; max-width: calc(100vw - 16px); }

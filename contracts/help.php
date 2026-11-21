@@ -32,8 +32,8 @@ $translationNamespaces = ['common', 'contracts'];
     <?php echo Tz::scriptTag(); ?>
     <script src="../assets/js/tz.js?v=5"></script>
     <script src="../assets/js/i18n.js?v=4"></script>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/help.css?v=6">
     <style>
         /* The only thing a help page should need to say for itself: its colour. */
@@ -53,7 +53,7 @@ $translationNamespaces = ['common', 'contracts'];
         }
         .ct-help-tab-demo {
             padding: 10px 20px;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             font-weight: 500;
             color: var(--text-dim, #888);
             border-bottom: 2px solid transparent;
@@ -67,7 +67,7 @@ $translationNamespaces = ['common', 'contracts'];
             border: 1px solid var(--border-soft, #eee);
             border-top: none;
             border-radius: 0 0 8px 8px;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             color: var(--text-muted, #666);
             line-height: 1.6;
         }
@@ -480,5 +480,5 @@ $translationNamespaces = ['common', 'contracts'];
             });
         });
     </script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>

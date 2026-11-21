@@ -85,6 +85,16 @@ return [
         'field_phone' => 'telefon',
         'field_mobile' => 'mobil',
     ],
+    // GH #399: a settings page as tabs or as one page.
+    'settings_view' => [
+        'view' => 'Visning',
+        'tabs' => 'Faner',
+        'page' => 'Én side',
+        'search' => 'Søg i indstillinger',
+        'none' => 'Ingen indstillinger matcher',
+        'index' => 'Indstillingsafsnit',
+        'elsewhere' => 'På en anden side',
+    ],
     'left_panel' => [
         'tab' => 'Venstre panel',
         'visibility' => 'Synlighed',
@@ -565,6 +575,59 @@ return [
         'loading' => 'Indlæser…',
         'load_failed' => 'Kunne ikke hente notifikationer.',
         'someone' => 'Nogen',
+        // GH #365: named after "by" when no person did it.
+        'actor_workflow' => 'workflowet "{name}"',
+        'actor_system' => 'FreeITSM',
+        'actor_email' => 'e-mail',
+        // The bell's (i) panel - "why is this here?" (5.8.0).
+        'explain' => [
+            'info' => 'Hvorfor er den her?',
+            'title' => 'Hvorfor den er her',
+            'loading' => 'Indlæser...',
+            'failed' => 'Forklaringen kunne ikke indlæses.',
+            'by' => 'Udført af',
+            'how' => 'Hvordan',
+            'when' => 'Hvornår',
+            'why' => 'Hvorfor dig',
+            'history' => 'Sagshistorik',
+            'workflows' => 'Workflows da',
+            'auto' => 'automatisk',
+            'via_api' => 'via REST API\'et',
+            'by_system' => 'System (automatisk)',
+            'by_former' => 'en tidligere analytiker',
+            'hist_by' => 'af {who}',
+            'hist_note' => 'en note',
+            'hist_email' => 'en e-mail',
+            'agrees' => 'Sagshistorikken stemmer overens.',
+            'differs' => 'Sagshistorikken siger, at {who} foretog ændringen.',
+            'grouped' => '{n} opdateringer er samlet i denne ene række; dette forklarer den seneste.',
+            'old_row' => 'Skrevet før 5.8.0: kun et navn blev gemt, ikke hvad der foretog ændringen.',
+            'source' => [
+                'screen' => 'Ændret på skærmen',
+                'portal' => 'I selvbetjeningsportalen',
+                'api' => 'Via REST API\'et',
+                'workflow' => 'Af et workflow',
+                'mail_import' => 'Da der kom ny post',
+                'scheduled' => 'Af et planlagt job',
+            ],
+            'reason' => [
+                'new_owner' => 'Den blev tildelt dig',
+                'ticket_owner' => 'Du ejer denne sag',
+                'team_member' => 'Du er i det team, den blev givet til',
+                'watcher' => 'Du følger denne sag',
+                'task_owner' => 'Du ejer denne opgave',
+                'task_involved' => 'Du er involveret i denne opgave',
+                'project' => 'Projekter nævner dig til dette',
+                'domain_owner' => 'Du ejer dette domæne',
+                'owner' => 'Den er din',
+                'unknown' => 'Ikke registreret',
+            ],
+            'hist_notes' => [
+                'no_access' => 'Du kan ikke længere se denne sag.',
+                'not_found' => 'Ingen tilsvarende linje i sagshistorikken.',
+                'none' => 'Denne slags notifikation har ingen linje i sagshistorikken.',
+            ],
+        ],
         'just_now' => 'lige nu',
         'minutes' => 'for {n} min. siden',
         'hours' => 'for {n} t. siden',
@@ -626,6 +689,9 @@ return [
             'help' => [
                 'unanswered' => 'Hjælpeassistenten kunne ikke besvare et spørgsmål',
             ],
+            'consumable' => [
+                'low_stock' => 'Lageret er ved at slippe op - tid til at genbestille',
+            ],
             'hyperv' => [
                 'collector' => 'En Hyper-V-collector kræver din opmærksomhed',
             ],
@@ -684,6 +750,9 @@ return [
             ],
             'help' => [
                 'unanswered' => 'Hjælpeassistenten kan ikke besvare et spørgsmål, nogen har stillet (administratorer)',
+            ],
+            'consumable' => [
+                'low_stock' => 'En forbrugsvare falder til sit genbestillingspunkt (hvem der får besked, vælges under Aktiver -> Indstillinger -> Forbrugsvarer)',
             ],
             'hyperv' => [
                 'collector' => 'En Hyper-V-collector holder op med at rapportere, eller en clusters lager kan ikke læses (personer, der administrerer Hyper-V-forbindelser)',

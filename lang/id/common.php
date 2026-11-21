@@ -85,6 +85,16 @@ return [
         'field_phone' => 'telepon',
         'field_mobile' => 'ponsel',
     ],
+    // GH #399: a settings page as tabs or as one page.
+    'settings_view' => [
+        'view' => 'Tampilan',
+        'tabs' => 'Tab',
+        'page' => 'Satu halaman',
+        'search' => 'Cari pengaturan',
+        'none' => 'Tidak ada pengaturan yang cocok',
+        'index' => 'Bagian pengaturan',
+        'elsewhere' => 'Di halaman lain',
+    ],
     'left_panel' => [
         'tab' => 'Panel kiri',
         'visibility' => 'Visibilitas',
@@ -565,6 +575,59 @@ return [
         'loading' => 'Memuat…',
         'load_failed' => 'Tidak dapat memuat notifikasi.',
         'someone' => 'Seseorang',
+        // GH #365: named after "by" when no person did it.
+        'actor_workflow' => 'alur kerja "{name}"',
+        'actor_system' => 'FreeITSM',
+        'actor_email' => 'email',
+        // The bell's (i) panel - "why is this here?" (5.8.0).
+        'explain' => [
+            'info' => 'Mengapa ini ada di sini?',
+            'title' => 'Mengapa ini ada di sini',
+            'loading' => 'Memuat...',
+            'failed' => 'Penjelasan tidak dapat dimuat.',
+            'by' => 'Dilakukan oleh',
+            'how' => 'Bagaimana',
+            'when' => 'Kapan',
+            'why' => 'Mengapa Anda',
+            'history' => 'Riwayat tiket',
+            'workflows' => 'Alur kerja saat itu',
+            'auto' => 'otomatis',
+            'via_api' => 'melalui REST API',
+            'by_system' => 'Sistem (otomatis)',
+            'by_former' => 'mantan analis',
+            'hist_by' => 'oleh {who}',
+            'hist_note' => 'sebuah catatan',
+            'hist_email' => 'sebuah email',
+            'agrees' => 'Riwayat tiket sesuai.',
+            'differs' => 'Menurut riwayat tiket, {who} yang membuat perubahan ini.',
+            'grouped' => '{n} pembaruan digabung dalam satu baris ini; ini menjelaskan yang terbaru.',
+            'old_row' => 'Ditulis sebelum 5.8.0: hanya nama yang disimpan, bukan apa yang membuat perubahan.',
+            'source' => [
+                'screen' => 'Diubah di layar',
+                'portal' => 'Di portal layanan mandiri',
+                'api' => 'Melalui REST API',
+                'workflow' => 'Oleh alur kerja',
+                'mail_import' => 'Saat email baru masuk',
+                'scheduled' => 'Oleh tugas terjadwal',
+            ],
+            'reason' => [
+                'new_owner' => 'Tiket ini ditugaskan kepada Anda',
+                'ticket_owner' => 'Anda pemilik tiket ini',
+                'team_member' => 'Anda ada di tim yang menerimanya',
+                'watcher' => 'Anda memantau tiket ini',
+                'task_owner' => 'Anda pemilik tugas ini',
+                'task_involved' => 'Anda terlibat dalam tugas ini',
+                'project' => 'Proyek menunjuk Anda untuk ini',
+                'domain_owner' => 'Domain ini milik Anda',
+                'owner' => 'Ini milik Anda',
+                'unknown' => 'Tidak tercatat',
+            ],
+            'hist_notes' => [
+                'no_access' => 'Anda tidak dapat lagi melihat tiket ini.',
+                'not_found' => 'Tidak ada baris yang cocok di riwayat tiket.',
+                'none' => 'Jenis notifikasi ini tidak punya baris di riwayat tiket.',
+            ],
+        ],
         'just_now' => 'baru saja',
         'minutes' => '{n} mnt lalu',
         'hours' => '{n} j lalu',
@@ -626,6 +689,9 @@ return [
             'help' => [
                 'unanswered' => 'Asisten bantuan tidak dapat menjawab sebuah pertanyaan',
             ],
+            'consumable' => [
+                'low_stock' => 'Stok menipis - saatnya memesan ulang',
+            ],
             'hyperv' => [
                 'collector' => 'Collector Hyper-V memerlukan perhatian Anda',
             ],
@@ -684,6 +750,9 @@ return [
             ],
             'help' => [
                 'unanswered' => 'Asisten bantuan tidak dapat menjawab pertanyaan yang diajukan seseorang (administrator)',
+            ],
+            'consumable' => [
+                'low_stock' => 'Barang habis pakai turun ke titik pemesanan ulangnya (siapa yang diberi tahu dipilih di Aset -> Pengaturan -> Barang habis pakai)',
             ],
             'hyperv' => [
                 'collector' => 'Collector Hyper-V berhenti melapor, atau penyimpanan sebuah cluster tidak dapat dibaca (orang yang mengelola koneksi Hyper-V)',

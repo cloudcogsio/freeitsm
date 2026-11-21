@@ -86,7 +86,7 @@ require __DIR__ . '/_top.php';
     </div>
     <div class="help-card">
         <h4>Create a ticket from anything that can make an HTTP request</h4>
-        <pre style="background:#263238;color:#eceff1;border-radius:6px;padding:14px;font-size:12px;overflow-x:auto;">curl -X POST "https://your-server/api/v1/tickets" \
+        <pre style="background:#263238;color:#eceff1;border-radius:6px;padding:14px;font-size:var(--font-size-sm, 12px);overflow-x:auto;">curl -X POST "https://your-server/api/v1/tickets" \
   -H "Authorization: Bearer fitsm_your_key_here" \
   -H "Content-Type: application/json" \
   -d '{"subject":"Disk space low on SQL01","requester_email":"alerts@example.com","description":"C: below 5% free.","priority":"High"}'</pre>
@@ -129,7 +129,7 @@ require __DIR__ . '/_top.php';
         </div>
     </div>
     <ul>
-        <li><strong>Allowed addresses</strong> - one address or range per line (<code>203.0.113.7</code>, <code>10.20.0.0/16</code>, IPv6 too). A request from anywhere else is refused. This is the best protection there is against a stolen key: whoever took it is not on your network. Behind a reverse proxy every request arrives from the proxy, so list the proxy.</li>
+        <li><strong>Allowed addresses</strong> - one address or range per line (<code>203.0.113.7</code>, <code>10.20.0.0/16</code>, IPv6 too). A request from anywhere else is refused. This is the best protection there is against a stolen key: whoever took it is not on your network. Behind a reverse proxy every request arrives from the proxy, so list the proxy. (On Docker, <code>TRUSTED_PROXIES</code> makes the real addresses visible instead, so list those; see the Docker help.)</li>
         <li><strong>Allowed hours</strong> - days and a time window, in the server's time zone (<em>Mon-Fri, 07:00-19:00</em>). Outside it, either <strong>refuse the request</strong> or <strong>allow it but alert administrators</strong>. A window that ends before it starts runs past midnight.</li>
         <li><strong>Download limits for this key</strong> - its own alert and stop levels for document downloads; blank uses the Threat protection tab.</li>
     </ul>

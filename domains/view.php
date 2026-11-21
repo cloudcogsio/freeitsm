@@ -50,8 +50,8 @@ $translationNamespaces = ['common', 'domains'];
     <script src="../assets/js/i18n.js?v=4"></script>
     <?php echo Money::scriptTag(); ?>
     <script src="../assets/js/money.js?v=1"></script>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/domains.css?v=8">
     <link rel="stylesheet" href="../assets/css/mobile.css?v=196">
 </head>
@@ -178,7 +178,7 @@ $translationNamespaces = ['common', 'domains'];
         <div class="modal-content" style="max-width:480px">
             <div class="modal-header"><?php echo htmlspecialchars(t('domains.code.title')); ?></div>
             <div class="modal-body">
-                <p class="dom-hint" style="font-size:13px"><?php echo htmlspecialchars(t('domains.code.intro')); ?></p>
+                <p class="dom-hint" style="font-size:var(--font-size-md, 13px)"><?php echo htmlspecialchars(t('domains.code.intro')); ?></p>
                 <div class="form-group"><label for="cCode"><?php echo htmlspecialchars(t('domains.field.auth_code')); ?></label><input type="text" id="cCode" autocomplete="off" spellcheck="false"></div>
                 <div class="dom-hint"><?php echo htmlspecialchars(t('domains.code.blank_clears')); ?></div>
             </div>
@@ -193,7 +193,7 @@ $translationNamespaces = ['common', 'domains'];
         <div class="modal-content" style="max-width:520px">
             <div class="modal-header"><?php echo htmlspecialchars(t('domains.move.title')); ?></div>
             <div class="modal-body">
-                <p class="dom-hint" style="font-size:13px" id="mvIntro"></p>
+                <p class="dom-hint" style="font-size:var(--font-size-md, 13px)" id="mvIntro"></p>
                 <div class="form-group"><label for="mvCompany"><?php echo htmlspecialchars(t('domains.move.company')); ?></label><select id="mvCompany"></select></div>
                 <div class="dom-hint" id="mvWith"></div>
                 <div class="dom-hint"><?php echo htmlspecialchars(t('domains.move.cleared')); ?></div>
@@ -273,6 +273,6 @@ $translationNamespaces = ['common', 'domains'];
     <script src="../assets/js/domains.js?v=4"></script>
     <script src="../assets/js/domains-view.js?v=17"></script>
     <?php endif; ?>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

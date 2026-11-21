@@ -186,7 +186,7 @@ return [
     'projects' => [
         'metric_red' => 'Menyimpang',
         'metric_amber' => 'Berisiko',
-        'metric_week' => 'Tanggal minggu ini',
+        'metric_week'    => 'Proyek dengan tanggal minggu ini',
         'off_track' => '{name} menyimpang dari rencana',
         'more_off_track' => '<span class="wt-attention-bold">{count}</span> proyek lagi menyimpang dari rencana',
         'breaches' => '<span class="wt-attention-bold">{count}</span> proyek melampaui toleransi',
@@ -205,6 +205,7 @@ return [
         'metric_total' => 'Total',
         'metric_offline' => 'Luring',
         'metric_lease' => 'Sewa',
+        'metric_consumables' => 'Stok menipis',   // Consumables (5.8.0)
         'metric_warranty' => 'Garansi',
         'warranty' => '<span class="wt-attention-bold">{count}</span> aset dengan garansi yang sudah atau akan berakhir dalam {days} hari',
         'lease' => '<span class="wt-attention-bold">{count}</span> aset dengan sewa yang berakhir atau akan berakhir dalam {days} hari',
@@ -251,7 +252,7 @@ return [
         's1_feat3_title' => 'Penyegaran otomatis',
         's1_feat3_desc' => 'Dasbor secara otomatis menyegar setiap 5 menit, sehingga informasi tetap terkini tanpa tindakan manual apa pun. Biarkan Watchtower tetap terbuka dan ia akan terus memperbarui dirinya sendiri di latar belakang.',
         's1_feat4_title' => 'Klik-tembus',
-        's1_feat4_desc' => 'Lompat langsung ke modul mana pun dari kartunya. Setiap nama modul adalah tautan yang dapat diklik yang membawa Anda langsung ke area yang relevan, sehingga Anda dapat menindaklanjuti masalah tanpa mencari halaman yang tepat.',
+        's1_feat4_desc' => 'Setiap angka pada kartu adalah tautan, begitu juga ikon setiap kartu. Klik sebuah angka dan modulnya terbuka sudah tersaring tepat pada hal-hal yang dihitung angka itu - status tiket membuka daftar tiket pada status tersebut, kontrak yang berakhir dalam 30 hari membuka kontrak-kontrak itu - dengan label atau folder yang disorot yang menjelaskan mengapa daftarnya lebih pendek. Hapus label itu dan Anda kembali ke daftar biasa.',
         's2_title' => 'Tata letak dasbor',
         's2_p1' => 'Dasbor Watchtower menggunakan kisi 3 kolom responsif berisi kartu modul. Pada layar yang lebih kecil, kisi beradaptasi menjadi 2 kolom atau satu kolom, sehingga berfungsi pada perangkat apa pun. Di atas kisi terdapat bilah judul dengan tombol segarkan dan stempel waktu "Diperbarui" yang menunjukkan kapan data terakhir diambil.',
         's2_p2' => 'Setiap kartu dalam kisi mengikuti struktur yang konsisten sehingga Anda dapat memindainya dengan cepat:',
@@ -348,5 +349,9 @@ return [
         'impersonal_show' => 'Tetap tampilkan',
         'impersonal_hide' => 'Sembunyikan',
         'impersonal_note' => 'Status layanan, workflow, peralatan, kalender bersama, kontrak, pengetahuan, lisensi perangkat lunak, dan domain milik tim, bukan milik seseorang, jadi tidak dapat menyempit ke Anda. Tetap menampilkannya adalah jawaban yang lebih aman: layanan yang terdegradasi adalah hal terakhir yang seharusnya hilang hanya karena Anda beralih ke tampilan pribadi.',
+        // Discussion #388
+        'refresh_heading' => 'Watchtower diperbarui setiap',
+        'refresh_minutes' => '{n} mnt',
+        'refresh_note' => 'Lebih sering cocok untuk layar di dinding: pengguna yang masuk khusus untuk itu tetap masuk, dan dasbor memperbarui dirinya sendiri.',
     ],
 ];

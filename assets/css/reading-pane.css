@@ -9,7 +9,7 @@
 @media (min-width: 769px) {
     /* Subject: still the largest thing on the pane, but one or two lines, not three. */
     .reading-pane .email-header { padding: 14px 30px 12px; }
-    .reading-pane .email-subject-line { font-size: 19px; line-height: 1.3; margin-bottom: 8px; }
+    .reading-pane .email-subject-line { font-size: var(--font-size-3xl, 20px); line-height: 1.3; margin-bottom: 8px; }
 
     /* From / To / Cc / Date on one line, wrapping only when they must. The rows
        stay in the markup (the phone reads them) but flow as one line here. */
@@ -17,7 +17,7 @@
     .reading-pane .email-meta-row { display: contents; }
     .reading-pane .email-meta-label { width: auto; margin-right: 6px; }
     .reading-pane .email-meta-value { margin-right: 22px; }
-    .reading-pane .email-meta-date { font-size: 13px; padding-left: 0; }
+    .reading-pane .email-meta-date { font-size: var(--font-size-md, 13px); padding-left: 0; }
 
     /* Links and the AI summary side by side: both are usually one short line. */
     .reading-pane .pane-strips { display: flex; align-items: stretch; border-bottom: 1px solid var(--border, #e0e0e0); }
@@ -68,7 +68,7 @@
         transition: height .22s ease, opacity .18s ease, border-bottom-width .22s ease, visibility 0s;
     }
     .reading-pane.pane-compact .email-header { padding-top: 8px; padding-bottom: 8px; }
-    .reading-pane.pane-compact .email-subject-line { font-size: 15px; margin-bottom: 0; }
+    .reading-pane.pane-compact .email-subject-line { font-size: var(--font-size-xl, 16px); margin-bottom: 0; }
     .reading-pane.pane-compact .email-subject-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .reading-pane.pane-compact .email-meta,
     .reading-pane.pane-compact .pane-strips {
@@ -92,7 +92,7 @@
 .pane-more-menu button {
     display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px;
     background: none; border: none; border-radius: 4px; color: var(--text, #333);
-    font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+    font: inherit; font-size: var(--font-size-md, 13px); text-align: left; cursor: pointer;
 }
 .pane-more-menu button:hover { background: var(--surface-hover, #f0f0f0); }
 .pane-more-menu button.is-danger { color: var(--danger, #c62828); }
@@ -115,3 +115,49 @@
     pointer-events: none;
     cursor: default;
 }
+
+/* Reply / forward fits the window (Ed, 2026-11-20: the drop zone was below the fold, so
+   attaching meant scrolling first). The editor had a fixed 440px; now the window takes a
+   set height and the editor FILLS what the To/Cc row, subject and drop zone leave - the
+   same treatment the phone already has in mobile.css, here for the desktop only. On a
+   short screen the editor stops at 240px and the body scrolls as before. */
+@media (min-width: 769px) {
+    #emailModal .modal-content { height: min(90vh, 900px); }
+    #emailModal .modal-body { display: flex; flex-direction: column; }
+    #emailModal .modal-body > .form-group:has(#emailBody) {
+        flex: 1; display: flex; flex-direction: column; min-height: 0; margin-bottom: 12px;
+    }
+    #emailModal .modal-body > .form-group:has(#emailBody) .tox-tinymce {
+        flex: 1 1 auto; min-height: 240px;
+        height: auto !important;        /* beat TinyMCE's inline fixed height */
+    }
+    #emailModal .modal-body > .form-group:has(#attachmentDropzone) { margin-bottom: 0; }
+    #emailModal .attachment-dropzone { padding: 10px 16px; }
+    /* One 12px rhythm between the fields (Ed: To -> Subject was 28px - each box's own 12px
+       margin plus its row's 16px), and no phantom gap under the drop zone: the attachment
+       list keeps a 10px top margin even when empty. Body padding (canonical) untouched. */
+    #emailModal .reply-addr-row { margin-bottom: 12px; }
+    #emailModal .reply-addr-row > .reply-addr { margin-bottom: 0; }
+    #emailModal .attachment-list:empty { margin-top: 0; }
+}
+
+/* The ticket right-click menu when it is taller than the window (inbox.js,
+   openTicketContextMenu): first the rows tighten; if it still does not fit it scrolls,
+   with no visible scrollbar - a scrollbar between a row and its flyout is a gap the
+   pointer falls through, closing the flyout. Flyouts are then pinned to the window by
+   fitTicketContextSubmenu(). Desktop only: the phone shows the menu as a sheet. */
+@media (min-width: 769px) {
+    .ticket-context-menu.ctx-compact .ticket-context-menu-item { padding-top: 5px; padding-bottom: 5px; }
+    .ticket-context-menu.ctx-compact .ticket-context-menu-header { padding-top: 5px; padding-bottom: 4px; }
+    .ticket-context-menu.ctx-scroll { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+    .ticket-context-menu.ctx-scroll::-webkit-scrollbar { display: none; }
+}
+/* Use a consumable (5.8.0): how many are on the shelf beside each item, an empty one
+   greyed out, and an item the ticket's form asked for as a dashed pill to click. */
+.ticket-context-submenu-item .ctx-sub-note { margin-left: auto; padding-left: 12px; font-size: var(--font-size-xs, 11px); color: var(--text-muted, #888); white-space: nowrap; }
+.ticket-context-submenu-item .ctx-sub-out { color: var(--danger-text, #b42318); }
+.ticket-context-submenu-item.ctx-disabled { opacity: .55; cursor: default; }
+.ticket-context-submenu-item.ctx-disabled:hover { background: none; }
+.pm-ticket-badge.pm-badge-asked { border-style: dashed; cursor: pointer; }
+#ctxConsumablesSubmenu { min-width: 300px; }
+#ctxConsumablesSubmenu .ctx-status-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

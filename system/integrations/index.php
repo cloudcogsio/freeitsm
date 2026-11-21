@@ -126,8 +126,8 @@ $ms365Set = $entraImporting || $intuneSet;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('system', t('system.integrations.title'))); ?></title>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../../assets/css/integrations.css?v=3">
     <style>
         /* Only the card grid — the container, title and warning come from
@@ -149,15 +149,15 @@ $ms365Set = $entraImporting || $intuneSet;
             transition: border-color .15s ease, transform .15s ease;
         }
         .provider-card:hover { border-color: var(--sys-accent); transform: translateY(-2px); }
-        .provider-card h3 { margin: 0 0 6px; font-size: 17px; font-weight: 600; color: var(--text); }
-        .provider-card p  { margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+        .provider-card h3 { margin: 0 0 6px; font-size: var(--font-size-2xl, 18px); font-weight: 600; color: var(--text); }
+        .provider-card p  { margin: 0; font-size: var(--font-size-md, 13px); color: var(--text-muted); line-height: 1.5; }
         .provider-icon {
             width: 34px; height: 34px; margin-bottom: 12px;
             color: var(--sys-accent);
         }
         .provider-count {
             display: inline-block; margin-top: 12px;
-            font-size: 12px; font-weight: 600;
+            font-size: var(--font-size-sm, 12px); font-weight: 600;
             padding: 3px 9px; border-radius: 20px;
             background: var(--sys-accent-soft); color: var(--sys-accent);
         }
@@ -227,6 +227,6 @@ $ms365Set = $entraImporting || $intuneSet;
             </a>
         </div>
     </div>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

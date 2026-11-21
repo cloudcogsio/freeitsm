@@ -51,8 +51,8 @@ $sidebarHoverClass = $sidebarMode === 'hover' ? ' sidebar-hover' : '';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('knowledge')); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/knowledge.css?v=31">
     <link rel="stylesheet" href="../assets/css/domain-links.css?v=1">
     <link rel="stylesheet" href="../assets/css/project-links.css?v=1">
@@ -522,7 +522,7 @@ $sidebarHoverClass = $sidebarMode === 'hover' ? ' sidebar-hover' : '';
                 <h3 id="archivedArticleTitle" style="margin: 0;"></h3>
             </div>
             <div class="modal-body">
-                <div id="archivedArticleMeta" style="font-size: 13px; color: var(--text-muted, #666); margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border, #e0e0e0);"></div>
+                <div id="archivedArticleMeta" style="font-size: var(--font-size-md, 13px); color: var(--text-muted, #666); margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--border, #e0e0e0);"></div>
                 <div id="archivedArticleBody" class="article-content-body"></div>
             </div>
             <div class="modal-footer">
@@ -546,7 +546,7 @@ $sidebarHoverClass = $sidebarMode === 'hover' ? ' sidebar-hover' : '';
         <div class="ai-chat-messages" id="aiChatMessages">
             <div class="ai-chat-welcome">
                 <p><?php echo htmlspecialchars(t('knowledge.ai.welcome')); ?></p>
-                <p style="font-size:12px; color:var(--text-faint, #999); margin-top:8px;"><?php echo htmlspecialchars(t('knowledge.ai.powered_by')); ?></p>
+                <p style="font-size:var(--font-size-sm, 12px); color:var(--text-faint, #999); margin-top:8px;"><?php echo htmlspecialchars(t('knowledge.ai.powered_by')); ?></p>
             </div>
         </div>
         <div class="ai-chat-options">
@@ -592,6 +592,6 @@ $sidebarHoverClass = $sidebarMode === 'hover' ? ' sidebar-hover' : '';
     <script src="../assets/js/vendor/prism-json.min.js"></script>
     <script src="../assets/js/vendor/prism-toolbar.min.js"></script>
     <script src="../assets/js/vendor/prism-copy-to-clipboard.min.js"></script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

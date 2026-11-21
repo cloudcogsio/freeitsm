@@ -78,6 +78,15 @@ function analystReferenceRegistry(): array {
         ['calendar_sync_events', 'analyst_id', 'personal'],
         ['change_notifications', 'analyst_id', 'personal'],
         ['notifications', 'analyst_id', 'personal'],
+        ['notifications', 'actor_analyst_id', 'history'],   // GH #365: who caused it - kept, like an audit line
+        ['asset_field_not_applicable', 'set_by_analyst_id', 'history'],   // GH #404: who marked a field Not applicable
+        ['consumable_items', 'created_by_analyst_id', 'history'],      // Consumables: the audit trail
+        ['consumable_deliveries', 'created_by_analyst_id', 'history'],
+        ['consumable_counts', 'started_by_analyst_id', 'history'],
+        ['consumable_counts', 'finished_by_analyst_id', 'history'],
+        ['consumable_count_lines', 'counted_by_analyst_id', 'history'],
+        ['consumable_movements', 'analyst_id', 'history'],
+        ['consumable_audit', 'analyst_id', 'history'],
         ['feature_bingo_dismissed', 'dismissed_by_analyst_id', 'personal'],
         ['watchtower_items', 'analyst_id', 'personal'],
         ['watchtower_item_members', 'analyst_id', 'personal'],
@@ -85,6 +94,10 @@ function analystReferenceRegistry(): array {
         ['photo_album', 'analyst_id', 'personal'],
         ['warroom_channel_members', 'analyst_id', 'personal'],
         ['warroom_mentions', 'analyst_id', 'personal'],
+        ['warroom_reactions', 'analyst_id', 'personal'],   // 5.9.0: emoji reactions
+        ['warroom_saved', 'analyst_id', 'personal'],       // 5.9.0: personal bookmarks
+        ['warroom_read_marks', 'analyst_id', 'personal'],  // 5.9.0: Seen by - when they read each part of a channel
+        ['warroom_pins', 'pinned_by', 'history'],          // 5.9.0: who pinned it - shown to everyone, like an audit line
         ['warroom_reads', 'analyst_id', 'personal'],
         ['warroom_presence', 'analyst_id', 'personal'],
         ['task_collaborators', 'analyst_id', 'personal'],

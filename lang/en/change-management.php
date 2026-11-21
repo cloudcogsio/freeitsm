@@ -49,6 +49,11 @@ return [
         'unassigned' => 'Unassigned',
     ],
 
+    // A list opened from a Watchtower count (discussion #388).
+    'link_filter' => [
+        'open' => 'Open changes, as counted on Watchtower',
+        'remove' => 'Remove filter',
+    ],
     'detail' => [
         'back'      => 'Back',
         'share'     => 'Share',
@@ -362,6 +367,7 @@ return [
         'created'       => 'Created: {datetime}',
         'created_by'    => 'Created: {datetime} by {name}',
         'last_modified' => 'Last Modified: {datetime}',
+        'generated' => 'Generated {datetime}',   // the branded header (Ed, 2026-11-20)
     ],
 
     'approvals' => [
@@ -397,6 +403,14 @@ return [
         'impact'        => 'Impact',
         'assigned_to'   => 'Assigned To',
         'open_change'   => 'Open Change',
+    ],
+
+    // Preferences → Change list labels (Ed, 2026-11-20).
+    'list_labels' => [
+        'heading' => 'Change list labels',
+        'colour' => 'Coloured',
+        'plain' => 'Plain text',
+        'note' => 'How Risk, Priority, Type and Status show in the Changes list: coloured, with a dot, or plain text.',
     ],
 
     'table' => [
@@ -938,6 +952,14 @@ return [
         'tip_attachments' => 'Attachments',
         'tip_attachments_desc' => 'Upload screenshots, config backups, or approval emails alongside the change. Adding or removing a file is recorded, with a fingerprint of the file.',
         'tip_audit'     => 'Audit trail',
+        'tip_company'   => 'Moving to another company',
+        'tip_company_desc' => 'Filed under the wrong company? Right-click the change and choose Move to company (or use POST /changes/{id}/move-to-company in the API). The tasks linked to the change move with it (that needs write access to Tasks too). Linked tickets do not: they must already be in the new company, so unlink any that are not. The move is recorded in the Activity timeline.',
         'tip_audit_desc' => 'Every field change is tracked in the Activity timeline, and every version of the long text is kept in full - open it from "View" or a section\'s Versions link.',
+        'tip_labels' => 'Labelled columns',
+        'tip_labels_desc' => 'The changes list shows Risk, Priority, Type and Status in labelled columns (on a phone, a small label before each value). Choose coloured values with a dot or plain text for yourself under Preferences → Change list labels.',
+        'tip_pdf' => 'A PDF of a change',
+        'tip_pdf_desc' => 'Share → Export as PDF gives a document headed with your organisation\'s logo (when one is set in Branding) and name, then the details, plans, risk matrix, approvals, post-implementation review, linked tickets, attachment names and activity. It is always drawn in the light theme, whichever theme you use.',
+        'tip_views' => 'Saved table views',
+        'tip_views_desc' => 'On the table, Save view keeps the columns, sort and filters under a name and Views opens the library. The table remembers the view you last picked and opens with it next time, on any browser - until you pick another or use Reset, after which it opens with your default view again.',
     ],
 ];

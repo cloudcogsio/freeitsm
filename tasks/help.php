@@ -39,8 +39,8 @@ $translationNamespaces = ['common', 'tasks'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('tasks', t('tasks.nav.help'))); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <?php echo Tz::scriptTag(); ?>
     <script src="../assets/js/tz.js?v=5"></script>
@@ -230,6 +230,7 @@ $translationNamespaces = ['common', 'tasks'];
                         </div>
                     </div>
                     <p><?php echo t('tasks.help.list_body'); ?></p>
+                    <p><?php echo t('tasks.help.list_id'); ?></p>
                     <p class="help-note"><?php echo htmlspecialchars(t('tasks.help.list_tip')); ?></p>
                 </div>
 
@@ -246,6 +247,7 @@ $translationNamespaces = ['common', 'tasks'];
                     <p><?php echo t('tasks.help.calendar_sidebar'); ?></p>
                     <h4><?php echo htmlspecialchars(t('tasks.help.calendar_click_heading')); ?></h4>
                     <p><?php echo t('tasks.help.calendar_click_body'); ?></p>
+                    <p><?php echo t('tasks.help.calendar_hover_body'); ?></p>
                     <h4><?php echo htmlspecialchars(t('tasks.help.calendar_multiday_heading')); ?></h4>
                     <p><?php echo t('tasks.help.calendar_multiday_body'); ?></p>
                     <div class="help-list">
@@ -281,6 +283,7 @@ $translationNamespaces = ['common', 'tasks'];
 
                     <h4><?php echo htmlspecialchars(t('tasks.help.timeline_click_heading')); ?></h4>
                     <p><?php echo t('tasks.help.timeline_click_body'); ?></p>
+                    <p><?php echo t('tasks.help.timeline_hover_body'); ?></p>
                 </div>
 
                 <!-- 6. Table view -->
@@ -301,10 +304,12 @@ $translationNamespaces = ['common', 'tasks'];
 
                     <h4><?php echo htmlspecialchars(t('tasks.help.table_views_heading')); ?></h4>
                     <p><?php echo t('tasks.help.table_views_body'); ?></p>
+                    <p><?php echo t('tasks.help.table_views_remember'); ?></p>
                     <p class="help-note"><?php echo t('tasks.help.table_views_note'); ?></p>
 
                     <h4><?php echo htmlspecialchars(t('tasks.help.table_columns_heading')); ?></h4>
                     <p><?php echo t('tasks.help.table_columns_body'); ?></p>
+                    <p><?php echo t('tasks.help.table_columns_extra'); ?></p>
 
                     <h4><?php echo htmlspecialchars(t('tasks.help.table_sort_heading')); ?></h4>
                     <div class="help-list">
@@ -645,6 +650,6 @@ $translationNamespaces = ['common', 'tasks'];
             });
         });
     </script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

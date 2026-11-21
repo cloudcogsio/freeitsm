@@ -56,9 +56,10 @@ function getHelpTopics() {
                 ['id' => 'why',      'label' => 'Why not Let\'s Encrypt'],
                 ['id' => 'steps',    'label' => 'Turning HTTPS on'],
                 ['id' => 'changes',  'label' => 'Changing the name or IP'],
+                ['id' => 'proxy',    'label' => 'Behind a reverse proxy'],
                 ['id' => 'trouble',  'label' => 'Troubleshooting'],
             ],
-            'terms' => 'https ssl tls certificate cert padlock not secure warning container compose 443 8443 dns hosts file root authority ca group policy intune',
+            'terms' => 'https ssl tls certificate cert padlock not secure warning container compose 443 8443 dns hosts file root authority ca group policy intune reverse proxy load balancer cloudflare tunnel x-forwarded-for cf-connecting-ip trusted_proxies real ip client address remoteip',
         ],
         'analysts' => [
             'hero' => 'Analysts',
@@ -301,6 +302,7 @@ function getHelpTopics() {
                 ['id' => 'language', 'label' => 'Interface language'],
                 ['id' => 'module-sections', 'label' => 'Coming back to a module'],   // GH #376
                 ['id' => 'module-order', 'label' => 'Module order'],
+                ['id' => 'settings-view', 'label' => 'Settings: Tabs or One page'],   // GH #399
                 ['id' => 'money',    'label' => 'Money'],
                 ['id' => 'toasts',   'label' => 'Toasts'],
                 ['id' => 'bell',     'label' => 'Notification bell'],
@@ -313,7 +315,9 @@ function getHelpTopics() {
                      . ' my work calendar outlook caldav nextcloud icloud subscribe link which calendar sign in to my calendar'
                      . ' search panel closing close when i click away click outside escape dismiss search window search popup'
                      . ' notification bell chime sound desktop notifications windows notification edge push popup'
-                     . ' email when a task is assigned task assigned email subtasks board hide completed subtasks opening a task',
+                     . ' email when a task is assigned task assigned email subtasks board hide completed subtasks opening a task'
+                     . ' settings tabs one page index search settings why is this here explain bell who did it company at sign-in remember company'
+                     . ' watchtower refresh wall screen change list labels coloured plain text',
         ],
         'demo-data' => [
             'hero' => 'Demo data',

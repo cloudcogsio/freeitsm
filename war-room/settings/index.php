@@ -53,8 +53,8 @@ $choices = [0, 7, 30, 90, 180, 365];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('war-room', t('war-room.nav.settings'))); ?></title>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <style>
         body { --accent: var(--war-room-accent, #ea580c); --accent-hover: var(--war-room-accent-hover, #c2410c); }
         /* Full-width settings page, matching the canonical settings layout. */
@@ -68,11 +68,11 @@ $choices = [0, 7, 30, 90, 180, 365];
         .tab:hover  { color: var(--war-room-accent, #ea580c); }
         .tab.active { color: var(--war-room-accent, #ea580c); border-bottom-color: var(--war-room-accent, #ea580c); }
         .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 16px; min-height: 34px; }
-        .section-header h2 { margin: 0; font-size: 18px; color: var(--text, #333); }
+        .section-header h2 { margin: 0; font-size: var(--font-size-2xl, 18px); color: var(--text, #333); }
         .wr-set-form { max-width: 460px; }
-        .wr-set-form label { display: block; margin-bottom: 6px; font-weight: 500; font-size: 13px; color: var(--text, #333); }
-        .wr-set-form select { width: 100%; padding: 8px 12px; border: 1px solid var(--border, #ddd); border-radius: 4px; font-size: 14px; box-sizing: border-box; background: var(--surface, #fff); color: var(--text, #333); }
-        .wr-set-hint { margin-top: 6px; font-size: 12px; color: var(--text-dim, #888); }
+        .wr-set-form label { display: block; margin-bottom: 6px; font-weight: 500; font-size: var(--font-size-md, 13px); color: var(--text, #333); }
+        .wr-set-form select { width: 100%; padding: 8px 12px; border: 1px solid var(--border, #ddd); border-radius: 4px; font-size: var(--font-size-lg, 14px); box-sizing: border-box; background: var(--surface, #fff); color: var(--text, #333); }
+        .wr-set-hint { margin-top: 6px; font-size: var(--font-size-sm, 12px); color: var(--text-dim, #888); }
         .wr-set-actions { margin-top: 18px; }
     </style>
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
@@ -108,6 +108,31 @@ $choices = [0, 7, 30, 90, 180, 365];
                     <button type="submit" class="btn btn-primary"><?php echo htmlspecialchars(t('war-room.settings.save')); ?></button>
                 </div>
             </form>
+
+            <?php
+            // Seen by (5.9.0): ON unless an administrator turns it off (Ed, 21 Nov 2026).
+            $seenOn = true;
+            try {
+                $sbSt = connectToDatabase()->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'warroom_seen_by' LIMIT 1");
+                $sbSt->execute();
+                $sbV = $sbSt->fetchColumn();
+                $seenOn = $sbV === false || (string) $sbV !== '0';
+            } catch (Throwable $e) { /* before Database Verification */ }
+            ?>
+            <div class="section-header" style="margin-top: 28px;">
+                <h2><?php echo htmlspecialchars(t('war-room.settings.seen_heading')); ?></h2>
+            </div>
+            <p style="color: var(--text-muted, #666); margin-bottom: 12px;"><?php echo htmlspecialchars(t('war-room.settings.seen_intro')); ?></p>
+            <form class="wr-set-form" autocomplete="off" onsubmit="event.preventDefault(); saveSeenBy();">
+                <label style="display: flex; gap: 8px; align-items: center;">
+                    <input type="checkbox" id="wrSeenBy"<?php echo $seenOn ? ' checked' : ''; ?>>
+                    <span><?php echo htmlspecialchars(t('war-room.settings.seen_label')); ?></span>
+                </label>
+                <div class="wr-set-hint"><?php echo htmlspecialchars(t('war-room.settings.seen_hint')); ?></div>
+                <div class="wr-set-actions">
+                    <button type="submit" class="btn btn-primary"><?php echo htmlspecialchars(t('war-room.settings.save')); ?></button>
+                </div>
+            </form>
         </div>
         <?php endif; ?>
 
@@ -124,6 +149,32 @@ $choices = [0, 7, 30, 90, 180, 365];
             <p style="color: var(--text-muted, #666); margin-bottom: 16px;"><?php echo htmlspecialchars(t('war-room.settings.ai_caveat')); ?></p>
 
             <?php renderAiSettingsPanel('warroom_ai'); ?>
+
+            <?php
+            // Translation (5.9.0): OFF until an administrator switches it on, because it
+            // sends every message's text to the AI provider above (Ed, 21 Nov 2026).
+            $trOn = false;
+            try {
+                $trSt = connectToDatabase()->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'warroom_translate' LIMIT 1");
+                $trSt->execute();
+                $trOn = (string) $trSt->fetchColumn() === '1';
+            } catch (Throwable $e) { /* before Database Verification */ }
+            ?>
+            <div class="section-header" style="margin-top: 28px;">
+                <h2><?php echo htmlspecialchars(t('war-room.settings.translate_heading')); ?></h2>
+            </div>
+            <p style="color: var(--text-muted, #666); margin-bottom: 8px;"><?php echo htmlspecialchars(t('war-room.settings.translate_intro')); ?></p>
+            <p style="color: var(--text-muted, #666); margin-bottom: 12px;"><?php echo htmlspecialchars(t('war-room.settings.translate_privacy')); ?></p>
+            <form class="wr-set-form" autocomplete="off" onsubmit="event.preventDefault(); saveTranslate();">
+                <label style="display: flex; gap: 8px; align-items: center;">
+                    <input type="checkbox" id="wrTranslate"<?php echo $trOn ? ' checked' : ''; ?>>
+                    <span><?php echo htmlspecialchars(t('war-room.settings.translate_label')); ?></span>
+                </label>
+                <div class="wr-set-hint"><?php echo htmlspecialchars(t('war-room.settings.translate_hint')); ?></div>
+                <div class="wr-set-actions">
+                    <button type="submit" class="btn btn-primary"><?php echo htmlspecialchars(t('war-room.settings.save')); ?></button>
+                </div>
+            </form>
         </div>
         <?php endif; ?>
     </div>
@@ -131,7 +182,7 @@ $choices = [0, 7, 30, 90, 180, 365];
     <script src="../../assets/js/ai-settings.js?v=4"></script>
     <?php echo Tz::scriptTag(); ?>
     <script src="../../assets/js/tz.js?v=5"></script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
     <script>
         // ⚠️ The tab bar is rendered by the shared helper but SWITCHING is each
         // page's own job — renderSettingsTabBar() only emits the buttons. This
@@ -150,6 +201,45 @@ $choices = [0, 7, 30, 90, 180, 365];
         // key nobody owns, and this key's owner is declared in the module's
         // settings manifest — so the tab that shows it and the capability that
         // guards it cannot drift apart.
+        // Seen by on or off (5.9.0) - owned by the retention tab in the settings manifest.
+        async function saveSeenBy() {
+            const on = document.getElementById('wrSeenBy').checked ? '1' : '0';
+            try {
+                const r = await fetch('<?php echo BASE_URL; ?>api/settings/save_system_settings.php', {
+                    method: 'POST', credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ settings: { warroom_seen_by: on } })
+                });
+                const d = await r.json();
+                if (!d || !d.success) throw new Error('save failed');
+                if (typeof showToast === 'function') showToast(window.t('war-room.settings.saved'), 'success');
+                else alert(window.t('war-room.settings.saved'));
+            } catch (e) {
+                if (typeof showToast === 'function') showToast(window.t('war-room.settings.save_failed'), 'error');
+                else alert(window.t('war-room.settings.save_failed'));
+            }
+        }
+
+        // Translation on or off (5.9.0) - through the same generic writer; the key is
+        // owned by the AI tab in the settings manifest.
+        async function saveTranslate() {
+            const on = document.getElementById('wrTranslate').checked ? '1' : '0';
+            try {
+                const r = await fetch('<?php echo BASE_URL; ?>api/settings/save_system_settings.php', {
+                    method: 'POST', credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ settings: { warroom_translate: on } })
+                });
+                const d = await r.json();
+                if (!d || !d.success) throw new Error('save failed');
+                if (typeof showToast === 'function') showToast(window.t('war-room.settings.saved'), 'success');
+                else alert(window.t('war-room.settings.saved'));
+            } catch (e) {
+                if (typeof showToast === 'function') showToast(window.t('war-room.settings.save_failed'), 'error');
+                else alert(window.t('war-room.settings.save_failed'));
+            }
+        }
+
         async function saveRetention() {
             const days = document.getElementById('wrRetention').value;
             try {

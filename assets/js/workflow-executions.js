@@ -121,9 +121,9 @@
                         ${e.workflow_id && !e.deleted
                             ? '<a href="editor.php?id=' + e.workflow_id + '" style="color:var(--text,#333);font-weight:600;">' + esc(e.workflow) + '</a>'
                             : '<span style="color:var(--text-dim,#888);">' + esc(e.workflow) + '</span>'}
-                        ${e.error ? '<div style="font-size:12px;color:var(--danger-text,#c33);margin-top:3px;">' + esc(e.error) + '</div>' : ''}
+                        ${e.error ? '<div style="font-size:var(--font-size-sm, 12px);color:var(--danger-text,#c33);margin-top:3px;">' + esc(e.error) + '</div>' : ''}
                     </td>
-                    <td><code style="font-size:12px;">${esc(e.trigger)}</code></td>
+                    <td><code style="font-size:var(--font-size-sm, 12px);">${esc(e.trigger)}</code></td>
                     <td style="white-space:nowrap;color:var(--text-muted,#666);">${esc(fmtWhen(e.started))}</td>
                     <td style="white-space:nowrap;color:var(--text-dim,#888);">${esc(fmtTook(e.started, e.finished))}</td>
                     <td><button class="table-action-btn" onclick="WFX.open(${e.id})">${esc(window.t('workflow.executions.view'))}</button></td>
@@ -223,7 +223,7 @@
         // Steps — conditions first, then actions, in the order the engine ran them.
         h += '<h4 class="wfx-h">' + esc(window.t('workflow.executions.steps')) + '</h4>';
         if (!e.step_log.length) {
-            h += '<p style="color:var(--text-faint,#999);font-size:13px;">' + esc(window.t('workflow.executions.no_steps')) + '</p>';
+            h += '<p style="color:var(--text-faint,#999);font-size:var(--font-size-md, 13px);">' + esc(window.t('workflow.executions.no_steps')) + '</p>';
         } else {
             h += '<div class="wfx-steps">' + e.step_log.map(s => renderStep(s)).join('') + '</div>';
         }
@@ -239,14 +239,14 @@
                     </div>
                     ${x.last_error ? '<div class="wfx-step-err">' + esc(x.last_error) + '</div>' : ''}
                 </div>`).join('') + '</div>';
-            h += '<p style="font-size:12px;margin-top:6px;"><a href="../system/webhooks/">'
+            h += '<p style="font-size:var(--font-size-sm, 12px);margin-top:6px;"><a href="../system/webhooks/">'
                + esc(window.t('workflow.executions.open_webhooks')) + ' &rarr;</a></p>';
         }
 
         // The payload snapshot: what the conditions were tested against and what
         // the {{variables}} resolved from. The single most useful thing here.
         h += '<h4 class="wfx-h">' + esc(window.t('workflow.executions.payload')) + '</h4>';
-        h += '<p style="font-size:12px;color:var(--text-muted,#666);margin:0 0 6px;">'
+        h += '<p style="font-size:var(--font-size-sm, 12px);color:var(--text-muted,#666);margin:0 0 6px;">'
            + esc(window.t('workflow.executions.payload_hint')) + '</p>';
         h += '<pre class="wfx-pre">' + esc(JSON.stringify(e.payload, null, 2)) + '</pre>';
 
@@ -256,6 +256,15 @@
     /**
      * Returns the HTML for one logged step - a condition with what it compared and the actual value, an action with its status and result, or an engine error.
      */
+    /** GH #364: "Took branch 2 "XYZ"", "Took Otherwise", "Took case 1", "Took Default" - the words for a branch's path. */
+    function branchTakenText(s) {
+        const T = (k, p) => window.t('workflow.branch.' + k, p);
+        const key = String(s.taken || '');
+        const label = s.taken_label ? ' "' + s.taken_label + '"' : '';
+        if (key.startsWith('branch:')) return T('took_branch', { n: +key.slice(7) + 1 }) + label;
+        if (key.startsWith('case:'))   return T('took_case', { n: +key.slice(5) + 1 }) + label;
+        return T(key === 'otherwise' ? 'took_otherwise' : 'took_default');
+    }
     function renderStep(s) {
         const kind = s.kind || '';
         if (kind === 'condition') {
@@ -291,6 +300,27 @@
                     <strong>${esc(s.would_run || s.type || '')}</strong>
                 </div>${inner}
             </div>`;
+        }
+        // GH #364: a branch - which path it took and why, with that path's steps beneath.
+        if (kind === 'branch') {
+            const T = (k, p) => window.t('workflow.branch.' + k, p);
+            const cls = s.status === 'failed' ? 'bad' : 'ok';
+            let why = '';
+            if (s.type === 'branch_switch') {
+                why = '<div class="wfx-step-sub"><code>' + esc(s.field || '') + '</code> = <code>' + esc(JSON.stringify(s.actual ?? null)) + '</code>'
+                    + (s.reason === 'missing' ? ' - ' + esc(T('reason_missing')) : s.reason === 'no_match' ? ' - ' + esc(T('reason_no_match')) : '') + '</div>';
+            } else {
+                why = (s.checked || []).map(c => '<div class="wfx-step-sub">' + esc(T('branch_n', { n: c.branch + 1 })) + (c.label ? ' "' + esc(c.label) + '"' : '')
+                    + ': ' + esc(c.passed ? T('matched') : T('not_matched')) + ' <span class="wfx-branch-conds">' + (c.conditions || []).map(r =>
+                        '<code>' + esc(r.field) + ' ' + esc(r.op) + ' ' + esc(JSON.stringify(r.value ?? '')) + '</code> ' + (r.passed ? '&#10003;' : '&#10007;')).join(' ') + '</span></div>').join('');
+            }
+            const inner = (s.steps || []).map(renderStep).join('');
+            return '<div class="wfx-step wfx-branch">'
+                + '<div class="wfx-step-head"><span class="wfx-step-status ' + cls + '">' + esc(T(s.type === 'branch_switch' ? 'switch' : 'if')) + '</span>'
+                + '<strong>' + esc(branchTakenText(s)) + '</strong></div>' + why
+                + (s.error ? '<div class="wfx-step-err">' + esc(s.error) + '</div>' : '')
+                + '<div class="wfx-branch-steps">' + (inner || '<div class="wfx-step-sub"><em>' + esc(T('nothing_to_do')) + '</em></div>') + '</div>'
+                + '</div>';
         }
         // engine_error / loop_protection
         return `<div class="wfx-step">

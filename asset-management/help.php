@@ -29,8 +29,8 @@ $translationNamespaces = ['common', 'asset-management'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('assets', t('asset-management.nav.help'))); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <?php echo Tz::scriptTag(); ?>
     <script src="../assets/js/tz.js?v=5"></script>
@@ -136,8 +136,16 @@ $translationNamespaces = ['common', 'asset-management'];
                 <span class="help-nav-num">22</span>
                 <?php echo htmlspecialchars(t('asset-management.help.retired.nav')); ?>
             </a>
-            <a href="#tips" class="help-nav-link" data-section="tips">
+            <a href="#missing-info" class="help-nav-link" data-section="missing-info">
                 <span class="help-nav-num">23</span>
+                <?php echo htmlspecialchars(t('asset-management.help.missing.nav')); ?>
+            </a>
+            <a href="#consumables" class="help-nav-link" data-section="consumables">
+                <span class="help-nav-num">24</span>
+                <?php echo htmlspecialchars(t('asset-management.consumables.help_heading')); ?>
+            </a>
+            <a href="#tips" class="help-nav-link" data-section="tips">
+                <span class="help-nav-num">25</span>
                 <?php echo htmlspecialchars(t('asset-management.help.nav_tips')); ?>
             </a>
         </div>
@@ -271,6 +279,7 @@ $translationNamespaces = ['common', 'asset-management'];
                         <div><strong>Who can see it</strong> &mdash; only you, one of your teams, or everyone. Sharing asks <em>which</em> team, because most people are in more than one, and a view shared with a team is readable by them and editable only by whoever wrote it.</div>
                         <div><strong>A description</strong> &mdash; worth writing on anything you share, since it is what tells somebody else whether the view is the one they want.</div>
                         <div><strong>Your default</strong> &mdash; the star opens the table with that view every time. It is your default, not everybody's: two people can have different defaults pointing at the same shared view.</div>
+                        <div><strong>Your last view</strong> &mdash; the table remembers the view you last picked and opens with it next time, on any browser, until you pick another or use <strong>Reset</strong>; after that it opens with your default view again.</div>
                         <div><strong>Searching the library</strong> &mdash; by name, by description, or by who made it, which is how people look for a view they did not write. List or cards, whichever you prefer; the choice is remembered.</div>
                     </div>
                     <p class="help-note">The <strong>search box is not saved</strong> with a view, on purpose. A filter is how you like to look at things; a search is a question you asked once, and reopening &ldquo;Servers&rdquo; tomorrow to find three rows because of what you typed last week would be baffling. Filters, columns and sort are all saved.</p>
@@ -903,9 +912,43 @@ $translationNamespaces = ['common', 'asset-management'];
                     </div>
                 </div>
 
-<div class="help-section" id="tips">
+<div class="help-section" id="missing-info">   <!-- GH #404 -->
                     <div class="help-section-header">
                         <span class="help-section-num">23</span>
+                        <h3><?php echo htmlspecialchars(t('asset-management.help.missing.heading')); ?></h3>
+                    </div>
+                    <p><?php echo t('asset-management.help.missing.intro'); ?></p>
+                    <div class="help-list">
+                        <div><?php echo t('asset-management.help.missing.p1'); ?></div>
+                        <div><?php echo t('asset-management.help.missing.p2'); ?></div>
+                        <div><?php echo t('asset-management.help.missing.p3'); ?></div>
+                        <div><?php echo t('asset-management.help.missing.p4'); ?></div>
+                    </div>
+                </div>
+
+<div class="help-section" id="consumables">   <!-- 5.8.0 -->
+                    <div class="help-section-header">
+                        <span class="help-section-num">24</span>
+                        <h3><?php echo htmlspecialchars(t('asset-management.consumables.help_heading')); ?></h3>
+                    </div>
+                    <p><?php echo t('asset-management.consumables.help_intro'); ?></p>
+                    <?php /* The life of a consumable, in the order it happens (Ed, 2026-11-21: "does the help
+                             explain the process from start to finish - ordering, taking a delivery, recording,
+                             stock take, issuing"). Each step: its paragraphs, by key. */ ?>
+                    <p><strong><?php echo htmlspecialchars(t('asset-management.consumables.help_journey')); ?></strong></p>
+                    <?php foreach ([1 => ['p1'], 2 => ['p5'], 3 => ['p8'], 4 => ['p9', 'p3', 'p2'], 5 => ['p4'], 6 => ['p6'], 7 => ['p7']] as $step => $paras): ?>
+                    <h4><?php echo htmlspecialchars(t('asset-management.consumables.help_step' . $step)); ?></h4>
+                    <div class="help-list">
+                        <?php foreach ($paras as $hp): ?>
+                        <div><?php echo t('asset-management.consumables.help_' . $hp); ?></div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+
+<div class="help-section" id="tips">
+                    <div class="help-section-header">
+                        <span class="help-section-num">25</span>
                         <h3><?php echo htmlspecialchars(t('asset-management.help.nav_tips')); ?></h3>
                     </div>
                     <div class="help-cards">

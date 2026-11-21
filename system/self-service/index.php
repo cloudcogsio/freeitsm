@@ -17,6 +17,12 @@ require_once '../../includes/functions.php';
 require_once '../../includes/i18n.php';
 require_once '../../includes/theme.php';
 require_once '../../includes/self_service_settings.php';
+// GH #414: the People groups the organisation chart can be limited to. Read here, not
+// fetched: a short list, and this page is already admin-only.
+$sspGroups = [];
+try {
+    $sspGroups = connectToDatabase()->query("SELECT id, display_name FROM directory_groups WHERE is_active = 1 ORDER BY display_name")->fetchAll(PDO::FETCH_ASSOC);
+} catch (Throwable $e) { /* no directory tables yet */ }
 I18n::initFromSession();
 
 $current_page = 'self-service';
@@ -34,8 +40,8 @@ requireModuleAccess('system');
     <title><?php echo htmlspecialchars(pageTitle('system', t('system.self_service.heading'))); ?></title>
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <script src="../../assets/js/i18n.js?v=4"></script>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../../assets/css/self-service-patterns.css?v=2">
     <style>
         body {
@@ -46,30 +52,34 @@ requireModuleAccess('system');
         .ssp-container { height: calc(100vh - 48px); overflow-y: auto; }
         /* Page layout, title and subtitle: assets/css/system-page.css (.sys-page). */
 
-        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 6px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; transition: all .15s; }
+        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 6px; font-size: var(--font-size-md, 13px); font-weight: 600; border: none; cursor: pointer; transition: all .15s; }
         .btn-primary { background: var(--sys-accent, #546e7a); color: var(--sys-on-accent, #fff); }
         .btn-primary:hover:not(:disabled) { background: #455a64; }
         .btn:disabled { opacity: .55; cursor: progress; }
 
         .ssp-panel { background: var(--surface, #fff); border: 1px solid var(--border, #e0e0e0); border-radius: 8px; padding: 20px; margin-bottom: 18px; }
-        .ssp-panel h3 { margin: 0 0 4px 0; font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-dim, #888); }
-        .ssp-panel > p { margin: 0 0 16px; font-size: 13px; color: var(--text-muted, #666); line-height: 1.55; }
+        .ssp-panel h3 { margin: 0 0 4px 0; font-size: var(--font-size-md, 13px); text-transform: uppercase; letter-spacing: .5px; color: var(--text-dim, #888); }
+        .ssp-panel > p { margin: 0 0 16px; font-size: var(--font-size-md, 13px); color: var(--text-muted, #666); line-height: 1.55; }
 
         .ssp-field { padding: 14px 0; border-top: 1px solid var(--border-soft, #f1f1f1); }
         .ssp-field:first-of-type { border-top: none; padding-top: 0; }
-        .ssp-label { display: block; font-size: 13.5px; font-weight: 600; color: var(--text, #333); margin-bottom: 3px; }
-        .ssp-desc  { font-size: 12.5px; color: var(--text-muted, #666); line-height: 1.5; margin-bottom: 9px; }
-        .ssp-input { width: 100%; max-width: 420px; padding: 8px 10px; border: 1px solid var(--border, #cfd8dc); border-radius: 6px; font-size: 13px; background: var(--surface, #fff); color: var(--text, #333); box-sizing: border-box; }
+        .ssp-label { display: block; font-size: var(--font-size-lg, 14px); font-weight: 600; color: var(--text, #333); margin-bottom: 3px; }
+        .ssp-desc  { font-size: var(--font-size-md, 13px); color: var(--text-muted, #666); line-height: 1.5; margin-bottom: 9px; }
+        .ssp-input { width: 100%; max-width: 420px; padding: 8px 10px; border: 1px solid var(--border, #cfd8dc); border-radius: 6px; font-size: var(--font-size-md, 13px); background: var(--surface, #fff); color: var(--text, #333); box-sizing: border-box; }
 
         /* A colour needs both a picker and a typed value: an admin handed a
            brand hex should not have to find it on a wheel. */
         .ssp-colour-row { display: flex; align-items: center; gap: 10px; }
         .ssp-colour-row input[type=color] { width: 44px; height: 34px; padding: 2px; border: 1px solid var(--border, #cfd8dc); border-radius: 6px; background: var(--surface, #fff); cursor: pointer; }
         .ssp-colour-row input[type=text] { width: 120px; font-family: Consolas, monospace; }
-        .ssp-clear { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 12.5px; padding: 4px; }
+        .ssp-clear { background: none; border: none; color: var(--accent); cursor: pointer; font-size: var(--font-size-md, 13px); padding: 4px; }
 
         .ssp-toggle { display: flex; align-items: flex-start; gap: 10px; }
         .ssp-toggle input { margin-top: 3px; }
+        .ssp-groups { margin-top: 14px; }
+        .ssp-groups[hidden] { display: none; }
+        .ssp-group-list { display: flex; flex-direction: column; gap: 6px; max-height: 240px; overflow-y: auto; max-width: 420px;
+            border: 1px solid var(--border, #cfd8dc); border-radius: 6px; padding: 10px 12px; font-size: var(--font-size-md, 13px); color: var(--text, #333); }
 
         .ssp-patterns { display: flex; flex-wrap: wrap; gap: 10px; }
         .ssp-pattern {
@@ -78,19 +88,19 @@ requireModuleAccess('system');
             background: var(--surface-2, #f7f7f7);
         }
         .ssp-pattern.selected { border-color: var(--accent, #546e7a); box-shadow: 0 0 0 2px rgba(84,110,122,.18); }
-        .ssp-pattern span { position: absolute; bottom: 0; left: 0; right: 0; font-size: 10.5px; text-align: center;
+        .ssp-pattern span { position: absolute; bottom: 0; left: 0; right: 0; font-size: var(--font-size-xs, 11px); text-align: center;
                             background: rgba(0,0,0,.55); color: #fff; padding: 2px 0; }
 
         /* The preview is the point of the screen: an admin choosing a colour is
            choosing what a customer sees, and they cannot see it from here. */
         .ssp-preview { border: 1px solid var(--border, #e0e0e0); border-radius: 8px; overflow: hidden; max-width: 560px; }
-        .ssp-preview-bar { height: 46px; display: flex; align-items: center; padding: 0 14px; gap: 10px; background: var(--accent, #546e7a); color: #fff; font-weight: 600; font-size: 13px; }
+        .ssp-preview-bar { height: 46px; display: flex; align-items: center; padding: 0 14px; gap: 10px; background: var(--accent, #546e7a); color: #fff; font-weight: 600; font-size: var(--font-size-md, 13px); }
         .ssp-preview-logo { height: 22px; max-width: 120px; object-fit: contain; }
         .ssp-preview-body { padding: 14px; min-height: 96px; }
-        .ssp-preview-table { width: 100%; border-collapse: collapse; font-size: 12px; background: var(--surface, #fff); }
+        .ssp-preview-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm, 12px); background: var(--surface, #fff); }
         .ssp-preview-table th { background: var(--surface-2, #eceff1); text-align: left; padding: 6px 8px; color: var(--text, #333); }
         .ssp-preview-table td { padding: 6px 8px; border-top: 1px solid var(--border-soft, #eee); color: var(--text-muted, #666); }
-        .ssp-saved { font-size: 13px; color: var(--success-text, #166534); margin-left: 12px; }
+        .ssp-saved { font-size: var(--font-size-md, 13px); color: var(--success-text, #166534); margin-left: 12px; }
         .ssp-logo-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
         /* Bounded both ways: a tall logo would otherwise push the rest of the
            form down the page, and a wide one would stretch the row. */
@@ -215,6 +225,28 @@ requireModuleAccess('system');
                         <span class="ssp-desc"><?php echo t('system.self_service.my_assets_desc'); ?></span>
                     </span>
                 </label>
+            </div>
+
+            <div class="ssp-field">
+                <label class="ssp-label" for="sspOrgChart"><?php echo htmlspecialchars(t('system.self_service.org_chart_label')); ?></label>
+                <div class="ssp-desc"><?php echo t('system.self_service.org_chart_desc'); ?></div>
+                <select class="ssp-input" id="sspOrgChart" style="max-width: 320px;" onchange="sspOrgChartGroupsShow()">
+                    <option value="off"><?php echo htmlspecialchars(t('system.self_service.org_chart_off')); ?></option>
+                    <option value="all"><?php echo htmlspecialchars(t('system.self_service.org_chart_all')); ?></option>
+                    <option value="groups"><?php echo htmlspecialchars(t('system.self_service.org_chart_groups')); ?></option>
+                </select>
+                <div class="ssp-groups" id="sspOrgChartGroups" hidden>
+                    <div class="ssp-label"><?php echo htmlspecialchars(t('system.self_service.org_chart_groups_label')); ?></div>
+                    <?php if (!$sspGroups): ?>
+                        <div class="ssp-desc"><?php echo htmlspecialchars(t('system.self_service.org_chart_no_groups')); ?></div>
+                    <?php else: ?>
+                        <div class="ssp-group-list">
+                        <?php foreach ($sspGroups as $g): ?>
+                            <label><input type="checkbox" name="sspOrgGroup" value="<?php echo (int)$g['id']; ?>"> <?php echo htmlspecialchars($g['display_name']); ?></label>
+                        <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
 
@@ -356,9 +388,18 @@ requireModuleAccess('system');
         if (s.table_header_colour) document.getElementById('sspTableColourPick').value = s.table_header_colour;
         document.getElementById('sspSelfClose').checked = !!s.allow_self_close;
         document.getElementById('sspMyAssets').checked  = !!s.show_my_assets;
+        document.getElementById('sspOrgChart').value = s.org_chart || 'off';
+        const orgGroups = (s.org_chart_groups || []).map(Number);
+        document.querySelectorAll('input[name=sspOrgGroup]').forEach(b => { b.checked = orgGroups.includes(Number(b.value)); });
+        sspOrgChartGroupsShow();
         sspPattern = s.background_pattern || '';
         sspRenderPatterns();
         sspPaintPreview();
+    }
+
+    // GH #414: the group list only matters when the chart is limited to groups.
+    function sspOrgChartGroupsShow() {
+        document.getElementById('sspOrgChartGroups').hidden = document.getElementById('sspOrgChart').value !== 'groups';
     }
 
     async function sspLoad() {
@@ -390,7 +431,9 @@ requireModuleAccess('system');
                     table_header_colour: document.getElementById('sspTableColour').value.trim(),
                     background_pattern:  sspPattern,
                     allow_self_close:    document.getElementById('sspSelfClose').checked,
-                    show_my_assets:      document.getElementById('sspMyAssets').checked
+                    show_my_assets:      document.getElementById('sspMyAssets').checked,
+                    org_chart:           document.getElementById('sspOrgChart').value,
+                    org_chart_groups:    Array.from(document.querySelectorAll('input[name=sspOrgGroup]:checked')).map(b => Number(b.value))
                 })
             })).json();
             if (!d.success) {
@@ -419,6 +462,6 @@ requireModuleAccess('system');
         sspLoad();
     });
     </script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

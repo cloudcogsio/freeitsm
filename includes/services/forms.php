@@ -296,6 +296,20 @@ class FormsService
             // Place names - a customer saying which office they are in needs them.
             'portal_safe'     => true,
         ],
+        // Assets -> Consumables (5.8.0): "which toner / which mouse" on a request form. The
+        // ticket raised from it lists what was asked for, with Issue beside it - asking never
+        // moves stock (ConsumablesService::forTicket()). Item names and part numbers only, the
+        // ones in use, the requester's own company's.
+        'consumable' => [
+            'table'       => 'consumable_items',
+            'id_col'      => 'id',
+            'label_col'   => 'name',
+            'search_cols' => ['name', 'part_number'],
+            'tenant_col'  => 'tenant_id',
+            'where'       => '`is_active` = 1',
+            // What a customer asks for - toner, paper, a mouse. Nothing private in a name.
+            'portal_safe' => true,
+        ],
         'user' => [
             'table'       => 'users',
             'id_col'      => 'id',
@@ -1658,6 +1672,81 @@ class FormsService
     // ======================================================================
 
     /**
+     * The checks every plain answer must pass: required, an email that is an email, a number,
+     * the date/time shape the field's mode asks for, and a choice from the field's own list.
+     * Called by submitForm() and by catalogueEditAnswers() - the approver's edit (#298) - so
+     * the two can never disagree. A grid or a lookup is checked by its own code.
+     *
+     * @param array  $field  a form_fields row (label, field_type, is_required, options, config)
+     * @param string $val    the stored form of the answer (checkboxes as a JSON array)
+     * @throws ServiceError  validation, with a message for the person
+     */
+    public static function checkPlainAnswer(array $field, string $val): void
+    {
+        $type = $field['field_type'];
+        if ($field['is_required']) {
+            $isEmpty = false;
+            if ($val === '' || $val === null) {
+                $isEmpty = true;
+            } elseif ($type === 'checkbox' && (string)$val === '0') {
+                $isEmpty = true;
+            } elseif ($type === 'checkboxes') {
+                $decoded = json_decode((string)$val, true);
+                $isEmpty = !is_array($decoded) || count($decoded) === 0;
+            }
+            if ($isEmpty) {
+                throw new ServiceError('validation', 'missing_field', '"' . $field['label'] . '" is required.');
+            }
+        }
+        if ($val !== '' && $val !== null) {
+            if ($type === 'email' && !filter_var((string)$val, FILTER_VALIDATE_EMAIL)) {
+                throw new ServiceError('validation', 'invalid_field', '"' . $field['label'] . '" must be a valid email address.');
+            }
+            if ($type === 'number' && !is_numeric((string)$val)) {
+                throw new ServiceError('validation', 'invalid_field', '"' . $field['label'] . '" must be a number.');
+            }
+
+            // A date/time answer must match the shape its own mode asks for. The
+            // browser's date input already produces exactly this, so a mismatch means
+            // either an unsupported browser's text fallback or a hand-made request.
+            if ($type === 'datetime') {
+                $mode = self::dateModeOf($field);
+                if (!preg_match(self::DATE_MODE_PATTERNS[$mode], (string)$val)) {
+                    $expected = ['date' => 'a date', 'time' => 'a time', 'datetime' => 'a date and time'][$mode];
+                    throw new ServiceError('validation', 'invalid_field',
+                        '"' . $field['label'] . '" must be ' . $expected . '.');
+                }
+                // ⚠️ NOT converted to UTC, and deliberately so. A form answer is a
+                // NAIVE local value: "needed by 14 August" means the 14th to whoever
+                // typed it and to whoever reads it. Storing it as an instant and
+                // rendering it in the reader's timezone would show an analyst in
+                // another zone the 13th. Stored, exported and displayed verbatim.
+            }
+
+            // A choice field must be answered with one of ITS OWN choices.
+            // This was never checked: the value was whatever the client
+            // posted, so a select could carry arbitrary text straight into
+            // the stored answers. Harmless-ish while only analysts could
+            // reach it; not once customers can.
+            if (in_array($type, ['dropdown', 'radio', 'checkboxes'], true)) {
+                $options = json_decode((string)($field['options'] ?? '[]'), true);
+                if (is_array($options) && $options) {
+                    $options = array_map('strval', $options);
+                    $chosen  = ($type === 'checkboxes')
+                        ? (json_decode((string)$val, true) ?: [])
+                        : [(string)$val];
+                    foreach ($chosen as $one) {
+                        if (!in_array((string)$one, $options, true)) {
+                            throw new ServiceError('validation', 'invalid_field',
+                                '"' . $field['label'] . '" has an option that is not on its list.');
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Validate + record a submission, then dispatch form.submitted. $data is a
      * field_id => value map. Returns the submission id.
      *
@@ -1870,45 +1959,12 @@ class FormsService
                 }
                 continue;   // the generic required/format checks do not apply
             }
-            if ($field['is_required']) {
-                $isEmpty = false;
-                if ($val === '' || $val === null) {
-                    $isEmpty = true;
-                } elseif ($type === 'checkbox' && (string)$val === '0') {
-                    $isEmpty = true;
-                } elseif ($type === 'checkboxes') {
-                    $decoded = json_decode((string)$val, true);
-                    $isEmpty = !is_array($decoded) || count($decoded) === 0;
-                }
-                if ($isEmpty) {
-                    throw new ServiceError('validation', 'missing_field', '"' . $field['label'] . '" is required.');
-                }
-            }
+            // Required, email, number, date shape and choices - one function, shared with an
+            // approver's edit (GH #298 / discussion #298), so an edited answer can never be held
+            // to looser rules than a submitted one. The lookup check stays here: it needs the
+            // submitter's scope.
+            self::checkPlainAnswer($field, (string)$val);
             if ($val !== '' && $val !== null) {
-                if ($type === 'email' && !filter_var((string)$val, FILTER_VALIDATE_EMAIL)) {
-                    throw new ServiceError('validation', 'invalid_field', '"' . $field['label'] . '" must be a valid email address.');
-                }
-                if ($type === 'number' && !is_numeric((string)$val)) {
-                    throw new ServiceError('validation', 'invalid_field', '"' . $field['label'] . '" must be a number.');
-                }
-
-                // A date/time answer must match the shape its own mode asks for. The
-                // browser's date input already produces exactly this, so a mismatch means
-                // either an unsupported browser's text fallback or a hand-made request.
-                if ($type === 'datetime') {
-                    $mode = self::dateModeOf($field);
-                    if (!preg_match(self::DATE_MODE_PATTERNS[$mode], (string)$val)) {
-                        $expected = ['date' => 'a date', 'time' => 'a time', 'datetime' => 'a date and time'][$mode];
-                        throw new ServiceError('validation', 'invalid_field',
-                            '"' . $field['label'] . '" must be ' . $expected . '.');
-                    }
-                    // ⚠️ NOT converted to UTC, and deliberately so. A form answer is a
-                    // NAIVE local value: "needed by 14 August" means the 14th to whoever
-                    // typed it and to whoever reads it. Storing it as an instant and
-                    // rendering it in the reader's timezone would show an analyst in
-                    // another zone the 13th. Stored, exported and displayed verbatim.
-                }
-
                 // A lookup answer is {"id":123,"label":"LT-001"} — see the block
                 // above LOOKUP_SOURCES for why both halves are stored.
                 if ($type === 'lookup') {
@@ -1951,26 +2007,6 @@ class FormsService
                     $normalised[$fid] = json_encode(['id' => $lid, 'label' => $recordLabel], JSON_UNESCAPED_UNICODE);
                 }
 
-                // A choice field must be answered with one of ITS OWN choices.
-                // This was never checked: the value was whatever the client
-                // posted, so a select could carry arbitrary text straight into
-                // the stored answers. Harmless-ish while only analysts could
-                // reach it; not once customers can.
-                if (in_array($type, ['dropdown', 'radio', 'checkboxes'], true)) {
-                    $options = json_decode((string)($field['options'] ?? '[]'), true);
-                    if (is_array($options) && $options) {
-                        $options = array_map('strval', $options);
-                        $chosen  = ($type === 'checkboxes')
-                            ? (json_decode((string)$val, true) ?: [])
-                            : [(string)$val];
-                        foreach ($chosen as $one) {
-                            if (!in_array((string)$one, $options, true)) {
-                                throw new ServiceError('validation', 'invalid_field',
-                                    '"' . $field['label'] . '" has an option that is not on its list.');
-                            }
-                        }
-                    }
-                }
             }
         }
 

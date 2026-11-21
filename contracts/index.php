@@ -28,8 +28,8 @@ $translationNamespaces = ['common', 'contracts'];
     <?php echo Tz::scriptTag(); ?>
     <script src="../assets/js/tz.js?v=5"></script>
     <script src="../assets/js/i18n.js?v=4"></script>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <style>
         body { --accent: var(--con-accent, #f59e0b); --accent-hover: var(--con-accent-hover, #d97706); --on-accent: var(--con-on-accent, #fff); }
 
@@ -57,7 +57,7 @@ $translationNamespaces = ['common', 'contracts'];
 
         .sidebar-section { margin-bottom: 24px; }
         .sidebar-section h3 {
-            font-size: 14px; font-weight: 600; color: var(--text, #333);
+            font-size: var(--font-size-lg, 14px); font-weight: 600; color: var(--text, #333);
             margin: 0 0 12px 0;
         }
 
@@ -67,7 +67,7 @@ $translationNamespaces = ['common', 'contracts'];
             background: var(--surface, white);
             border: 1px solid var(--border, #ddd);
             border-radius: 6px;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             color: var(--text-dim, #888);
             cursor: pointer;
             text-align: left;
@@ -85,14 +85,14 @@ $translationNamespaces = ['common', 'contracts'];
             align-items: center;
             padding: 10px 12px;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             color: var(--text, #333);
             cursor: default;
             margin-bottom: 4px;
         }
         .sidebar-stat .stat-value {
             font-weight: 700;
-            font-size: 16px;
+            font-size: var(--font-size-xl, 16px);
         }
         .sidebar-stat.warning .stat-value { color: var(--con-accent, #f59e0b); }
 
@@ -100,7 +100,7 @@ $translationNamespaces = ['common', 'contracts'];
         .sidebar-link {
             display: flex; align-items: center; gap: 10px;
             padding: 10px 12px; border-radius: 6px;
-            font-size: 14px; color: var(--text, #333);
+            font-size: var(--font-size-lg, 14px); color: var(--text, #333);
             text-decoration: none; transition: all 0.15s;
         }
         .sidebar-link:hover { background: #fff7ed; color: var(--con-accent, #f59e0b); }
@@ -114,7 +114,7 @@ $translationNamespaces = ['common', 'contracts'];
             color: white;
             border: none;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             font-weight: 500;
             cursor: pointer;
             transition: background 0.2s;
@@ -133,23 +133,23 @@ $translationNamespaces = ['common', 'contracts'];
             display: flex; justify-content: space-between; align-items: center;
             padding: 18px 24px; border-bottom: 1px solid var(--border-soft, #eee);
         }
-        .section-card .section-header h2 { margin: 0; font-size: 16px; font-weight: 600; color: var(--text, #333); }
+        .section-card .section-header h2 { margin: 0; font-size: var(--font-size-xl, 16px); font-weight: 600; color: var(--text, #333); }
 
         .section-card table { width: 100%; border-collapse: collapse; }
         .section-card table th {
-            text-align: left; padding: 12px 24px; font-size: 12px; font-weight: 600;
+            text-align: left; padding: 12px 24px; font-size: var(--font-size-sm, 12px); font-weight: 600;
             color: var(--text-dim, #888); text-transform: uppercase; letter-spacing: 0.5px;
             border-bottom: 1px solid var(--border-soft, #eee); background: var(--surface-2, #fafafa);
         }
         .section-card table td {
-            padding: 14px 24px; font-size: 14px; color: var(--text, #333); border-bottom: 1px solid var(--border-soft, #f0f0f0);
+            padding: 14px 24px; font-size: var(--font-size-lg, 14px); color: var(--text, #333); border-bottom: 1px solid var(--border-soft, #f0f0f0);
         }
         .section-card table tr:last-child td { border-bottom: none; }
         .section-card table tr:hover { background: var(--surface-hover, #fafafa); }
 
         /* Canonical pill shape (matches .status-badge in inbox.css); the
            active/expired/expiring colours are contract-lifecycle specific. */
-        .status-badge { display: inline-block; padding: 4px 8px; border-radius: 3px; font-size: 12px; font-weight: 500; }
+        .status-badge { display: inline-block; padding: 4px 8px; border-radius: 3px; font-size: var(--font-size-sm, 12px); font-weight: 500; }
         .status-badge.active { background: #d4edda; color: #155724; }
         .status-badge.expired { background: #f8d7da; color: #721c24; }
         .status-badge.expiring { background: #fff3cd; color: #856404; }
@@ -172,22 +172,22 @@ $translationNamespaces = ['common', 'contracts'];
         .search-result-item:hover { background: #fff7ed; border-color: var(--con-accent, #f59e0b); }
         .search-result-type {
             display: inline-block; padding: 2px 8px; border-radius: 10px;
-            font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
+            font-size: var(--font-size-xs, 11px); font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
             margin-right: 8px;
         }
         .search-result-type.contract { background: #fff3cd; color: #856404; }
         .search-result-type.supplier { background: #d4edda; color: #155724; }
         .search-result-type.contact { background: #d6e9f8; color: #1a5276; }
-        .search-result-title { font-weight: 600; color: var(--text, #333); font-size: 14px; }
-        .search-result-meta { font-size: 12px; color: var(--text-dim, #888); margin-top: 4px; }
+        .search-result-title { font-weight: 600; color: var(--text, #333); font-size: var(--font-size-lg, 14px); }
+        .search-result-meta { font-size: var(--font-size-sm, 12px); color: var(--text-dim, #888); margin-top: 4px; }
 
         /* Dark-mode overrides for pale amber tints (light values kept hardcoded) */
         [data-theme-mode="dark"] .sidebar-link:hover { background: #3a2e12; }
         [data-theme-mode="dark"] .search-result-item:hover { background: #3a2e12; }
         /* Supplier or customer (#153) */
-        .party-filter { font: inherit; font-size: 13px; padding: 5px 8px; border: 1px solid var(--border, #ddd); border-radius: 6px; background: var(--surface, #fff); color: var(--text, #333); }
-        .party-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; background: var(--con-accent-soft, #fef3c7); color: var(--text, #333); vertical-align: 1px; }
-        .row-company { font-size: 12px; color: var(--text-muted, #777); margin-top: 2px; }
+        .party-filter { font: inherit; font-size: var(--font-size-md, 13px); padding: 5px 8px; border: 1px solid var(--border, #ddd); border-radius: 6px; background: var(--surface, #fff); color: var(--text, #333); }
+        .party-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 10px; font-size: var(--font-size-xs, 11px); font-weight: 600; background: var(--con-accent-soft, #fef3c7); color: var(--text, #333); vertical-align: 1px; }
+        .row-company { font-size: var(--font-size-sm, 12px); color: var(--text-muted, #777); margin-top: 2px; }
     </style>
     <!-- Mobile layer: linked AFTER this page's own <style> so its @media rules win on ties. -->
     <link rel="stylesheet" href="../assets/css/mobile.css?v=196">
@@ -261,7 +261,11 @@ $translationNamespaces = ['common', 'contracts'];
         <div class="contracts-main">
             <div class="section-card">
                 <div class="section-header">
-                    <h2><?php echo htmlspecialchars(t('contracts.nav.contracts')); ?></h2>
+                    <div class="email-list-title-wrap">
+                        <h2><?php echo htmlspecialchars(t('contracts.nav.contracts')); ?></h2>
+                        <?php /* The filter a Watchtower link opened the list with (discussion #388) - shown so a short list is never a mystery. */ ?>
+                        <span class="view-filter-chips" id="watchFilterChips"></span>
+                    </div>
                     <select id="partyFilter" class="party-filter" onchange="loadContracts()" aria-label="<?php echo htmlspecialchars(t('contracts.party.filter')); ?>">
                         <option value=""><?php echo htmlspecialchars(t('contracts.party.filter_all')); ?></option>
                         <option value="supplier"><?php echo htmlspecialchars(t('contracts.party.filter_supplier')); ?></option>
@@ -326,11 +330,46 @@ $translationNamespaces = ['common', 'contracts'];
             } catch (error) { console.error('Error loading stats:', error); }
         }
 
+        // Watchtower's Contracts card links here already filtered (discussion #388):
+        // ?expiring=N (ending within N days) or ?notice=N (notice date within N days).
+        // The server applies the card's own conditions; this only carries the number
+        // across and shows it as a chip, so a short list is never a mystery.
+        const watchFilter = (function () {
+            const p = new URLSearchParams(location.search);
+            for (const key of ['expiring', 'notice']) {
+                const n = parseInt(p.get(key), 10);
+                if (n >= 1 && n <= 366) return { key: key, days: n };
+            }
+            return null;
+        })();
+        let watchFilterOn = !!watchFilter;
+
+        /** Draws the Watchtower filter chip, or nothing when the list is unfiltered. */
+        function renderWatchFilterChip() {
+            const box = document.getElementById('watchFilterChips');
+            if (!box) return;
+            if (!watchFilterOn) { box.innerHTML = ''; return; }
+            const label = window.t('contracts.watch_filter.' + watchFilter.key, { days: watchFilter.days });
+            box.innerHTML = '<button type="button" class="view-filter-chip" onclick="clearWatchFilter()" title="' + escapeHtml(window.t('contracts.watch_filter.remove')) + '" aria-label="' + escapeHtml(window.t('contracts.watch_filter.remove') + ': ' + label) + '">' + escapeHtml(label) + ' &#x2715;</button>';
+        }
+
+        /** Removes the Watchtower filter: back to the full list, and off the address so a reload stays unfiltered. */
+        function clearWatchFilter() {
+            watchFilterOn = false;
+            try { const u = new URL(location.href); u.searchParams.delete(watchFilter.key); history.replaceState(null, '', u); } catch (e) { /* the list still clears */ }
+            renderWatchFilterChip();
+            loadContracts();
+        }
+
         // Contract list
         async function loadContracts() {
             try {
+                renderWatchFilterChip();
                 const party = (document.getElementById('partyFilter') || {}).value || '';
-                const response = await fetch(API_BASE + 'get_contracts.php' + (party ? '?party=' + encodeURIComponent(party) : ''));
+                const qs = new URLSearchParams();
+                if (party) qs.set('party', party);
+                if (watchFilterOn) qs.set(watchFilter.key, String(watchFilter.days));
+                const response = await fetch(API_BASE + 'get_contracts.php' + (qs.toString() ? '?' + qs.toString() : ''));
                 const data = await response.json();
                 if (data.success) {
                     renderContracts(data.contracts);
@@ -569,6 +608,6 @@ $translationNamespaces = ['common', 'contracts'];
             return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
     </script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

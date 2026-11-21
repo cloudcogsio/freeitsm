@@ -29,15 +29,17 @@ $translationNamespaces = ['common', 'workflow'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('workflow')); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=93">
-    <link rel="stylesheet" href="../assets/css/workflow.css?v=12">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
+    <link rel="stylesheet" href="../assets/css/workflow.css?v=15">
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <?php echo Tz::scriptTag(); ?>
     <script src="../assets/js/tz.js?v=5"></script>
     <script src="../assets/js/i18n.js?v=4"></script>
     <style>
-        .container { height: calc(100vh - 48px); overflow-y: auto; max-width: none; }
+        /* Full width (Ed, 2026-11-20). margin:0 + width:100% as well as max-width:none - the body is a flex
+           column, where inbox.css's auto side margins would shrink the list to fit its content. */
+        .container { height: calc(100vh - 48px); overflow-y: auto; max-width: none; width: 100%; margin: 0; box-sizing: border-box; padding: 24px 32px 40px; }
     </style>
     <!-- Mobile layer LAST, after this page's own stylesheet AND its inline
          <style> block, or a rule at equal specificity loses on document order
@@ -150,12 +152,12 @@ $translationNamespaces = ['common', 'workflow'];
                 }
                 // GH #209. Which company each runs for, once there are companies.
                 const companyLine = w => !d.multi_company ? ''
-                    : '<br><span style="color:var(--text-dim, #777); font-size: 12px;">'
+                    : '<br><span style="color:var(--text-dim, #777); font-size: var(--font-size-sm, 12px);">'
                       + esc(w.company ? w.company.name : window.t('workflow.list.all_companies')) + '</span>';
                 tb.innerHTML = d.workflows.map(w => `
                     <tr>
-                        <td><strong><a href="editor.php?id=${w.id}" style="color: var(--text, #333); text-decoration: none;">${esc(w.name)}</a></strong>${w.description ? '<br><span style="color:var(--text-dim, #777); font-size: 12px;">' + esc(w.description) + '</span>' : ''}${companyLine(w)}</td>
-                        <td><code style="font-size:12px;">${esc(w.trigger_event)}</code></td>
+                        <td><strong><a href="editor.php?id=${w.id}" style="color: var(--text, #333); text-decoration: none;">${esc(w.name)}</a></strong>${w.description ? '<br><span style="color:var(--text-dim, #777); font-size: var(--font-size-sm, 12px);">' + esc(w.description) + '</span>' : ''}${companyLine(w)}</td>
+                        <td><code style="font-size:var(--font-size-sm, 12px);">${esc(w.trigger_event)}</code></td>
                         <td style="color:var(--text-muted, #666);">${w.run_count} run${w.run_count == 1 ? '' : 's'}</td>
                         <td>${fmtDate(w.last_run_datetime)}</td>
                         <td>${statusPill(+w.is_active)}</td>
@@ -300,6 +302,6 @@ $translationNamespaces = ['common', 'workflow'];
         window.WF = { del, openTemplates, closeTemplates, useTemplate, filterTemplates };
     })();
     </script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

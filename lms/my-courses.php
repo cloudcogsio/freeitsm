@@ -33,8 +33,8 @@ $canManage = analystHasCapability($conn, (int)$_SESSION['analyst_id'], Cap::LMS_
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('lms', t('lms.nav.my_courses'))); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/lms.css?v=11">
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <?php echo Tz::scriptTag(); ?>
@@ -49,15 +49,15 @@ $canManage = analystHasCapability($conn, (int)$_SESSION['analyst_id'], Cap::LMS_
         .myc-inner { margin: 0 auto; padding: 32px 28px 56px; }
         .myc-head { display: flex; align-items: flex-start; gap: 16px; }
         .myc-head-text { flex: 1; min-width: 0; }
-        .myc-inner h1 { margin: 0 0 4px; font-size: 22px; color: var(--text, #1f2330); }
-        .myc-inner p.myc-lead { margin: 0 0 24px; color: var(--text-muted, #6b7280); font-size: 14px; }
+        .myc-inner h1 { margin: 0 0 4px; font-size: var(--font-size-4xl, 24px); color: var(--text, #1f2330); }
+        .myc-inner p.myc-lead { margin: 0 0 24px; color: var(--text-muted, #6b7280); font-size: var(--font-size-lg, 14px); }
 
         /* The layout switch. Same shape and the same two glyphs as the Knowledge
            module's, so somebody who has met one already knows this one. */
         .myc-layout-toggle { display: flex; gap: 2px; flex-shrink: 0; }
         .myc-layout-btn {
             background: none; border: 1px solid transparent; border-radius: 4px;
-            padding: 4px 8px; font-size: 14px; line-height: 1;
+            padding: 4px 8px; font-size: var(--font-size-lg, 14px); line-height: 1;
             color: var(--text-muted, #6b7280); cursor: pointer;
         }
         .myc-layout-btn:hover { background: var(--surface-hover, #f0f0f0); }
@@ -74,10 +74,10 @@ $canManage = analystHasCapability($conn, (int)$_SESSION['analyst_id'], Cap::LMS_
             border: 1px solid var(--border, #e5e7eb); border-radius: 10px;
         }
         .myc-card-main { flex: 1; min-width: 0; }
-        .myc-card-main h3 { margin: 0 0 4px; font-size: 15.5px; color: var(--text, #1f2330); }
-        .myc-card-main p { margin: 0; font-size: 13px; color: var(--text-muted, #6b7280); line-height: 1.5; }
+        .myc-card-main h3 { margin: 0 0 4px; font-size: var(--font-size-xl, 16px); color: var(--text, #1f2330); }
+        .myc-card-main p { margin: 0; font-size: var(--font-size-md, 13px); color: var(--text-muted, #6b7280); line-height: 1.5; }
         .myc-meta { display: flex; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
-        .myc-deadline { font-size: 12px; color: var(--text-muted, #6b7280); }
+        .myc-deadline { font-size: var(--font-size-sm, 12px); color: var(--text-muted, #6b7280); }
         .myc-deadline.overdue { color: #dc2626; font-weight: 600; }
         .myc-actions { flex-shrink: 0; }
 
@@ -98,7 +98,7 @@ $canManage = analystHasCapability($conn, (int)$_SESSION['analyst_id'], Cap::LMS_
         .myc-progress-fill.is-done { background: #16a34a; }
         .myc-progress-label {
             display: block; margin-top: 5px;
-            font-size: 11.5px; color: var(--text-muted, #6b7280);
+            font-size: var(--font-size-sm, 12px); color: var(--text-muted, #6b7280);
         }
 
         /* ---- Card layout ----
@@ -122,7 +122,7 @@ $canManage = analystHasCapability($conn, (int)$_SESSION['analyst_id'], Cap::LMS_
                of it. Without this the `margin-top: auto` below does nothing. */
             display: flex; flex-direction: column;
         }
-        .myc-layout-cards .myc-card-main h3 { font-size: 16px; }
+        .myc-layout-cards .myc-card-main h3 { font-size: var(--font-size-xl, 16px); }
 
         /* 🔑 THE STATUS ROW AND THE BAR ARE PINNED TO THE FOOT OF THE CARD, not
            hung under the description.
@@ -147,11 +147,11 @@ $canManage = analystHasCapability($conn, (int)$_SESSION['analyst_id'], Cap::LMS_
         .myc-layout-cards .myc-actions { align-self: flex-start; }
 
         .myc-empty { text-align: center; padding: 60px 20px; color: var(--text-muted, #6b7280); }
-        .myc-empty h3 { margin: 0 0 6px; font-size: 16px; color: var(--text, #1f2330); }
-        .myc-empty p { margin: 0; font-size: 14px; }
+        .myc-empty h3 { margin: 0 0 6px; font-size: var(--font-size-xl, 16px); color: var(--text, #1f2330); }
+        .myc-empty p { margin: 0; font-size: var(--font-size-lg, 14px); }
 
         /* Reuse the .lms-status pills from lms.css for status colour. */
-        .myc-score { font-size: 12px; color: var(--text-muted, #6b7280); }
+        .myc-score { font-size: var(--font-size-sm, 12px); color: var(--text-muted, #6b7280); }
 
         @media (max-width: 640px) {
             .myc-card { flex-direction: column; align-items: stretch; gap: 12px; }
@@ -190,6 +190,6 @@ $canManage = analystHasCapability($conn, (int)$_SESSION['analyst_id'], Cap::LMS_
 
     <script>window.API_BASE = '../api/lms/';</script>
     <script src="../assets/js/lms-my-courses.js?v=5"></script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

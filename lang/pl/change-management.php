@@ -44,6 +44,11 @@ return [
         'work' => 'Praca: {date}',
         'unassigned' => 'Nieprzypisane',
     ],
+    // A list opened from a Watchtower count (discussion #388).
+    'link_filter' => [
+        'open' => 'Otwarte zmiany, liczone jak na Watchtower',
+        'remove' => 'Usuń filtr',
+    ],
     'detail' => [
         'back' => 'Wstecz',
         'share' => 'Udostępnij',
@@ -332,6 +337,7 @@ return [
         'created' => 'Utworzono: {datetime}',
         'created_by' => 'Utworzono: {datetime} przez {name}',
         'last_modified' => 'Ostatnia modyfikacja: {datetime}',
+        'generated' => 'Wygenerowano {datetime}',   // the branded header (Ed, 2026-11-20)
     ],
     'approvals' => [
         'filter' => 'Filtruj',
@@ -366,6 +372,14 @@ return [
         'assigned_to' => 'Przypisane do',
         'open_change' => 'Otwórz zmianę',
     ],
+    // Preferences → Change list labels (Ed, 2026-11-20).
+    'list_labels' => [
+        'heading' => 'Etykiety na liście zmian',
+        'colour' => 'Kolorowe',
+        'plain' => 'Zwykły tekst',
+        'note' => 'Jak Ryzyko, Priorytet, Typ i Status wyświetlają się na liście zmian: kolorowo z kropką lub jako zwykły tekst.',
+    ],
+
     'table' => [
         'col_ref' => 'Nr',
         'col_title' => 'Tytuł',
@@ -871,6 +885,14 @@ return [
         'tip_attachments' => 'Załączniki',
         'tip_attachments_desc' => 'Załączaj zrzuty ekranu, kopie zapasowe konfiguracji lub e-maile z zatwierdzeniem razem ze zmianą. Dodanie lub usunięcie pliku jest rejestrowane, wraz z odciskiem pliku.',
         'tip_audit' => 'Ścieżka audytu',
+        'tip_company'   => 'Przenoszenie do innej firmy',
+        'tip_company_desc' => 'Zapisano w niewłaściwej firmie? Kliknij zmianę prawym przyciskiem i wybierz Przenieś do firmy (albo użyj POST /changes/{id}/move-to-company w API). Zadania powiązane ze zmianą przenoszą się razem z nią (do tego potrzebny jest też dostęp do zapisu w Zadaniach). Dołączone zgłoszenia nie: muszą już być w nowej firmie, więc odłącz te, które nie są. Przeniesienie jest zapisywane na osi czasu Aktywność.',
         'tip_audit_desc' => 'Każda zmiana pola jest śledzona na osi czasu Aktywność, a każda wersja długiego tekstu jest przechowywana w całości - otwórz ją przez „Pokaż” lub link Wersje w sekcji.',
+        'tip_labels' => 'Kolumny z nagłówkami',
+        'tip_labels_desc' => 'Lista zmian pokazuje Ryzyko, Priorytet, Typ i Status w kolumnach z nagłówkami (na telefonie z małą etykietą przed każdą wartością). Kolorowe wartości z kropką albo zwykły tekst wybierasz dla siebie w Preferencje → Etykiety na liście zmian.',
+        'tip_pdf' => 'Zmiana jako PDF',
+        'tip_pdf_desc' => 'Udostępnij → Eksportuj jako PDF tworzy dokument z logo Twojej organizacji (jeśli ustawiono je w Branding) i jej nazwą u góry, a dalej szczegóły, plany, macierz ryzyka, zatwierdzenia, przegląd powdrożeniowy, powiązane zgłoszenia, nazwy załączników i aktywność. Zawsze jest rysowany w jasnym motywie, niezależnie od motywu, którego używasz.',
+        'tip_views' => 'Zapisane widoki tabeli',
+        'tip_views_desc' => 'W tabeli Zapisz widok zachowuje kolumny, sortowanie i filtry pod nazwą, a Widoki otwiera bibliotekę. Tabela pamięta ostatnio wybrany widok i następnym razem otwiera się z nim, w każdej przeglądarce - dopóki nie wybierzesz innego albo nie użyjesz Resetuj; potem znów otwiera się z Twoim widokiem domyślnym.',
     ],
 ];

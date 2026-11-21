@@ -27,9 +27,9 @@ $translationNamespaces = ['common', 'tasks'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('tasks', t('tasks.nav.timeline'))); ?></title>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=93">
-    <link rel="stylesheet" href="../../assets/css/tasks.css?v=58">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
+    <link rel="stylesheet" href="../../assets/css/tasks.css?v=62">
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <?php echo Tz::scriptTag(); ?>
     <script src="../../assets/js/tz.js?v=5"></script>
@@ -134,7 +134,8 @@ $translationNamespaces = ['common', 'tasks'];
     <script src="../../assets/js/tasks-ctx-menu.js?v=7"></script>
     <script src="../../assets/js/safe-html.js?v=4"></script>
     <script src="../../assets/js/tasks-quick-panel.js?v=5"></script>
-    <script src="../../assets/js/tasks-timeline.js?v=13"></script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/tasks-hover-card.js?v=1"></script>
+    <script src="../../assets/js/tasks-timeline.js?v=14"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

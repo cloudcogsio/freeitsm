@@ -1275,6 +1275,24 @@ try {
         ['asset_type_field_sets',  'fk_atfs_type',                 'asset_types',       'asset_type_id',         'id', 'CASCADE'],
         ['asset_type_field_sets',  'fk_atfs_set',                  'asset_field_sets',  'set_id',                'id', 'CASCADE'],
         ['asset_type_layout',      'fk_atl_type',                  'asset_types',       'asset_type_id',         'id', 'CASCADE'],
+        ['asset_type_expected_fields', 'fk_ate_type',              'asset_types',       'asset_type_id',         'id', 'CASCADE'],   // GH #404
+        ['asset_field_not_applicable', 'fk_afna_asset',            'assets',            'asset_id',              'id', 'CASCADE'],   // GH #404
+        // Consumables (5.8.0). The ledger's keys are RESTRICT on purpose: an item or a store with
+        // history is retired (is_active = 0), never deleted - deleting would take the ledger with it.
+        ['consumable_items',        'fk_consumable_items_type',         'consumable_types',     'type_id',     'id', 'SET NULL'],
+        ['consumable_stock',        'fk_consumable_stock_item',         'consumable_items',     'item_id',     'id', 'RESTRICT'],
+        ['consumable_stock',        'fk_consumable_stock_store',        'consumable_stores',    'store_id',    'id', 'RESTRICT'],
+        ['consumable_counts',       'fk_consumable_counts_store',       'consumable_stores',    'store_id',    'id', 'RESTRICT'],
+        ['consumable_count_lines',  'fk_consumable_count_lines_count',  'consumable_counts',    'count_id',    'id', 'RESTRICT'],
+        ['consumable_count_lines',  'fk_consumable_count_lines_item',   'consumable_items',     'item_id',     'id', 'RESTRICT'],
+        ['consumable_movements',    'fk_consumable_movements_item',     'consumable_items',     'item_id',     'id', 'RESTRICT'],
+        ['consumable_movements',    'fk_consumable_movements_store',    'consumable_stores',    'store_id',    'id', 'RESTRICT'],
+        ['consumable_movements',    'fk_consumable_movements_reverses', 'consumable_movements', 'reverses_id', 'id', 'RESTRICT'],
+        ['consumable_deliveries',   'fk_consumable_deliveries_store',   'consumable_stores',    'store_id',    'id', 'RESTRICT'],
+        ['consumable_movements',    'fk_consumable_movements_delivery', 'consumable_deliveries','delivery_id', 'id', 'RESTRICT'],
+        ['consumable_field_options','fk_consumable_field_options_field','consumable_fields',    'field_id',    'id', 'CASCADE'],
+        ['consumable_field_values', 'fk_cfv_item',                      'consumable_items',     'item_id',     'id', 'CASCADE'],
+        ['consumable_field_values', 'fk_cfv_field',                     'consumable_fields',    'field_id',    'id', 'RESTRICT'],
         // GH #200 parts C and D: a connection or a review case goes with either asset.
         ['asset_connections',      'fk_asset_connections_asset',   'assets',            'asset_id',              'id', 'CASCADE'],
         ['asset_connections',      'fk_asset_connections_other',   'assets',            'connected_asset_id',    'id', 'CASCADE'],
@@ -1632,6 +1650,50 @@ try {
         }
         if ($tableExists('analysts') && !$fkExists('warroom_mentions', 'fk_warroom_mentions_analyst')) {
             try { $conn->exec("ALTER TABLE warroom_mentions ADD CONSTRAINT fk_warroom_mentions_analyst FOREIGN KEY (analyst_id) REFERENCES analysts (id) ON DELETE CASCADE"); } catch (Exception $e) {}
+        }
+    }
+    // 5.9.0: reactions. The indexes come from db_verify_indexes.php. quote_of_id has
+    // NO foreign key on purpose - see freeitsm.sql.
+    if ($tableExists('warroom_reactions') && $tableExists('warroom_messages')) {
+        if (!$fkExists('warroom_reactions', 'fk_warroom_reactions_message')) {
+            try { $conn->exec("ALTER TABLE warroom_reactions ADD CONSTRAINT fk_warroom_reactions_message FOREIGN KEY (message_id) REFERENCES warroom_messages (id) ON DELETE CASCADE"); } catch (Exception $e) {}
+        }
+        if ($tableExists('analysts') && !$fkExists('warroom_reactions', 'fk_warroom_reactions_analyst')) {
+            try { $conn->exec("ALTER TABLE warroom_reactions ADD CONSTRAINT fk_warroom_reactions_analyst FOREIGN KEY (analyst_id) REFERENCES analysts (id) ON DELETE CASCADE"); } catch (Exception $e) {}
+        }
+    }
+    // 5.9.0: Seen by - read marks go with their analyst and channel.
+    if ($tableExists('warroom_read_marks')) {
+        if ($tableExists('analysts') && !$fkExists('warroom_read_marks', 'fk_warroom_read_marks_analyst')) {
+            try { $conn->exec("ALTER TABLE warroom_read_marks ADD CONSTRAINT fk_warroom_read_marks_analyst FOREIGN KEY (analyst_id) REFERENCES analysts (id) ON DELETE CASCADE"); } catch (Exception $e) {}
+        }
+        if ($tableExists('warroom_channels') && !$fkExists('warroom_read_marks', 'fk_warroom_read_marks_channel')) {
+            try { $conn->exec("ALTER TABLE warroom_read_marks ADD CONSTRAINT fk_warroom_read_marks_channel FOREIGN KEY (channel_id) REFERENCES warroom_channels (id) ON DELETE CASCADE"); } catch (Exception $e) {}
+        }
+    }
+    // 5.9.0: translations go with their message.
+    if ($tableExists('warroom_translations') && $tableExists('warroom_messages')
+        && !$fkExists('warroom_translations', 'fk_warroom_translations_message')) {
+        try { $conn->exec("ALTER TABLE warroom_translations ADD CONSTRAINT fk_warroom_translations_message FOREIGN KEY (message_id) REFERENCES warroom_messages (id) ON DELETE CASCADE"); } catch (Exception $e) {}
+    }
+    // 5.9.0: pins and saved messages.
+    if ($tableExists('warroom_pins') && $tableExists('warroom_messages')) {
+        if ($tableExists('warroom_channels') && !$fkExists('warroom_pins', 'fk_warroom_pins_channel')) {
+            try { $conn->exec("ALTER TABLE warroom_pins ADD CONSTRAINT fk_warroom_pins_channel FOREIGN KEY (channel_id) REFERENCES warroom_channels (id) ON DELETE CASCADE"); } catch (Exception $e) {}
+        }
+        if (!$fkExists('warroom_pins', 'fk_warroom_pins_message')) {
+            try { $conn->exec("ALTER TABLE warroom_pins ADD CONSTRAINT fk_warroom_pins_message FOREIGN KEY (message_id) REFERENCES warroom_messages (id) ON DELETE CASCADE"); } catch (Exception $e) {}
+        }
+        if ($tableExists('analysts') && !$fkExists('warroom_pins', 'fk_warroom_pins_by')) {
+            try { $conn->exec("ALTER TABLE warroom_pins ADD CONSTRAINT fk_warroom_pins_by FOREIGN KEY (pinned_by) REFERENCES analysts (id) ON DELETE SET NULL"); } catch (Exception $e) {}
+        }
+    }
+    if ($tableExists('warroom_saved') && $tableExists('warroom_messages')) {
+        if ($tableExists('analysts') && !$fkExists('warroom_saved', 'fk_warroom_saved_analyst')) {
+            try { $conn->exec("ALTER TABLE warroom_saved ADD CONSTRAINT fk_warroom_saved_analyst FOREIGN KEY (analyst_id) REFERENCES analysts (id) ON DELETE CASCADE"); } catch (Exception $e) {}
+        }
+        if (!$fkExists('warroom_saved', 'fk_warroom_saved_message')) {
+            try { $conn->exec("ALTER TABLE warroom_saved ADD CONSTRAINT fk_warroom_saved_message FOREIGN KEY (message_id) REFERENCES warroom_messages (id) ON DELETE CASCADE"); } catch (Exception $e) {}
         }
     }
     if ($tableExists('warroom_attachments') && $tableExists('warroom_messages')) {

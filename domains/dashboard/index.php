@@ -35,8 +35,8 @@ $translationNamespaces = ['common', 'domains'];
     <script src="../../assets/js/i18n.js?v=4"></script>
     <?php echo Money::scriptTag(); ?>
     <script src="../../assets/js/money.js?v=1"></script>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../../assets/css/domains.css?v=8">
     <link rel="stylesheet" href="../../assets/css/mobile.css?v=196">
     <script src="../../assets/js/vendor/chart.umd.min.js"></script>
@@ -148,6 +148,6 @@ $translationNamespaces = ['common', 'domains'];
         });
     })();
     </script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

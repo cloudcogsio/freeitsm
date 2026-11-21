@@ -33,8 +33,8 @@ $translationNamespaces = ['common', 'domains'];
     <?php echo Tz::scriptTag(); ?>
     <script src="../../assets/js/tz.js?v=5"></script>
     <script src="../../assets/js/i18n.js?v=4"></script>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../../assets/css/domains.css?v=8">
     <link rel="stylesheet" href="../../assets/css/mobile.css?v=196">
 </head>
@@ -44,8 +44,8 @@ $translationNamespaces = ['common', 'domains'];
         <div class="dom-shell-pad">
             <div class="dom-toolbar">
                 <div>
-                    <h2 style="margin:0;font-size:20px"><?php echo htmlspecialchars(t('domains.acc.title')); ?></h2>
-                    <div class="dom-hint" style="font-size:13px;max-width:760px"><?php echo htmlspecialchars(t('domains.acc.intro')); ?></div>
+                    <h2 style="margin:0;font-size:var(--font-size-3xl, 20px)"><?php echo htmlspecialchars(t('domains.acc.title')); ?></h2>
+                    <div class="dom-hint" style="font-size:var(--font-size-md, 13px);max-width:760px"><?php echo htmlspecialchars(t('domains.acc.intro')); ?></div>
                 </div>
                 <span class="spacer"></span>
                 <button type="button" class="dom-btn primary" id="accAdd"><?php echo htmlspecialchars(t('common.add')); ?></button>
@@ -155,6 +155,6 @@ $translationNamespaces = ['common', 'domains'];
         });
     })();
     </script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

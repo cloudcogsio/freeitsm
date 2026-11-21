@@ -85,6 +85,16 @@ return [
         'field_phone' => 'telefon',
         'field_mobile' => 'telefon komórkowy',
     ],
+    // GH #399: a settings page as tabs or as one page.
+    'settings_view' => [
+        'view' => 'Widok',
+        'tabs' => 'Karty',
+        'page' => 'Jedna strona',
+        'search' => 'Szukaj w ustawieniach',
+        'none' => 'Brak pasujących ustawień',
+        'index' => 'Sekcje ustawień',
+        'elsewhere' => 'Na innej stronie',
+    ],
     'left_panel' => [
         'tab' => 'Lewy panel',
         'visibility' => 'Widoczność',
@@ -565,6 +575,59 @@ return [
         'loading' => 'Ładowanie…',
         'load_failed' => 'Nie udało się wczytać powiadomień.',
         'someone' => 'Ktoś',
+        // GH #365: named after "by" when no person did it.
+        'actor_workflow' => 'przepływ pracy „{name}”',
+        'actor_system' => 'FreeITSM',
+        'actor_email' => 'e-mail',
+        // The bell's (i) panel - "why is this here?" (5.8.0).
+        'explain' => [
+            'info' => 'Dlaczego to tu jest?',
+            'title' => 'Dlaczego to tu jest',
+            'loading' => 'Wczytywanie...',
+            'failed' => 'Nie udało się wczytać wyjaśnienia.',
+            'by' => 'Wykonane przez',
+            'how' => 'Jak',
+            'when' => 'Kiedy',
+            'why' => 'Dlaczego Ty',
+            'history' => 'Historia zgłoszenia',
+            'workflows' => 'Przepływy pracy wtedy',
+            'auto' => 'automatycznie',
+            'via_api' => 'przez REST API',
+            'by_system' => 'System (automatycznie)',
+            'by_former' => 'były analityk',
+            'hist_by' => 'przez: {who}',
+            'hist_note' => 'notatka',
+            'hist_email' => 'e-mail',
+            'agrees' => 'Historia zgłoszenia się zgadza.',
+            'differs' => 'Według historii zgłoszenia tę zmianę wprowadził(a): {who}.',
+            'grouped' => 'Połączono {n} aktualizacji w tym jednym wierszu; to wyjaśnia najnowszą.',
+            'old_row' => 'Zapisane przed 5.8.0: zachowano tylko nazwę, nie to, co wprowadziło zmianę.',
+            'source' => [
+                'screen' => 'Zmienione na ekranie',
+                'portal' => 'W portalu samoobsługowym',
+                'api' => 'Przez REST API',
+                'workflow' => 'Przez przepływ pracy',
+                'mail_import' => 'Gdy przyszła nowa poczta',
+                'scheduled' => 'Przez zaplanowane zadanie',
+            ],
+            'reason' => [
+                'new_owner' => 'Zostało przypisane do Ciebie',
+                'ticket_owner' => 'Jesteś właścicielem tego zgłoszenia',
+                'team_member' => 'Jesteś w zespole, któremu je przekazano',
+                'watcher' => 'Obserwujesz to zgłoszenie',
+                'task_owner' => 'Jesteś właścicielem tego zadania',
+                'task_involved' => 'Bierzesz udział w tym zadaniu',
+                'project' => 'Projekty wskazują Cię do tego',
+                'domain_owner' => 'Ta domena należy do Ciebie',
+                'owner' => 'Należy do Ciebie',
+                'unknown' => 'Nie zapisano',
+            ],
+            'hist_notes' => [
+                'no_access' => 'Nie widzisz już tego zgłoszenia.',
+                'not_found' => 'Brak pasującego wiersza w historii zgłoszenia.',
+                'none' => 'Ten rodzaj powiadomienia nie ma wiersza w historii zgłoszenia.',
+            ],
+        ],
         'just_now' => 'przed chwilą',
         'minutes' => '{n} min temu',
         'hours' => '{n} godz. temu',
@@ -626,6 +689,9 @@ return [
             'help' => [
                 'unanswered' => 'Asystent pomocy nie potrafił odpowiedzieć na pytanie',
             ],
+            'consumable' => [
+                'low_stock' => 'Kończy się zapas - czas zamówić ponownie',
+            ],
             'hyperv' => [
                 'collector' => 'Kolektor Hyper-V wymaga uwagi',
             ],
@@ -684,6 +750,9 @@ return [
             ],
             'help' => [
                 'unanswered' => 'Asystent pomocy nie potrafi odpowiedzieć na czyjeś pytanie (administratorzy)',
+            ],
+            'consumable' => [
+                'low_stock' => 'Materiał eksploatacyjny spada do swojego progu zamówienia (kto dostaje powiadomienie, wybiera się w Zasoby -> Ustawienia -> Materiały eksploatacyjne)',
             ],
             'hyperv' => [
                 'collector' => 'Kolektor Hyper-V przestaje zgłaszać dane lub nie można odczytać pamięci masowej klastra (osoby zarządzające połączeniami Hyper-V)',

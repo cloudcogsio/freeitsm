@@ -22,7 +22,7 @@ body.fd-body {
     overflow: hidden;
     background: #0b1220;
     font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
-    font-size: 13px;
+    font-size: var(--font-size-md, 13px);
     color: var(--text);
 }
 /* TRAP: any display: rule beats the [hidden] attribute - the start menu (flex)
@@ -63,7 +63,7 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
     width: 86px; padding: 8px 4px 6px;
     display: flex; flex-direction: column; align-items: center; gap: 5px;
     background: transparent; border: 1px solid transparent; border-radius: 4px;
-    color: #fff; font: inherit; font-size: 12px; cursor: default;
+    color: #fff; font: inherit; font-size: var(--font-size-sm, 12px); cursor: default;
     text-shadow: 0 1px 3px rgba(0, 0, 0, .7);
 }
 .fd-dicon span { line-height: 1.25; text-align: center; word-break: break-word; }
@@ -103,7 +103,7 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
     display: flex; align-items: center; gap: 8px;
     min-width: 0; width: 190px; height: 40px; padding: 0 10px;
     border: 0; border-radius: 6px; background: transparent;
-    color: #e5e7eb; font: inherit; font-size: 12.5px; cursor: default;
+    color: #e5e7eb; font: inherit; font-size: var(--font-size-md, 13px); cursor: default;
 }
 .fd-task:hover { background: rgba(255, 255, 255, .08); }
 .fd-task.fd-active { background: rgba(255, 255, 255, .14); }
@@ -116,11 +116,11 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
 .fd-task-icon { display: flex; flex: 0 0 auto; }
 .fd-task-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fd-tray { display: flex; align-items: center; gap: 6px; height: 100%; }
-.fd-clock { display: flex; flex-direction: column; align-items: flex-end; font-size: 11.5px; line-height: 1.3; padding: 0 8px; color: #e5e7eb; }
+.fd-clock { display: flex; flex-direction: column; align-items: flex-end; font-size: var(--font-size-sm, 12px); line-height: 1.3; padding: 0 8px; color: #e5e7eb; }
 .fd-tray-transfers {
     position: relative; display: flex; align-items: center; gap: 4px;
     height: 32px; padding: 0 8px; border: 0; border-radius: 5px; overflow: hidden;
-    background: rgba(255, 255, 255, .08); color: #e5e7eb; font: inherit; font-size: 12px; cursor: pointer;
+    background: rgba(255, 255, 255, .08); color: #e5e7eb; font: inherit; font-size: var(--font-size-sm, 12px); cursor: pointer;
 }
 .fd-tray-transfers i { position: absolute; left: 0; bottom: 0; height: 2px; background: #60a5fa; }
 
@@ -135,10 +135,10 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
     box-shadow: 0 12px 32px rgba(0, 0, 0, .45);
     color: #e5e7eb;
 }
-.fd-pv-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 12px; }
+.fd-pv-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: var(--font-size-sm, 12px); }
 .fd-pv-icon { display: flex; }
 .fd-pv-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fd-pv-close { border: 0; background: transparent; color: #e5e7eb; font-size: 18px; line-height: 1; width: 24px; height: 22px; border-radius: 4px; cursor: pointer; }
+.fd-pv-close { border: 0; background: transparent; color: #e5e7eb; font-size: var(--font-size-2xl, 18px); line-height: 1; width: 24px; height: 22px; border-radius: 4px; cursor: pointer; }
 .fd-pv-close:hover { background: #c42b1c; color: #fff; }
 .fd-pv-thumb {
     display: flex; align-items: center; justify-content: center;
@@ -167,8 +167,8 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
 .fd-sm-search .fd-input { width: 100%; border-radius: 18px; padding: 8px 14px; }
 .fd-sm-cols { display: grid; grid-template-columns: 1fr 1.1fr; gap: 6px; padding: 6px 10px 10px; overflow: auto; flex: 1; min-height: 0; }
 .fd-sm-col { min-width: 0; }
-.fd-sm-h { display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: 12px; color: var(--text-muted); margin: 8px 8px 6px; }
-.fd-sm-toggle { border: 0; border-radius: 4px; padding: 3px 8px; background: var(--surface-2); color: var(--text); font: inherit; font-size: 11.5px; cursor: pointer; }
+.fd-sm-h { display: flex; align-items: center; justify-content: space-between; font-weight: 600; font-size: var(--font-size-sm, 12px); color: var(--text-muted); margin: 8px 8px 6px; }
+.fd-sm-toggle { border: 0; border-radius: 4px; padding: 3px 8px; background: var(--surface-2); color: var(--text); font: inherit; font-size: var(--font-size-sm, 12px); cursor: pointer; }
 .fd-sm-toggle:hover { background: var(--surface-hover); }
 .fd-sm-apps { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; }
 .fd-sm-app, .fd-sm-file, .fd-sm-mod {
@@ -178,12 +178,12 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
 }
 .fd-sm-app:hover, .fd-sm-file:hover, .fd-sm-mod:hover { background: var(--surface-hover); }
 .fd-sm-mods { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; }
-.fd-sm-mod { font-size: 12px; padding: 4px 6px; }
+.fd-sm-mod { font-size: var(--font-size-sm, 12px); padding: 4px 6px; }
 .fd-sm-mod span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fd-sm-mod .waffle-module-icon { width: 24px; height: 24px; min-width: 24px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; color: #fff; }
 .fd-sm-file > span { display: flex; flex-direction: column; min-width: 0; }
 .fd-sm-fname, .fd-sm-fpath { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fd-sm-fpath { font-size: 11px; color: var(--text-dim); }
+.fd-sm-fpath { font-size: var(--font-size-xs, 11px); color: var(--text-dim); }
 .fd-sm-foot {
     display: flex; align-items: center; justify-content: space-between;
     padding: 10px 18px; border-top: 1px solid var(--border-soft); background: var(--surface-2);
@@ -202,7 +202,7 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
     display: inline-flex; align-items: center; gap: 6px;
     height: 30px; min-width: 30px; padding: 0 7px;
     border: 0; border-radius: 5px; background: transparent; color: var(--text);
-    font: inherit; font-size: 12.5px; cursor: pointer;
+    font: inherit; font-size: var(--font-size-md, 13px); cursor: pointer;
 }
 .fx-navbtn:hover:not(:disabled), .fx-cmd button:hover:not(:disabled) { background: var(--surface-hover); }
 .fx-navbtn:disabled, .fx-cmd button:disabled { opacity: .38; cursor: default; }
@@ -217,7 +217,7 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
 .fx-crumb {
     display: inline-flex; align-items: center; gap: 5px;
     height: 24px; padding: 0 6px; border: 1px solid transparent; border-radius: 4px;
-    background: transparent; color: var(--text); font: inherit; font-size: 12.5px; cursor: pointer;
+    background: transparent; color: var(--text); font: inherit; font-size: var(--font-size-md, 13px); cursor: pointer;
     max-width: 200px; overflow: hidden; text-overflow: ellipsis;
 }
 .fx-crumb:hover { background: var(--surface-hover); }
@@ -274,7 +274,7 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
     border: 1px solid transparent; border-radius: 4px; cursor: default;
 }
 .fx-view-icons .fx-name {
-    max-width: 100%; text-align: center; font-size: 12px; line-height: 1.3;
+    max-width: 100%; text-align: center; font-size: var(--font-size-sm, 12px); line-height: 1.3;
     word-break: break-word; overflow: hidden;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
@@ -291,13 +291,13 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
 .fx-dhead button {
     display: flex; align-items: center; gap: 4px;
     height: 28px; padding: 0 8px; border: 0; border-right: 1px solid var(--border-soft);
-    background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; text-align: left; cursor: pointer;
+    background: transparent; color: var(--text-muted); font: inherit; font-size: var(--font-size-sm, 12px); text-align: left; cursor: pointer;
 }
 .fx-dhead button:hover { background: var(--surface-hover); }
 .fx-dhead button:last-child { justify-content: flex-end; }
-.fx-sort { font-size: 8px; color: var(--text-dim); }
+.fx-sort { font-size: var(--font-size-xs, 11px); color: var(--text-dim); }
 .fx-view-details .fx-item { height: 28px; border: 1px solid transparent; border-radius: 3px; cursor: default; }
-.fx-c { padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: 12.5px; }
+.fx-c { padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: var(--font-size-md, 13px); }
 .fx-c-name { display: flex; align-items: center; gap: 6px; color: var(--text); }
 .fx-c-name .fx-ic { display: flex; flex: 0 0 auto; }
 .fx-c-name .fx-name { overflow: hidden; text-overflow: ellipsis; }
@@ -309,13 +309,13 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
 .fx-item.fx-drop { border-color: var(--fil-accent) !important; background: var(--fil-accent-soft); }
 .fx-rename {
     width: 100%; resize: none; overflow: hidden;
-    font: inherit; font-size: 12px; text-align: center;
+    font: inherit; font-size: var(--font-size-sm, 12px); text-align: center;
     border: 1px solid var(--fil-accent); border-radius: 2px; padding: 1px 3px;
     background: var(--surface); color: var(--text); outline: none;
 }
 .fx-view-details .fx-rename { text-align: left; height: 22px; }
 .fx-status {
-    display: flex; gap: 16px; padding: 4px 12px; font-size: 12px; color: var(--text-muted);
+    display: flex; gap: 16px; padding: 4px 12px; font-size: var(--font-size-sm, 12px); color: var(--text-muted);
     border-top: 1px solid var(--border-soft); background: var(--surface-2);
 }
 
@@ -333,17 +333,17 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
 .fd-mi {
     display: flex; align-items: center; gap: 10px; width: 100%;
     height: 30px; padding: 0 10px; border: 0; border-radius: 4px;
-    background: transparent; color: var(--text); font: inherit; font-size: 12.5px; text-align: left; cursor: default;
+    background: transparent; color: var(--text); font: inherit; font-size: var(--font-size-md, 13px); text-align: left; cursor: default;
 }
 .fd-mi:hover:not(:disabled), .fd-mi:focus-visible { background: var(--surface-hover); outline: none; }
 .fd-ctx:focus { outline: none; }
 .fd-mi:disabled { color: var(--text-faint); }
 .fd-mi-icon { width: 16px; display: flex; justify-content: center; color: var(--text-muted); }
 .fd-mi-label { flex: 1; }
-.fd-mi-key { font-size: 11px; color: var(--text-dim); }
+.fd-mi-key { font-size: var(--font-size-xs, 11px); color: var(--text-dim); }
 /* Child combinator: without it the submenu's own items (Icons, Details) got the arrow too. */
-.fd-mi.fd-has-sub > .fd-mi-key::after { content: '\203A'; font-size: 14px; }
-.fd-mi.fd-checked .fd-mi-icon::before { content: '\2022'; font-size: 20px; color: var(--fil-accent); line-height: 1; }
+.fd-mi.fd-has-sub > .fd-mi-key::after { content: '\203A'; font-size: var(--font-size-lg, 14px); }
+.fd-mi.fd-checked .fd-mi-icon::before { content: '\2022'; font-size: var(--font-size-3xl, 20px); color: var(--fil-accent); line-height: 1; }
 .fd-msep { height: 1px; background: var(--border-soft); margin: 4px 6px; }
 
 /* ── Dialogs and shared controls ──────────────────────────────────────── */
@@ -374,14 +374,14 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
 .fd-input:focus, .fd-select:focus { outline: none; border-color: var(--fil-accent); box-shadow: 0 0 0 1px var(--fil-accent); }
 .fd-iconbtn { width: 28px; height: 28px; border: 0; border-radius: 5px; background: transparent; color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .fd-iconbtn:hover { background: var(--surface-hover); color: var(--text); }
-.fd-badge { display: inline-block; padding: 1px 6px; border-radius: 9px; font-size: 10.5px; background: var(--fil-accent-soft); color: var(--fil-accent); vertical-align: 1px; }
+.fd-badge { display: inline-block; padding: 1px 6px; border-radius: 9px; font-size: var(--font-size-xs, 11px); background: var(--fil-accent-soft); color: var(--fil-accent); vertical-align: 1px; }
 .fd-muted { color: var(--text-dim); }
 .fd-pad { padding: 16px; }
-.fd-note { margin: 0 16px 8px; padding: 8px 10px; border-radius: 5px; background: var(--info-bg); color: var(--info-text); font-size: 12px; }
+.fd-note { margin: 0 16px 8px; padding: 8px 10px; border-radius: 5px; background: var(--info-bg); color: var(--info-text); font-size: var(--font-size-sm, 12px); }
 .fd-scroll { overflow: auto; }
 .fd-frame { flex: 1; width: 100%; border: 0; background: var(--surface); }
 .fd-table { width: 100%; border-collapse: collapse; }
-.fd-table th { text-align: left; font-weight: 600; font-size: 12px; color: var(--text-muted); padding: 6px 8px; border-bottom: 1px solid var(--border-soft); }
+.fd-table th { text-align: left; font-weight: 600; font-size: var(--font-size-sm, 12px); color: var(--text-muted); padding: 6px 8px; border-bottom: 1px solid var(--border-soft); }
 .fd-table td { padding: 6px 8px; border-bottom: 1px solid var(--border-soft); vertical-align: middle; }
 .fd-kv { width: calc(100% - 32px); margin: 0 16px; border-collapse: collapse; }
 .fd-kv th { width: 36%; text-align: left; font-weight: 400; color: var(--text-muted); padding: 6px 0; vertical-align: top; }
@@ -400,8 +400,8 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
 /* ── Permissions ──────────────────────────────────────────────────────── */
 .fd-perm { overflow: auto; }
 .fd-perm-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px 8px; }
-.fd-perm-name { font-weight: 600; font-size: 14px; }
-.fd-perm-path { font-size: 12px; color: var(--text-dim); }
+.fd-perm-name { font-weight: 600; font-size: var(--font-size-lg, 14px); }
+.fd-perm-path { font-size: var(--font-size-sm, 12px); color: var(--text-dim); }
 .fd-perm-inherit { display: flex; align-items: center; gap: 8px; padding: 4px 16px 10px; }
 .fd-perm-tablewrap { padding: 0 16px; }
 .fd-perm .fd-inherited td { color: var(--text-muted); }
@@ -415,15 +415,15 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
 }
 .fd-perm-res { display: block; width: 100%; padding: 6px 8px; border: 0; border-radius: 4px; background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .fd-perm-res:hover { background: var(--surface-hover); }
-.fd-perm-legend { padding: 12px 16px; font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+.fd-perm-legend { padding: 12px 16px; font-size: var(--font-size-sm, 12px); color: var(--text-dim); line-height: 1.5; }
 
 /* ── Properties ───────────────────────────────────────────────────────── */
 .fd-props { overflow: auto; }
 .fd-props-head { display: flex; align-items: center; gap: 12px; padding: 16px; }
-.fd-props-name { font-size: 15px; font-weight: 600; word-break: break-word; }
-.fd-props h4 { margin: 16px 16px 6px; font-size: 12.5px; }
+.fd-props-name { font-size: var(--font-size-xl, 16px); font-weight: 600; word-break: break-word; }
+.fd-props h4 { margin: 16px 16px 6px; font-size: var(--font-size-md, 13px); }
 .fd-props-versions { padding: 0 16px; }
-.fd-sha { font-family: Consolas, 'Courier New', monospace; font-size: 10.5px; color: var(--text-faint); word-break: break-all; margin-top: 2px; }
+.fd-sha { font-family: Consolas, 'Courier New', monospace; font-size: var(--font-size-xs, 11px); color: var(--text-faint); word-break: break-all; margin-top: 2px; }
 
 /* ── Transfers, search, personalise ───────────────────────────────────── */
 .fd-transfers { background: var(--surface); }
@@ -436,11 +436,11 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
 .fd-tr-bar i { display: block; height: 100%; width: 0; background: var(--fil-accent); transition: width .2s; }
 .fd-tr-done .fd-tr-bar i { background: var(--success-accent); }
 .fd-tr-error .fd-tr-bar i { background: var(--danger-accent); width: 100% !important; }
-.fd-tr-st { font-size: 11.5px; color: var(--text-dim); }
+.fd-tr-st { font-size: var(--font-size-sm, 12px); color: var(--text-dim); }
 .fd-tr-error .fd-tr-st { color: var(--danger-text); overflow-wrap: anywhere; }
-.fd-tr-help { margin-top: 4px; padding: 0; border: 0; background: none; color: var(--fil-accent); font: inherit; font-size: 11.5px; text-decoration: underline; cursor: pointer; }
+.fd-tr-help { margin-top: 4px; padding: 0; border: 0; background: none; color: var(--fil-accent); font: inherit; font-size: var(--font-size-sm, 12px); text-decoration: underline; cursor: pointer; }
 .fd-tr-help:hover { color: var(--fil-accent-hover); }
-.fd-tr-x { border: 0; background: transparent; color: var(--text-dim); font-size: 18px; width: 28px; height: 28px; border-radius: 4px; cursor: pointer; }
+.fd-tr-x { border: 0; background: transparent; color: var(--text-dim); font-size: var(--font-size-2xl, 18px); width: 28px; height: 28px; border-radius: 4px; cursor: pointer; }
 .fd-tr-x:hover { background: var(--surface-hover); color: var(--text); }
 .fd-tr-empty { padding: 30px; text-align: center; color: var(--text-dim); }
 /* Knowledge article preview (an article shortcut opened on the desktop) */
@@ -452,7 +452,7 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
 .fd-kb-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 10px; border: 0; border-radius: 4px; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .fd-kb-row:hover { background: var(--surface-hover); }
 .fd-kb-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fd-kb-meta { font-size: 11.5px; color: var(--text-dim); white-space: nowrap; }
+.fd-kb-meta { font-size: var(--font-size-sm, 12px); color: var(--text-dim); white-space: nowrap; }
 .fd-search-bar { padding: 10px; border-bottom: 1px solid var(--border-soft); }
 .fd-search-bar .fd-input { width: 100%; }
 .fd-search-out { flex: 1; }
@@ -463,9 +463,9 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
 .fd-rb .fx-dhead, .fd-rb .fx-view-details .fx-item {
     grid-template-columns: minmax(170px, 2.6fr) minmax(130px, 1.6fr) minmax(120px, 1.2fr) minmax(100px, 1fr) 120px;
 }
-.fd-rb-note { padding: 7px 12px; font-size: 12px; color: var(--text-muted); background: var(--surface-2); border-bottom: 1px solid var(--border-soft); }
+.fd-rb-note { padding: 7px 12px; font-size: var(--font-size-sm, 12px); color: var(--text-muted); background: var(--surface-2); border-bottom: 1px solid var(--border-soft); }
 .fd-pers { padding: 6px 18px 12px; overflow: auto; }
-.fd-pers h4 { margin: 14px 0 8px; font-size: 12.5px; }
+.fd-pers h4 { margin: 14px 0 8px; font-size: var(--font-size-md, 13px); }
 .fd-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
 .fd-swatch {
     width: 34px; height: 34px; border-radius: 6px; cursor: pointer; padding: 0;
@@ -475,7 +475,7 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
 .fd-swatch-custom { position: relative; overflow: hidden; background: conic-gradient(#f43f5e, #f59e0b, #84cc16, #06b6d4, #6366f1, #d946ef, #f43f5e); }
 .fd-swatch-custom input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
 .fd-radio { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
-.fd-pers-note { margin-top: 16px; font-size: 12px; }
+.fd-pers-note { margin-top: 16px; font-size: var(--font-size-sm, 12px); }
 
 /* ── Phones: no desktop - the list view lives in LAYER 45 of mobile.css. ──
    Hidden here, outside any media query, so the desktop never shows it (§25). */
@@ -486,7 +486,7 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
 /* Permissions window: the watermark choice. */
 .fd-perm-wm { padding: 12px 16px 0; }
 .fd-perm-wm label { display: flex; align-items: center; gap: 10px; font-weight: 600; }
-.fd-perm-wm .fd-muted { font-size: 12px; margin-top: 4px; }
+.fd-perm-wm .fd-muted { font-size: var(--font-size-sm, 12px); margin-top: 4px; }
 
 
 /* Shortcuts: the target's icon with the arrow badge in its corner. */
@@ -501,8 +501,8 @@ body[data-navbar="auto"] .fd-navsensor { display: block; position: fixed; top: 0
 /* GH #303: versions */
 .fx-c-name .fx-ver {
     flex-shrink: 0; margin-left: 6px; padding: 0 5px; border-radius: 8px;
-    font-size: 10px; line-height: 16px; font-weight: 600;
+    font-size: var(--font-size-xs, 11px); line-height: 16px; font-weight: 600;
     background: var(--surface-3, #eef2f7); color: var(--text-muted, #555);
 }
-.fd-ver-note { margin-top: 3px; font-size: 12px; color: var(--text, #333); font-style: italic; overflow-wrap: anywhere; }
-.fd-btn.fd-btn-sm { padding: 2px 8px; font-size: 11px; margin-left: 4px; min-width: 0; }
+.fd-ver-note { margin-top: 3px; font-size: var(--font-size-sm, 12px); color: var(--text, #333); font-style: italic; overflow-wrap: anywhere; }
+.fd-btn.fd-btn-sm { padding: 2px 8px; font-size: var(--font-size-xs, 11px); margin-left: 4px; min-width: 0; }

@@ -28,6 +28,45 @@ $analyst_name = $_SESSION['analyst_name'] ?? 'Analyst';
 $current_page = 'settings';
 $path_prefix = '../../';
 $translationNamespaces = ['common', 'morning-checks'];
+
+/**
+ * GH #383: "Repeats" in the add and edit check windows - printed by ONE function so the
+ * two windows cannot drift. Dropdowns and ticks only (Ed: no typed cron); filled, shown
+ * and read by morning-checks/schedule.js (MCSchedule), saved by MorningChecksService.
+ *
+ * @param string $p  'add' or 'edit' - the id prefix
+ */
+function mcScheduleFields(string $p): void
+{
+    $t = fn(string $k) => htmlspecialchars(t('morning-checks.schedule.' . $k));
+    ?>
+                <div class="form-group mc-sched">
+                    <label for="<?php echo $p; ?>SchedType"><?php echo $t('label'); ?></label>
+                    <select id="<?php echo $p; ?>SchedType" onchange="MCSchedule.sync('<?php echo $p; ?>')">
+                        <option value="daily"><?php echo $t('daily'); ?></option>
+                        <option value="weekdays"><?php echo $t('weekdays'); ?></option>
+                        <option value="weekly"><?php echo $t('weekly'); ?></option>
+                        <option value="monthly"><?php echo $t('monthly'); ?></option>
+                    </select>
+                    <div class="mc-sched-days" id="<?php echo $p; ?>SchedDays" hidden></div>
+                    <div class="mc-sched-month" id="<?php echo $p; ?>SchedMonth" hidden>
+                        <select id="<?php echo $p; ?>SchedWhen" onchange="MCSchedule.sync('<?php echo $p; ?>')" aria-label="<?php echo $t('when'); ?>">
+                            <option value="day"><?php echo $t('on_date'); ?></option>
+                            <option value="first_weekday"><?php echo $t('first_weekday'); ?></option>
+                            <option value="last_weekday"><?php echo $t('last_weekday'); ?></option>
+                            <option value="last_day"><?php echo $t('last_day'); ?></option>
+                        </select>
+                        <span id="<?php echo $p; ?>SchedDayWrap">
+                            <select id="<?php echo $p; ?>SchedDay" aria-label="<?php echo $t('day'); ?>">
+                                <?php for ($d = 1; $d <= 31; $d++): ?><option value="<?php echo $d; ?>"><?php echo $d; ?></option><?php endfor; ?>
+                            </select>
+                            <small class="form-hint"><?php echo $t('short_month'); ?></small>
+                        </span>
+                    </div>
+                    <small class="form-hint"><?php echo $t('hint'); ?></small>
+                </div>
+<?php
+}
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo htmlspecialchars(I18n::getLocale()); ?>" data-theme="<?php echo htmlspecialchars(Theme::active()); ?>" data-theme-mode="<?php echo htmlspecialchars(Theme::mode()); ?>">
@@ -36,12 +75,13 @@ $translationNamespaces = ['common', 'morning-checks'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('morning-checks', t('morning-checks.nav.settings'))); ?></title>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=93">
-    <link rel="stylesheet" href="../style.css?v=6">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
+    <link rel="stylesheet" href="../style.css?v=7">
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <?php echo Tz::scriptTag(); ?>
     <script src="../../assets/js/tz.js?v=5"></script>
+    <script src="../schedule.js?v=1"></script>   <!-- GH #383 -->
     <script src="../../assets/js/i18n.js?v=4"></script>
     <style>
         body { padding-top: 0; }
@@ -73,7 +113,7 @@ $translationNamespaces = ['common', 'morning-checks'];
             margin-bottom: 20px;
             min-height: 42px;
         }
-        .section-header h2 { margin: 0; font-size: 18px; color: var(--text, #2c3e50); }
+        .section-header h2 { margin: 0; font-size: var(--font-size-2xl, 18px); color: var(--text, #2c3e50); }
 
         /* Check items list. Rendered as a flat list with thin separators
            rather than per-row cards — the outer .tab-content already
@@ -108,15 +148,26 @@ $translationNamespaces = ['common', 'morning-checks'];
 
         /* Check info */
         .check-info { flex: 1; min-width: 0; }
-        .check-info strong { display: block; color: var(--text, #333); font-size: 14px; margin-bottom: 2px; }
+        .check-info strong { display: block; color: var(--text, #333); font-size: var(--font-size-lg, 14px); margin-bottom: 2px; }
         .check-description {
             display: block;
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--text-dim, #888);
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
         }
+
+        /* GH #383: the schedule, under a check's name, and the Repeats fields. */
+        .check-schedule { display: inline-block; margin-top: 3px; font-size: var(--font-size-xs, 11px); color: var(--text-muted, #666);
+                          background: var(--surface-2, #f3f4f6); border-radius: 4px; padding: 1px 6px; }
+        .mc-sched-days { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; }
+        .mc-sched-day { display: inline-flex; align-items: center; gap: 4px; font-weight: normal; cursor: pointer; }
+        .mc-sched-month { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+        .mc-sched-month select { width: auto; }
+        .mc-sched-month .form-hint { display: block; flex-basis: 100%; }
+        /* TRAP: display:flex above beats the hidden attribute - say it again for [hidden]. */
+        .mc-sched-days[hidden], .mc-sched-month[hidden], .mc-sched [hidden] { display: none; }
 
         /* Drag-and-drop states. Accent 2px line above / below the drop
            target indicates where the row will land. */
@@ -132,7 +183,7 @@ $translationNamespaces = ['common', 'morning-checks'];
             padding: 10px 8px;
             text-align: left;
             border-bottom: 1px solid var(--border-soft, #f0f0f0);
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
         }
         .lookup-table th { font-weight: 600; color: var(--text-muted, #666); background: var(--surface-2, #fafafa); }
         .lookup-table td:last-child,
@@ -175,7 +226,7 @@ $translationNamespaces = ['common', 'morning-checks'];
             text-align: center;
             padding: 40px 20px;
             color: var(--text-faint, #999);
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
         }
 
         /* Module accent (cyan) — drives tabs, toggles, focus rings, shared
@@ -234,8 +285,8 @@ $translationNamespaces = ['common', 'morning-checks'];
                  to a current StatusID (e.g. left over from a deleted
                  status). Hidden when no orphans exist. -->
             <div id="orphanSection" style="display: none; margin-top: 32px; padding: 16px; background: var(--warning-bg, #fff8e1); border: 1px solid var(--warning-border, #ffd54f); border-radius: 6px;">
-                <h3 style="margin: 0 0 6px; font-size: 16px; color: var(--warning-text, #663d00);">⚠ <?php echo htmlspecialchars(t('morning-checks.settings.orphan_heading')); ?></h3>
-                <p style="font-size: 13px; color: var(--warning-text, #5d4a00); margin-bottom: 14px;">
+                <h3 style="margin: 0 0 6px; font-size: var(--font-size-xl, 16px); color: var(--warning-text, #663d00);">⚠ <?php echo htmlspecialchars(t('morning-checks.settings.orphan_heading')); ?></h3>
+                <p style="font-size: var(--font-size-md, 13px); color: var(--warning-text, #5d4a00); margin-bottom: 14px;">
                     <?php echo t('morning-checks.settings.orphan_intro_html'); ?>
                 </p>
                 <table class="lookup-table" id="orphanTable">
@@ -335,18 +386,18 @@ $translationNamespaces = ['common', 'morning-checks'];
             <p style="color: var(--text-muted, #666); margin-bottom: 16px;"><?php echo htmlspecialchars(t('morning-checks.settings.chart_intro')); ?></p>
 
             <div class="form-group">
-                <label style="display: block; font-weight: 500; margin-bottom: 8px; color: var(--text, #333); font-size: 13px;"><?php echo htmlspecialchars(t('morning-checks.settings.chart_bar_fill')); ?></label>
+                <label style="display: block; font-weight: 500; margin-bottom: 8px; color: var(--text, #333); font-size: var(--font-size-md, 13px);"><?php echo htmlspecialchars(t('morning-checks.settings.chart_bar_fill')); ?></label>
                 <div style="display: flex; gap: 24px; margin-top: 4px;">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; color: var(--text, #333);">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: var(--font-size-lg, 14px); color: var(--text, #333);">
                         <input type="radio" name="chartFill" value="plain" id="chartFillPlain">
                         <?php echo htmlspecialchars(t('morning-checks.settings.chart_plain')); ?>
                     </label>
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; color: var(--text, #333);">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: var(--font-size-lg, 14px); color: var(--text, #333);">
                         <input type="radio" name="chartFill" value="gradient" id="chartFillGradient">
                         <?php echo htmlspecialchars(t('morning-checks.settings.chart_gradient')); ?>
                     </label>
                 </div>
-                <p style="font-size: 12px; color: var(--text-dim, #888); margin-top: 8px;"><?php echo htmlspecialchars(t('morning-checks.settings.chart_fill_help')); ?></p>
+                <p style="font-size: var(--font-size-sm, 12px); color: var(--text-dim, #888); margin-top: 8px;"><?php echo htmlspecialchars(t('morning-checks.settings.chart_fill_help')); ?></p>
             </div>
         </div>
     </div>
@@ -374,6 +425,7 @@ $translationNamespaces = ['common', 'morning-checks'];
                     <select id="addCheckAnalyst" class="mc-route-analyst"></select>
                     <small class="form-hint"><?php echo htmlspecialchars(t('morning-checks.settings.modal_check_analyst_hint')); ?></small>
                 </div>
+<?php mcScheduleFields('add'); ?>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeAddModal()"><?php echo htmlspecialchars(t('morning-checks.settings.modal_cancel')); ?></button>
                     <button type="submit" class="btn btn-primary"><?php echo htmlspecialchars(t('morning-checks.settings.modal_add')); ?></button>
@@ -406,6 +458,7 @@ $translationNamespaces = ['common', 'morning-checks'];
                     <select id="editCheckAnalyst" class="mc-route-analyst"></select>
                     <small class="form-hint"><?php echo htmlspecialchars(t('morning-checks.settings.modal_check_analyst_hint')); ?></small>
                 </div>
+<?php mcScheduleFields('edit'); ?>
                 <div class="form-group">
                     <label class="toggle-group">
                         <span class="toggle-switch">
@@ -534,6 +587,7 @@ $translationNamespaces = ['common', 'morning-checks'];
                     <div class="check-info">
                         <strong>${escapeHtml(check.CheckName)}</strong>
                         ${check.CheckDescription ? '<span class="check-description">' + escapeHtml(check.CheckDescription) + '</span>' : ''}
+                        ${MCSchedule.summary(check.Schedule) ? '<span class="check-schedule">' + escapeHtml(MCSchedule.summary(check.Schedule)) + '</span>' : ''}
                     </div>
                     <span class="status-badge status-${check.IsActive ? 'active' : 'inactive'}">
                         ${check.IsActive ? escapeHtml(window.t('morning-checks.settings.check_active')) : escapeHtml(window.t('morning-checks.settings.check_inactive'))}
@@ -625,6 +679,7 @@ $translationNamespaces = ['common', 'morning-checks'];
             document.getElementById('addCheckForm').reset();
             document.getElementById('addModal').classList.add('active');
             document.getElementById('addCheckName').focus();
+            MCSchedule.fill('add', null);   // GH #383: a new check is due every day until told otherwise
             await fillCheckRouting('addCheckGroup', 'addCheckAnalyst', null, null);
         }
 
@@ -640,6 +695,7 @@ $translationNamespaces = ['common', 'morning-checks'];
             document.getElementById('editCheckName').value = check.CheckName;
             document.getElementById('editCheckDescription').value = check.CheckDescription || '';
             document.getElementById('editIsActive').checked = check.IsActive;
+            MCSchedule.fill('edit', check.Schedule);   // GH #383
             document.getElementById('editModal').classList.add('active');
             document.getElementById('editCheckName').focus();
             await fillCheckRouting('editCheckGroup', 'editCheckAnalyst', check.GroupID, check.AssignedAnalystID);
@@ -698,7 +754,10 @@ $translationNamespaces = ['common', 'morning-checks'];
         document.getElementById('addCheckForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
+            const schedule = MCSchedule.read('add');   // GH #383; null = it said what is missing
+            if (!schedule) return;
             const formData = {
+                schedule: schedule,
                 checkName: document.getElementById('addCheckName').value.trim(),
                 checkDescription: document.getElementById('addCheckDescription').value.trim(),
                 sortOrder: checks.length,
@@ -732,7 +791,10 @@ $translationNamespaces = ['common', 'morning-checks'];
             const checkId = parseInt(document.getElementById('editCheckId').value);
             const check = checks.find(c => c.CheckID === checkId);
 
+            const schedule = MCSchedule.read('edit');   // GH #383
+            if (!schedule) return;
             const formData = {
+                schedule: schedule,
                 checkId: checkId,
                 checkName: document.getElementById('editCheckName').value.trim(),
                 checkDescription: document.getElementById('editCheckDescription').value.trim(),
@@ -863,15 +925,15 @@ $translationNamespaces = ['common', 'morning-checks'];
                 ).join('');
                 return `
                     <tr data-label="${escapeHtmlAttr(row.label)}">
-                        <td><code style="background: var(--surface-2, #f5f5f5); padding: 2px 6px; border-radius: 3px; font-size: 12px;">${escapeHtml(row.label)}</code></td>
+                        <td><code style="background: var(--surface-2, #f5f5f5); padding: 2px 6px; border-radius: 3px; font-size: var(--font-size-sm, 12px);">${escapeHtml(row.label)}</code></td>
                         <td>${row.count}</td>
                         <td>
-                            <select class="orphan-target" data-idx="${idx}" style="padding: 6px 10px; border: 1px solid var(--border, #ddd); border-radius: 4px; font-size: 13px;">
+                            <select class="orphan-target" data-idx="${idx}" style="padding: 6px 10px; border: 1px solid var(--border, #ddd); border-radius: 4px; font-size: var(--font-size-md, 13px);">
                                 ${options}
                             </select>
                         </td>
                         <td>
-                            <button type="button" class="btn btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="normaliseOneOrphan(${idx})">${escapeHtml(window.t('morning-checks.settings.orphan_map'))}</button>
+                            <button type="button" class="btn btn-primary" style="padding: 6px 12px; font-size: var(--font-size-sm, 12px);" onclick="normaliseOneOrphan(${idx})">${escapeHtml(window.t('morning-checks.settings.orphan_map'))}</button>
                         </td>
                     </tr>
                 `;
@@ -930,7 +992,7 @@ $translationNamespaces = ['common', 'morning-checks'];
                         <span class="status-swatch" style="background-color: ${escapeHtmlAttr(s.Colour)}"></span>
                         ${escapeHtml(s.Label)}
                     </td>
-                    <td><code style="font-size: 12px; color: var(--text-muted, #666);">${escapeHtml(s.Colour)}</code></td>
+                    <td><code style="font-size: var(--font-size-sm, 12px); color: var(--text-muted, #666);">${escapeHtml(s.Colour)}</code></td>
                     <td>${s.RequiresNotes ? '<span class="badge-yes">' + escapeHtml(window.t('morning-checks.settings.yes')) + '</span>' : '<span class="badge-no">' + escapeHtml(window.t('morning-checks.settings.no')) + '</span>'}</td>
                     <td><span class="status-badge status-${s.IsActive ? 'active' : 'inactive'}">${s.IsActive ? escapeHtml(window.t('morning-checks.settings.status_active')) : escapeHtml(window.t('morning-checks.settings.status_inactive'))}</span></td>
                     <td>
@@ -1109,11 +1171,11 @@ $translationNamespaces = ['common', 'morning-checks'];
                 // actually happen rather than list both hopefully.
                 const routed = g.AnalystName
                     ? escapeHtml(g.AnalystName)
-                    : (g.TeamName ? escapeHtml(g.TeamName) + ' <span style="color:var(--text-dim,#999);font-size:11px;">('
+                    : (g.TeamName ? escapeHtml(g.TeamName) + ' <span style="color:var(--text-dim,#999);font-size:var(--font-size-xs, 11px);">('
                         + escapeHtml(window.t('morning-checks.settings.route_team_word')) + ')</span>'
                         : `<span style="color:var(--text-dim,#999);">${escapeHtml(window.t('morning-checks.settings.route_nobody'))}</span>`);
                 return `<tr>
-                    <td><strong>${escapeHtml(g.GroupName)}</strong>${g.GroupDescription ? `<div style="font-size:12px;color:var(--text-muted,#666);">${escapeHtml(g.GroupDescription)}</div>` : ''}</td>
+                    <td><strong>${escapeHtml(g.GroupName)}</strong>${g.GroupDescription ? `<div style="font-size:var(--font-size-sm, 12px);color:var(--text-muted,#666);">${escapeHtml(g.GroupDescription)}</div>` : ''}</td>
                     <td>${routed}</td>
                     <td>${Number(g.CheckCount) || 0}</td>
                     <td>${Number(g.SortOrder) || 0}</td>
@@ -1247,6 +1309,6 @@ $translationNamespaces = ['common', 'morning-checks'];
             loadGroups();
         });
     </script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

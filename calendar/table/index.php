@@ -33,8 +33,8 @@ $translationNamespaces = ['common', 'calendar'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('calendar', t('calendar.nav.table'))); ?></title>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../../assets/css/calendar-grid.css?v=1">
     <link rel="stylesheet" href="../../assets/css/itsm_calendar.css?v=11">
     <link rel="stylesheet" href="../../assets/css/data-table.css?v=7">
@@ -57,8 +57,8 @@ $translationNamespaces = ['common', 'calendar'];
         <?php include '../../includes/data-table-skeleton.php'; ?>
     </div>
 
-    <script src="../../assets/js/data-table.js?v=10"></script>
+    <script src="../../assets/js/data-table.js?v=11"></script>
     <script src="../../assets/js/calendar-table.js?v=3"></script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

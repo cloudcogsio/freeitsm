@@ -174,7 +174,7 @@ return [
     'projects' => [
         'metric_red' => 'Desviados',
         'metric_amber' => 'En riesgo',
-        'metric_week' => 'Fechas esta semana',
+        'metric_week'    => 'Proyectos con fechas esta semana',
         'off_track' => '{name} está desviado',
         'more_off_track' => '<span class="wt-attention-bold">{count}</span> proyecto(s) más desviado(s)',
         'breaches' => '<span class="wt-attention-bold">{count}</span> proyecto(s) fuera de una tolerancia',
@@ -193,6 +193,7 @@ return [
         'metric_total' => 'Total',
         'metric_offline' => 'Sin conexión',
         'metric_lease' => 'Arrendamiento',
+        'metric_consumables' => 'Stock bajo',   // Consumables (5.8.0)
         'metric_warranty' => 'Garantía',
         'warranty' => '<span class="wt-attention-bold">{count}</span> activo(s) con garantía vencida o que vence en {days} días',
         'lease' => '<span class="wt-attention-bold">{count}</span> activo(s) con arrendamiento terminado o que termina en {days} días',
@@ -237,7 +238,7 @@ return [
         's1_feat3_title' => 'Actualización automática',
         's1_feat3_desc' => 'El panel se actualiza automáticamente cada 5 minutos, por lo que la información se mantiene al día sin ninguna acción manual. Deja Watchtower abierto y se mantendrá actualizado en segundo plano.',
         's1_feat4_title' => 'Acceso directo',
-        's1_feat4_desc' => 'Salta directamente a cualquier módulo desde su tarjeta. El nombre de cada módulo es un enlace en el que se puede hacer clic que te lleva directamente al área relevante, para que puedas actuar sobre los problemas sin buscar la página correcta.',
+        's1_feat4_desc' => 'Cada número de una tarjeta es un enlace, y también el icono de cada tarjeta. Haz clic en un número y su módulo se abre ya filtrado exactamente a lo que contó ese número (un estado de ticket abre la lista de tickets en ese estado; los contratos que vencen en 30 días abren esos contratos), con una etiqueta o una carpeta resaltada que indica por qué la lista es más corta. Quítala y vuelves a la lista normal.',
         's2_title' => 'La disposición del panel',
         's2_p1' => 'El panel de Watchtower utiliza una cuadrícula adaptable de 3 columnas de tarjetas de módulo. En pantallas más pequeñas, la cuadrícula se adapta a 2 columnas o a una sola columna, por lo que funciona en cualquier dispositivo. Encima de la cuadrícula está la barra de título con un botón de actualización y una marca de tiempo «Actualizado» que muestra cuándo se obtuvieron los datos por última vez.',
         's2_p2' => 'Cada tarjeta de la cuadrícula sigue una estructura coherente para que puedas examinarlas rápidamente:',
@@ -334,5 +335,9 @@ return [
         'impersonal_show' => 'Seguir mostrándolas',
         'impersonal_hide' => 'Ocultarlas',
         'impersonal_note' => 'El estado del servicio, los flujos de trabajo, el equipo, el calendario compartido, los contratos, el conocimiento, las licencias de software y los dominios pertenecen al equipo y no a una persona, por lo que no se pueden acotar a usted. Mantenerlos es lo más seguro: un servicio degradado es lo último que debería desaparecer por haber cambiado a una vista personal.',
+        // Discussion #388
+        'refresh_heading' => 'Watchtower se actualiza cada',
+        'refresh_minutes' => '{n} min',
+        'refresh_note' => 'Más a menudo conviene para una pantalla en la pared: un usuario que solo inicia sesión para ella sigue conectado y el panel se actualiza solo.',
     ],
 ];

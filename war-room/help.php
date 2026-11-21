@@ -32,8 +32,8 @@ $translationNamespaces = ['common', 'war-room'];
     <?php echo Tz::scriptTag(); ?>
     <script src="../assets/js/tz.js?v=5"></script>
     <script src="../assets/js/i18n.js?v=4"></script>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/help.css?v=6">
     <style>
         /* The only thing a help page should need to say for itself: its colour. */
@@ -51,11 +51,11 @@ $translationNamespaces = ['common', 'war-room'];
             grid-template-columns: max-content 1fr;
             gap: 6px 18px;
             margin-top: 4px;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
         }
         .help-cmds code {
             font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             color: var(--accent);
             white-space: nowrap;
         }
@@ -240,6 +240,48 @@ $translationNamespaces = ['common', 'war-room'];
                             <div>
                                 <h4><?php echo htmlspecialchars(t('war-room.help.talking_edit_title')); ?></h4>
                                 <p><?php echo htmlspecialchars(t('war-room.help.talking_edit_desc')); ?></p>
+                            </div>
+                        </div>
+                        <div class="help-step">
+                            <span class="help-step-num">5</span>
+                            <div>
+                                <h4><?php echo htmlspecialchars(t('war-room.help.talking_menu_title')); ?></h4>
+                                <p><?php echo htmlspecialchars(t('war-room.help.talking_menu_desc')); ?></p>
+                            </div>
+                        </div>
+                        <div class="help-step">
+                            <span class="help-step-num">6</span>
+                            <div>
+                                <h4><?php echo htmlspecialchars(t('war-room.help.talking_open_title')); ?></h4>
+                                <p><?php echo htmlspecialchars(t('war-room.help.talking_open_desc')); ?></p>
+                            </div>
+                        </div>
+                        <div class="help-step">
+                            <span class="help-step-num">7</span>
+                            <div>
+                                <h4><?php echo htmlspecialchars(t('war-room.help.talking_keep_title')); ?></h4>
+                                <p><?php echo htmlspecialchars(t('war-room.help.talking_keep_desc')); ?></p>
+                            </div>
+                        </div>
+                        <div class="help-step">
+                            <span class="help-step-num">8</span>
+                            <div>
+                                <h4><?php echo htmlspecialchars(t('war-room.help.talking_translate_title')); ?></h4>
+                                <p><?php echo htmlspecialchars(t('war-room.help.talking_translate_desc')); ?></p>
+                            </div>
+                        </div>
+                        <div class="help-step">
+                            <span class="help-step-num">9</span>
+                            <div>
+                                <h4><?php echo htmlspecialchars(t('war-room.help.talking_thread_title')); ?></h4>
+                                <p><?php echo htmlspecialchars(t('war-room.help.talking_thread_desc')); ?></p>
+                            </div>
+                        </div>
+                        <div class="help-step">
+                            <span class="help-step-num">10</span>
+                            <div>
+                                <h4><?php echo htmlspecialchars(t('war-room.help.talking_forward_title')); ?></h4>
+                                <p><?php echo htmlspecialchars(t('war-room.help.talking_forward_desc')); ?></p>
                             </div>
                         </div>
                     </div>
@@ -433,6 +475,6 @@ $translationNamespaces = ['common', 'war-room'];
             });
         });
     </script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

@@ -62,13 +62,34 @@
     var offline   = false;
     var channels  = [];
     var pending   = [];      // files chosen but not yet sent
+    var quoting   = null;    // the message the next one quotes (5.9.0), or null
+    var focusId   = window.WR_FOCUS || 0;   // a permanent link's message, until it is shown
+    var holdRead  = 0;       // a channel marked unread: not marked read again until it is left (5.9.0)
+    var threadRoot = 0;      // the open thread's first message (5.9.0), 0 when none
+    var threadLastId = 0;    // the open thread's since-watermark
+    var threadMsgs = null;   // the open thread's message list in the side panel
+    var threadFocus = 0;     // a reply to highlight once the thread has loaded
+
+    // Translation (5.9.0): each message shown in the reader's FreeITSM language once
+    // the server has a translation; the original is always one click away.
+    var TR = window.WR_TRANSLATE || { available: false, on: false, lang: 'en' };
+    var trCache = {};        // id -> {text, body}: translations fetched this visit, tied to the text they translate
+    var trAsked = {};        // id -> time asked, so a message is not asked about twice (or retried for a minute after a failure)
+    var trOriginal = {};     // id -> true: this reader chose "Show original" for it
+    var trFresh = {};        // id -> true: just arrived, fade it in once
+
+    // The ten reactions offered first (wiki War-Room-Message-Actions-Design). The
+    // full list ships with FreeITSM - nothing comes from the internet.
+    var QUICK_EMOJI = ['\uD83D\uDC4D', '\u2764\uFE0F', '\uD83D\uDE02', '\uD83D\uDE2E', '\uD83D\uDE22',
+                       '\uD83C\uDF89', '\uD83D\uDC40', '\u2705', '\uD83D\uDE4F', '\uD83D\uDD25'];
+    var EMOJI_URL = (window.WR_LINK_BASE || '../war-room/').replace(/war-room\/$/, '') + 'assets/js/war-room-emoji.json?v=1';
 
     var els = {};
     ['wrChannels', 'wrMessages', 'wrEmpty', 'wrComposer', 'wrBody', 'wrSend', 'wrPresence',
      'wrTitle', 'wrTopic', 'wrPanel', 'wrPanelTitle', 'wrPanelBody', 'wrPanelClose',
      'wrModal', 'wrModalTitle', 'wrModalBody', 'wrModalClose', 'wrSearchBtn', 'wrSitrepBtn',
      'wrManageBtn', 'wrNewChannel', 'wrNewDm', 'wrFiles', 'wrPending', 'wrArchivedNote',
-     'wrAttachLabel'].forEach(function (id) { els[id] = document.getElementById(id); });
+     'wrAttachLabel', 'wrSavedBtn'].forEach(function (id) { els[id] = document.getElementById(id); });
 
     /** Translates a key through window.t, or returns the key when no translator is loaded. */
     function t(key, vars) {
@@ -175,6 +196,7 @@
     /** Opens another channel - clears the message list, resets the since_id watermark and polls at once. */
     function switchChannel(id) {
         if (id === activeId) return;
+        holdRead = 0;   // marked unread: it stays so until you come back, which is now possible
         activeId = id;
         lastId = 0;
         clear(els.wrMessages);
@@ -183,6 +205,8 @@
         renderChannels();
         applyChannelHeader();
         closePanel();
+        closeMenu();
+        clearQuote();
         poll();
     }
 
@@ -196,7 +220,8 @@
     /**
      * Builds one message row - author, Warbot tag, time, edited flag, body with @mentions, edit/delete buttons and attachments - all as text nodes.
      */
-    function renderMessage(m) {
+    function renderMessage(m, ctx) {
+        ctx = ctx || 'main';   // 'main' = the conversation, 'thread' = the thread panel (5.9.0)
         var row = el('div', 'wr-msg' + (m.deleted ? ' wr-msg-deleted' : '') + (m.is_bot ? ' wr-msg-bot' : ''));
         row.setAttribute('data-msg-id', m.id);
 
@@ -210,6 +235,19 @@
         // Both are stated, never silent: this is the record of an incident, and a
         // reader has to be able to tell a message that changed from one that did not.
         if (m.edited && !m.deleted) head.appendChild(el('span', 'wr-msg-flag', t('war-room.message.edited')));
+        // Pinned for everyone, and saved by you (5.9.0) - small marks, with who and when on hover.
+        if (m.pinned && !m.deleted) {
+            var pin = el('span', 'wr-msg-mark', '\uD83D\uDCCC');
+            pin.title = t('war-room.pins.by', { name: m.pinned.by, time: localTime(m.pinned.at) });
+            pin.setAttribute('aria-label', pin.title);
+            head.appendChild(pin);
+        }
+        if (m.saved && !m.deleted) {
+            var sv = el('span', 'wr-msg-mark', '\uD83D\uDD16');
+            sv.title = t('war-room.saved.flag');
+            sv.setAttribute('aria-label', sv.title);
+            head.appendChild(sv);
+        }
         row.appendChild(head);
 
         if (m.deleted) {
@@ -218,31 +256,63 @@
             return row;
         }
 
-        var body = el('div', 'wr-msg-body');
-        renderBodyWithMentions(body, m.body);
-        row.appendChild(body);
+        // A forward (5.9.0): where it came from, linking back - the link opens only
+        // for people who can read the original conversation.
+        if (m.forward) {
+            var fw = el('a', 'wr-fwd', '\u21AA ' + t('war-room.forward.from', {
+                author: m.forward.author, channel: m.forward.channel || '?', time: localTime(m.forward.created) }));
+            fw.href = (window.WR_LINK_BASE || '') + '?message=' + m.forward.from;
+            row.appendChild(fw);
+        }
 
-        // Nobody owns Warbot's messages, so nobody gets the edit/delete controls
-        // on one except somebody who can moderate the room.
-        if (m.is_bot && !canManage) return row;
+        // The message this one quotes (5.9.0) - drawn from the reference, never
+        // pasted text, so it says so if the original was deleted or has gone.
+        if (m.quote) row.appendChild(renderQuote(m.quote));
+
+        var body = el('div', 'wr-msg-body');
+        var tr = translationOf(m);
+        renderBodyWithMentions(body, tr && !trOriginal[m.id] ? tr : m.body);
+        if (tr && !trOriginal[m.id] && trFresh[m.id]) { body.classList.add('wr-tr-fade'); delete trFresh[m.id]; }
+        row.appendChild(body);
+        if (tr) row.appendChild(translationNote(m));
 
         // Edit and delete belong to the author; delete also to war_room.manage.
-        // Rendered per message rather than in a menu, because a message you can act
-        // on and one you cannot should not look identical.
-        if (m.analyst_id === me || canManage) {
-            var acts = el('div', 'wr-msg-acts');
-            if (m.analyst_id === me) {
-                var ed = el('button', 'wr-msg-act', t('war-room.message.edit'));
-                ed.type = 'button';
-                ed.addEventListener('click', function () { openEdit(m); });
-                acts.appendChild(ed);
-            }
+        // Rendered per message as well as in the menu, because a message you can act
+        // on and one you cannot should not look identical. Nobody owns Warbot's
+        // messages, so only a moderator gets Delete on one.
+        var acts = el('div', 'wr-msg-acts');
+        if (mayEdit(m)) {
+            var ed = el('button', 'wr-msg-act', t('war-room.message.edit'));
+            ed.type = 'button';
+            ed.addEventListener('click', function () { openEdit(m); });
+            acts.appendChild(ed);
+        }
+        if (mayDelete(m)) {
             var del = el('button', 'wr-msg-act', t('war-room.message.delete'));
             del.type = 'button';
             del.addEventListener('click', function () { openDelete(m); });
             acts.appendChild(del);
-            row.appendChild(acts);
         }
+        // The menu's keyboard and touch way in: right-click is not the only door.
+        var more = el('button', 'wr-msg-act wr-msg-more', '\u22EF');
+        more.type = 'button';
+        more.setAttribute('aria-label', t('war-room.menu.label'));
+        more.setAttribute('aria-haspopup', 'menu');
+        more.addEventListener('click', function () {
+            var r = more.getBoundingClientRect();
+            openMenu(m, r.right, r.bottom + 4, more, ctx);
+        });
+        acts.appendChild(more);
+        row.appendChild(acts);
+
+        row.addEventListener('contextmenu', function (e) {
+            // Selected text keeps the browser's own menu, so Copy still works on part of a message.
+            var sel = window.getSelection ? String(window.getSelection()) : '';
+            if (sel && row.contains(window.getSelection().anchorNode)) return;
+            e.preventDefault();
+            openMenu(m, e.clientX, e.clientY, null, ctx);
+        });
+        addLongPress(row, m, ctx);
 
         if (m.attachments && m.attachments.length) {
             var wrap = el('div', 'wr-attachments');
@@ -254,6 +324,7 @@
                     // the server, never from the uploader.
                     var link = el('a', 'wr-thumb');
                     link.href = href; link.target = '_blank'; link.rel = 'noopener';
+                    viewOnClick(link, a, href);
                     var img = document.createElement('img');
                     img.src = href; img.alt = a.name; img.loading = 'lazy';
                     link.appendChild(img);
@@ -261,12 +332,30 @@
                 } else {
                     var f = el('a', 'wr-file');
                     f.href = href; f.target = '_blank'; f.rel = 'noopener';
+                    viewOnClick(f, a, href);
                     f.appendChild(el('span', 'wr-file-name', a.name));
                     f.appendChild(el('span', 'wr-file-size', bytes(a.size)));
                     wrap.appendChild(f);
                 }
             });
             row.appendChild(wrap);
+        }
+        if (m.reactions && m.reactions.length) row.appendChild(renderReactions(m));
+        // Threads (5.9.0): under a first message, how many replies and when the last
+        // came; on a reply also sent to the conversation, the way into its thread.
+        if (ctx === 'main' && m.thread && m.thread.count) {
+            var sum = el('button', 'wr-thread-summary',
+                '\uD83D\uDCAC ' + (m.thread.count === 1 ? t('war-room.thread.reply_one') : t('war-room.thread.replies', { count: m.thread.count }))
+                + ' \u00B7 ' + t('war-room.thread.last', { time: localTime(m.thread.last) }));
+            sum.type = 'button';
+            sum.addEventListener('click', function () { openThread(m.id, 0); });
+            row.appendChild(sum);
+        }
+        if (ctx === 'main' && m.thread_root && m.in_channel) {
+            var inT = el('button', 'wr-thread-link', '\u21AA ' + t('war-room.thread.in_thread'));
+            inT.type = 'button';
+            inT.addEventListener('click', function () { openThread(m.thread_root, m.id); });
+            row.appendChild(inT);
         }
         return row;
     }
@@ -348,7 +437,8 @@
         var added = false;
 
         list.forEach(function (m) {
-            var node = renderMessage(m);
+            messageById[m.id] = m;
+            var node = renderMessage(m, 'main');
             // ⚠️ UPSERT BY ID, NEVER BLIND APPEND. The poll deliberately re-sends
             // a message that was edited or deleted in the last 30 seconds, because
             // its id is below the since_id watermark and it would otherwise never
@@ -369,6 +459,7 @@
         // Only scroll for genuinely NEW messages. Following an edit to the bottom
         // would yank the reader away from whatever they had scrolled back to.
         if (atBottom && added) els.wrMessages.scrollTop = els.wrMessages.scrollHeight;
+        scheduleTranslate();
     }
 
     /* ── presence ──────────────────────────────────────────────────────────── */
@@ -402,17 +493,27 @@
      */
     function poll() {
         var url = api + 'poll.php?channel_id=' + encodeURIComponent(activeId) +
-                  '&since_id=' + encodeURIComponent(lastId) + '&read=1';
+                  '&since_id=' + encodeURIComponent(lastId) + '&read=' + (holdRead === activeId ? '0' : '1') +
+                  (focusId && lastId === 0 ? '&around=' + encodeURIComponent(focusId) : '') +
+                  (threadRoot ? '&thread_root=' + encodeURIComponent(threadRoot) + '&thread_since=' + encodeURIComponent(threadLastId) : '');
         fetch(url, { credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 if (!d || !d.success) throw new Error('poll failed');
                 offline = false;
                 appendMessages(d.messages || []);
+                if (d.thread && threadRoot) appendThread(d.thread);
+                if (focusId) {
+                    var f = focusId; focusId = 0;
+                    // A link to a reply that only lives in its thread opens the thread (5.9.0).
+                    if (d.focus_root && !els.wrMessages.querySelector('[data-msg-id="' + f + '"]')) openThread(d.focus_root, f);
+                    else highlightMessage(f, true);
+                }
                 channels = d.channels || [];
                 renderChannels();
                 applyChannelHeader();
                 renderPresence(d.present);
+                renderPinBar(d.pins || 0);
             })
             .catch(function () {
                 // ⚠️ Say so. The one thing this module must never do is let
@@ -643,6 +744,847 @@
         });
     }
 
+    /* ── doing things with a message (5.9.0) ──────────────────────────────────
+       wiki War-Room-Message-Actions-Design. Right-click, the ⋯ button, or a long
+       press on a phone opens one menu: ten quick reactions and + for the full
+       picker, then Quote, Copy message, Copy link, Edit, Delete. Everything here
+       is still built from text nodes - no message text ever becomes markup. */
+
+    /** True when the analyst may edit this message: their own, never Warbot's, never a deleted one. */
+    function mayEdit(m) { return !m.deleted && !m.is_bot && m.analyst_id === me; }
+    /** True when the analyst may delete it: their own, or anybody's with war_room.manage. */
+    function mayDelete(m) { return !m.deleted && (canManage || (!m.is_bot && m.analyst_id === me)); }
+
+    /** The message object currently drawn with this id - the poll keeps them fresh. */
+    var messageById = {};
+
+    var menuEl = null, menuReturn = null;
+
+    /** Closes the message menu and the emoji picker, handing focus back where it came from. */
+    function closeMenu() {
+        if (menuEl) { menuEl.remove(); menuEl = null; }
+        closePicker();
+        if (menuReturn && document.contains(menuReturn)) menuReturn.focus();
+        menuReturn = null;
+    }
+
+    /** Places a floating box at (x, y), kept inside the window. */
+    function placeBox(box, x, y, alignRight) {
+        box.style.left = '0px'; box.style.top = '0px';
+        document.body.appendChild(box);
+        var w = box.offsetWidth, h = box.offsetHeight;
+        var left = alignRight ? x - w : x;
+        left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+        var top = y + h > window.innerHeight - 8 ? Math.max(8, y - h) : y;
+        box.style.left = left + 'px';
+        box.style.top = top + 'px';
+    }
+
+    /**
+     * Opens the message menu at (x, y).
+     * @param {Object} m  the message, as the poll sent it
+     * @param {HTMLElement|null} from  the ⋯ button that opened it, for focus to return to
+     */
+    function openMenu(m, x, y, from, ctx) {
+        ctx = ctx || 'main';
+        closeMenu();
+        if (m.deleted) return;
+        m = messageById[m.id] || m;
+        menuReturn = from;
+        menuEl = el('div', 'wr-menu');
+        menuEl.setAttribute('role', 'menu');
+        menuEl.setAttribute('aria-label', t('war-room.menu.label'));
+
+        var canPost = !els.wrComposer.hidden;   // an archived channel is read-only
+        if (canPost) {
+            var quick = el('div', 'wr-menu-emoji');
+            QUICK_EMOJI.forEach(function (e) {
+                var b = el('button', 'wr-menu-emo' + (myReaction(m, e) ? ' is-mine' : ''), e);
+                b.type = 'button';
+                b.setAttribute('role', 'menuitem');
+                b.setAttribute('aria-label', t('war-room.menu.react', { emoji: e }));
+                b.addEventListener('click', function () { closeMenu(); react(m, e, !myReaction(m, e)); });
+                quick.appendChild(b);
+            });
+            var plus = el('button', 'wr-menu-emo wr-menu-plus', '+');
+            plus.type = 'button';
+            plus.setAttribute('role', 'menuitem');
+            plus.setAttribute('aria-label', t('war-room.menu.more_reactions'));
+            plus.title = t('war-room.menu.more_reactions');
+            plus.addEventListener('click', function () {
+                var r = menuEl.getBoundingClientRect();
+                var keep = m;
+                closeMenu();
+                openPicker(keep, r.left, r.top);
+            });
+            quick.appendChild(plus);
+            menuEl.appendChild(quick);
+        }
+
+        /** Adds one text item to the menu. */
+        function item(label, fn) {
+            var b = el('button', 'wr-menu-item', label);
+            b.type = 'button';
+            b.setAttribute('role', 'menuitem');
+            b.addEventListener('click', function () { closeMenu(); fn(); });
+            menuEl.appendChild(b);
+        }
+        // In the thread panel the reply box is the thread's own, so Quote (which fills the
+        // conversation's box) and Reply in thread are offered only in the conversation.
+        if (canPost && ctx === 'main') item(t('war-room.menu.thread'), function () { openThread(m.thread_root || m.id, 0); });
+        if (canPost && ctx === 'main') item(t('war-room.menu.quote'), function () { startQuote(m); });
+        // Two plain items rather than a hover submenu (Ed, 21 Nov 2026): one click each,
+        // and they work the same with a keyboard and on a phone, where nothing hovers.
+        item(t('war-room.menu.copy_text'), function () { copyMessage(m, false); });
+        item(t('war-room.menu.copy_full'), function () { copyMessage(m, true); });
+        item(t('war-room.menu.copy_link'), function () { copyLink(m); });
+        item(t('war-room.menu.forward'), function () { openForward(m); });
+        if (window.WR_SEEN_BY && !(m.thread_root && !m.in_channel)) item(t('war-room.menu.seen'), function () { openSeenBy(m); });
+        menuEl.appendChild(el('div', 'wr-menu-sep'));
+        if (canPost) item(t(m.pinned ? 'war-room.menu.unpin' : 'war-room.menu.pin'), function () { pinMessage(m, !m.pinned); });
+        item(t(m.saved ? 'war-room.menu.unsave' : 'war-room.menu.save'), function () { saveMessage(m, !m.saved); });
+        item(t('war-room.menu.unread'), function () { markUnread(m); });
+        if (mayEdit(m) || mayDelete(m)) menuEl.appendChild(el('div', 'wr-menu-sep'));
+        if (mayEdit(m)) item(t('war-room.message.edit'), function () { openEdit(m); });
+        if (mayDelete(m)) item(t('war-room.message.delete'), function () { openDelete(m); });
+
+        menuEl.addEventListener('keydown', menuKeys);
+        placeBox(menuEl, x, y, !!from);
+        var first = menuEl.querySelector('button');
+        if (first) first.focus();
+    }
+
+    /** Arrow keys move through the menu; Escape closes it. */
+    function menuKeys(e) {
+        var items = Array.prototype.slice.call(menuEl.querySelectorAll('button'));
+        var i = items.indexOf(document.activeElement);
+        if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+        else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+        else if (e.key === 'Escape') { e.preventDefault(); closeMenu(); }
+        else if (e.key === 'Tab') { closeMenu(); }
+    }
+
+    document.addEventListener('mousedown', function (e) {
+        if (menuEl && !menuEl.contains(e.target)) closeMenu();
+        if (pickerEl && !pickerEl.contains(e.target)) closePicker();
+    });
+    window.addEventListener('resize', closeMenu);
+    els.wrMessages.addEventListener('scroll', function () { if (menuEl) closeMenu(); });
+
+    /** A long press opens the menu on a phone, where there is no right-click. Moving cancels it. */
+    function addLongPress(row, m, ctx) {
+        var timer = null, sx = 0, sy = 0;
+        row.addEventListener('touchstart', function (e) {
+            if (e.touches.length !== 1) return;
+            sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+            timer = setTimeout(function () { timer = null; openMenu(m, sx, sy, null, ctx); }, 550);
+        }, { passive: true });
+        /** Cancels a pending long press. */
+        var cancel = function () { if (timer) { clearTimeout(timer); timer = null; } };
+        row.addEventListener('touchmove', function (e) {
+            if (Math.abs(e.touches[0].clientX - sx) > 10 || Math.abs(e.touches[0].clientY - sy) > 10) cancel();
+        }, { passive: true });
+        row.addEventListener('touchend', cancel);
+        row.addEventListener('touchcancel', cancel);
+    }
+
+    /* ── reactions ── */
+
+    /** True when the analyst has already given this emoji to the message. */
+    function myReaction(m, emoji) {
+        return (m.reactions || []).some(function (r) { return r.emoji === emoji && r.mine; });
+    }
+
+    /** The row of reactions under a message: each emoji, its count, and who on hover. Click to add or take away yours. */
+    function renderReactions(m) {
+        var wrap = el('div', 'wr-reactions');
+        m.reactions.forEach(function (r) {
+            var b = el('button', 'wr-reaction' + (r.mine ? ' is-mine' : ''));
+            b.type = 'button';
+            b.appendChild(el('span', 'wr-reaction-emo', r.emoji));
+            b.appendChild(el('span', 'wr-reaction-n', String(r.count)));
+            b.title = (r.names || []).join(', ');
+            b.setAttribute('aria-pressed', r.mine ? 'true' : 'false');
+            b.setAttribute('aria-label', t('war-room.reactions.label', { emoji: r.emoji, names: (r.names || []).join(', ') }));
+            b.disabled = els.wrComposer.hidden;   // archived: read-only
+            b.addEventListener('click', function () { react(m, r.emoji, !r.mine); });
+            wrap.appendChild(b);
+        });
+        return wrap;
+    }
+
+    /** Adds (on) or takes away a reaction, then polls so it shows at once; the poll brings everybody else's. */
+    function react(m, emoji, on) {
+        if (on) rememberEmoji(emoji);
+        fetch(api + 'message.php', {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'react', id: m.id, emoji: emoji, on: on ? 1 : 0 })
+        }).then(function (r) { return r.json(); })
+          .then(function (d) { if (!d || !d.success) throw new Error('failed'); poll(); })
+          .catch(function () { toast(t('war-room.reactions.failed')); });
+    }
+
+    /* ── the full emoji picker ── */
+
+    var pickerEl = null, emojiData = null;
+    var RECENT_KEY = 'freeitsm.warroom.recentEmoji.' + me;
+
+    /** Recently used emoji, newest first - a convenience kept in this browser only. */
+    function recentEmoji() {
+        try { var v = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); return Array.isArray(v) ? v.slice(0, 24) : []; }
+        catch (e) { return []; }
+    }
+    /** Puts an emoji at the front of the recently used list. */
+    function rememberEmoji(e) {
+        try {
+            var list = recentEmoji().filter(function (x) { return x !== e; });
+            list.unshift(e);
+            localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, 24)));
+        } catch (err) { /* private window, storage off: recent simply stays empty */ }
+    }
+
+    /** Fetches the emoji list once (it ships with FreeITSM). */
+    function loadEmoji() {
+        if (emojiData) return Promise.resolve(emojiData);
+        return fetch(EMOJI_URL, { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) { emojiData = d; return d; });
+    }
+
+    /** Closes the full emoji picker. */
+    function closePicker() { if (pickerEl) { pickerEl.remove(); pickerEl = null; } }
+
+    /** Opens the full emoji picker for a message: search, a tab per group, recently used first. */
+    function openPicker(m, x, y) {
+        closePicker();
+        pickerEl = el('div', 'wr-picker');
+        pickerEl.setAttribute('role', 'dialog');
+        pickerEl.setAttribute('aria-label', t('war-room.emoji.title'));
+        var search = el('input', 'wr-input wr-picker-search');
+        search.type = 'search';
+        search.placeholder = t('war-room.emoji.search');
+        search.setAttribute('aria-label', t('war-room.emoji.search'));
+        pickerEl.appendChild(search);
+        var tabs = el('div', 'wr-picker-tabs');
+        pickerEl.appendChild(tabs);
+        var grid = el('div', 'wr-picker-grid');
+        grid.appendChild(el('div', 'wr-muted', t('war-room.emoji.loading')));
+        pickerEl.appendChild(grid);
+        pickerEl.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.preventDefault(); closePicker(); } });
+        placeBox(pickerEl, x, y, false);
+        search.focus();
+
+        /** One emoji button: click reacts and closes. */
+        function emoButton(e, name) {
+            var b = el('button', 'wr-picker-emo', e);
+            b.type = 'button';
+            b.title = name || e;
+            b.setAttribute('aria-label', name || e);
+            b.addEventListener('click', function () { closePicker(); react(m, e, !myReaction(m, e)); });
+            return b;
+        }
+        /** Draws a titled section of emoji into the grid. */
+        function section(title, list, id) {
+            var h = el('div', 'wr-picker-head', title);
+            if (id) h.id = id;
+            grid.appendChild(h);
+            var box = el('div', 'wr-picker-set');
+            list.forEach(function (p) { box.appendChild(emoButton(p[0], p[1])); });
+            grid.appendChild(box);
+        }
+
+        loadEmoji().then(function (data) {
+            if (!pickerEl) return;
+            var names = {};
+            data.forEach(function (g) { g.emoji.forEach(function (p) { names[p[0]] = p[1]; }); });
+            /** Draws everything, or only the emoji whose English name contains q. */
+            function draw(q) {
+                clear(grid);
+                q = q.trim().toLowerCase();
+                if (q) {
+                    var hits = [];
+                    data.forEach(function (g) { g.emoji.forEach(function (p) { if (p[1].indexOf(q) >= 0) hits.push(p); }); });
+                    if (hits.length) section(t('war-room.emoji.results'), hits.slice(0, 300));
+                    else grid.appendChild(el('div', 'wr-muted', t('war-room.emoji.none')));
+                    return;
+                }
+                var recent = recentEmoji();
+                if (recent.length) section(t('war-room.emoji.recent'), recent.map(function (e) { return [e, names[e] || e]; }), 'wrPickRecent');
+                data.forEach(function (g) { section(t('war-room.emoji.group.' + g.group), g.emoji, 'wrPick-' + g.group); });
+            }
+            clear(tabs);
+            data.forEach(function (g) {
+                var b = el('button', 'wr-picker-tab', g.emoji[0][0]);
+                b.type = 'button';
+                b.title = t('war-room.emoji.group.' + g.group);
+                b.setAttribute('aria-label', t('war-room.emoji.group.' + g.group));
+                b.addEventListener('click', function () {
+                    search.value = ''; draw('');
+                    var h = document.getElementById('wrPick-' + g.group);
+                    if (h) grid.scrollTop = h.offsetTop - grid.offsetTop;
+                });
+                tabs.appendChild(b);
+            });
+            draw('');
+            search.addEventListener('input', function () { draw(search.value); });
+        }).catch(function () {
+            clear(grid);
+            grid.appendChild(el('div', 'wr-muted', t('war-room.emoji.failed')));
+        });
+    }
+
+    /* ── quoting ── */
+
+    /** The quote box at the top of a message: author, time and the start of the original, or why it is not there. */
+    function renderQuote(q) {
+        var box = el('button', 'wr-quote');
+        box.type = 'button';
+        if (q.gone) {
+            box.appendChild(el('span', 'wr-quote-text wr-tombstone', t('war-room.quote.gone')));
+            box.disabled = true;
+            return box;
+        }
+        var head = el('span', 'wr-quote-head');
+        head.appendChild(el('span', 'wr-quote-author', q.author));
+        head.appendChild(el('span', 'wr-msg-time', localTime(q.created)));
+        box.appendChild(head);
+        box.appendChild(el('span', 'wr-quote-text' + (q.deleted ? ' wr-tombstone' : ''),
+            q.deleted ? t('war-room.quote.deleted') : q.text));
+        box.title = t('war-room.quote.jump');
+        box.addEventListener('click', function () { highlightMessage(q.id, false); });
+        return box;
+    }
+
+    var quotingEl = el('div', 'wr-quoting');
+    quotingEl.hidden = true;
+    els.wrComposer.parentNode.insertBefore(quotingEl, els.wrComposer);
+
+    /** Starts quoting a message: a bar above the box says so, with a cross to stop. */
+    function startQuote(m) {
+        quoting = m;
+        clear(quotingEl);
+        quotingEl.appendChild(el('span', 'wr-quoting-label', t('war-room.quote.quoting', { name: m.author })));
+        quotingEl.appendChild(el('span', 'wr-quoting-text', String(m.body || '').slice(0, 120)));
+        var x = el('button', 'wr-chip-x', '\u00D7');
+        x.type = 'button';
+        x.setAttribute('aria-label', t('war-room.quote.cancel'));
+        x.addEventListener('click', clearQuote);
+        quotingEl.appendChild(x);
+        quotingEl.hidden = false;
+        els.wrBody.focus();
+    }
+    /** Stops quoting. */
+    function clearQuote() { quoting = null; quotingEl.hidden = true; clear(quotingEl); }
+
+    /* ── copying ── */
+
+    /** Copies through the app's shared helper (assets/js/clipboard.js), which also works on plain HTTP. */
+    function copyText(text, doneKey) {
+        var p = (typeof window.copyToClipboard === 'function') ? window.copyToClipboard(text)
+              : (navigator.clipboard && window.isSecureContext ? navigator.clipboard.writeText(text).then(function () { return true; }) : Promise.resolve(false));
+        p.then(function (ok) { toast(t(ok ? doneKey : 'war-room.menu.copy_failed')); }, function () { toast(t('war-room.menu.copy_failed')); });
+    }
+    /** Copies the message's text - with its author and time when full - and attachments by name. */
+    function copyMessage(m, full) {
+        var text = (full ? m.author + ' (' + localTime(m.created) + '):\n' : '') + String(m.body || '').trim();
+        (m.attachments || []).forEach(function (a) { text += '\n[' + a.name + ']'; });
+        copyText(text, 'war-room.menu.copied');
+    }
+    /** Copies a permanent link to the message, by database id. */
+    function copyLink(m) {
+        copyText((window.WR_LINK_BASE || '') + '?channel=' + activeId + '&message=' + m.id, 'war-room.menu.link_copied');
+    }
+
+    /* ── showing one message ── */
+
+    /**
+     * Scrolls to a message and highlights it. If it is not on the page (older than
+     * what was loaded), the channel is reloaded around it.
+     * @param {boolean} fromLink  true on arrival from a permanent link
+     */
+    function highlightMessage(id, fromLink) {
+        var node = els.wrMessages.querySelector('[data-msg-id="' + id + '"]')
+                || (threadMsgs && threadMsgs.querySelector('[data-msg-id="' + id + '"]'));
+        if (!node) {
+            if (fromLink) { toast(t('war-room.link.missing')); return; }
+            focusId = id; lastId = 0;
+            clear(els.wrMessages); els.wrMessages.appendChild(els.wrEmpty);
+            poll();
+            return;
+        }
+        node.scrollIntoView({ block: 'center' });
+        node.classList.remove('wr-msg-flash');
+        void node.offsetWidth;   // restart the animation if it is already running
+        node.classList.add('wr-msg-flash');
+        setTimeout(function () { node.classList.remove('wr-msg-flash'); }, 2600);
+    }
+
+    /* ── opening attachments ── */
+
+    /**
+     * A click on an attachment opens it in the shared viewer (FilesViewer, as Files and
+     * Tickets do): PDFs, Word, Excel, images, media, text, zips - in a window you can
+     * move and resize, with Download beside it. A modified click, or a type the viewer
+     * cannot show, still follows the link.
+     */
+    function viewOnClick(link, a, href) {
+        link.addEventListener('click', function (e) {
+            if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+            if (!window.FilesViewer || !window.FilesViewer.openUrl) return;
+            var w = window.FilesViewer.openUrl({ name: a.name, src: href, downloadUrl: href, size: a.size, key: 'wr-att-' + a.id });
+            if (w) e.preventDefault();
+        });
+    }
+
+    /* ── translation (5.9.0) ── */
+
+    /** The primary language subtag: 'pt-BR' -> 'pt'. */
+    function langKey(code) { return String(code || '').toLowerCase().replace('_', '-').split('-')[0]; }
+
+    /** The translation to show for a message, or null: the stored one from the poll, or one fetched this visit for this exact text. */
+    function translationOf(m) {
+        if (!TR.on || m.deleted) return null;
+        if (m.lang && langKey(m.lang) === langKey(TR.lang)) return null;
+        if (m.tr) return m.tr;
+        var c = trCache[m.id];
+        return c && c.body === m.body ? c.text : null;
+    }
+
+    /** A language's name in the reader's language, by the browser's own list (no internet). */
+    function langName(code) {
+        try { return new Intl.DisplayNames([TR.lang], { type: 'language' }).of(code) || code; }
+        catch (e) { return code; }
+    }
+
+    /** "Translated from French · Show original" under a translated message - a toggle for that one message. */
+    function translationNote(m) {
+        var b = el('button', 'wr-tr-note');
+        b.type = 'button';
+        var from = m.lang ? t('war-room.translate.from', { lang: langName(m.lang) }) : t('war-room.translate.translated');
+        b.textContent = from + ' \u00B7 ' + t(trOriginal[m.id] ? 'war-room.translate.show_translation' : 'war-room.translate.show_original');
+        b.addEventListener('click', function () {
+            if (trOriginal[m.id]) delete trOriginal[m.id]; else trOriginal[m.id] = true;
+            refreshRows([messageById[m.id] || m]);
+        });
+        return b;
+    }
+
+    var trTimer = null;
+    /** Asks, shortly after drawing, for translations of the messages on the page that need one. */
+    function scheduleTranslate() {
+        if (!TR.on) return;
+        clearTimeout(trTimer);
+        trTimer = setTimeout(requestTranslations, 300);
+    }
+
+    /** Sends the messages that still need translating to translate.php, twenty at a time, and redraws each as it arrives. */
+    function requestTranslations() {
+        if (!TR.on) return;
+        var now = Date.now(), want = [];
+        Object.keys(messageById).forEach(function (k) {
+            var m = messageById[k];
+            if (m.deleted || !String(m.body || '').trim()) return;
+            if (!isShown(m.id)) return;   // another channel's
+            if (m.lang && langKey(m.lang) === langKey(TR.lang)) return;
+            if (translationOf(m)) return;
+            var asked = trAsked[m.id];
+            if (asked && (asked.body === m.body) && (asked.ok || now - asked.at < 60000)) return;
+            want.push(m);
+        });
+        if (!want.length) return;
+        var channel = activeId;
+        /** One batch of up to twenty, then the next. */
+        var next = function (list) {
+            if (!list.length || channel !== activeId || !TR.on) return;
+            var batch = list.slice(0, 20);
+            batch.forEach(function (m) { trAsked[m.id] = { at: Date.now(), body: m.body, ok: false }; });
+            fetch(api + 'translate.php', {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channel_id: channel, ids: batch.map(function (m) { return m.id; }) })
+            }).then(function (r) { return r.json(); })
+              .then(function (d) {
+                  if (!d || !d.success) return;   // no provider, offline: the originals stay
+                  var redraw = [];
+                  batch.forEach(function (m) {
+                      var it = d.items && d.items[m.id];
+                      if (!it) return;
+                      trAsked[m.id].ok = true;
+                      var cur = messageById[m.id];
+                      if (!cur) return;
+                      if (it.lang) cur.lang = it.lang;
+                      if (it.text) { trCache[m.id] = { text: it.text, body: cur.body }; trFresh[m.id] = true; redraw.push(cur); }
+                  });
+                  if (redraw.length) refreshRows(redraw);
+                  next(list.slice(20));
+              })
+              .catch(function () { /* the originals stay; asked again in a minute */ });
+        };
+        next(want);
+    }
+
+    var trToggle = document.getElementById('wrTranslateMine');
+    // TRAP: saves go one after another. Two quick clicks sent side by side could land
+    // in the wrong order and leave the preference opposite to the box (caught testing).
+    var trSaving = Promise.resolve();
+    if (trToggle) {
+        trToggle.addEventListener('change', function () {
+            TR.on = trToggle.checked;
+            var value = TR.on ? '1' : '0';
+            trSaving = trSaving.then(function () {
+                return fetch(window.WR_PREF_URL, {
+                    method: 'POST', credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: 'warroom_translate', value: value })
+                }).catch(function () { /* the box still shows the choice for this visit */ });
+            });
+            // Redraw what is on the page in the chosen language, then fill any gaps.
+            refreshRows(Object.keys(messageById).map(function (k) { return messageById[k]; }));
+            scheduleTranslate();
+        });
+    }
+
+    /* ── threads (5.9.0, piece 3) ── */
+
+    /** True when a message is drawn in the conversation or in the open thread. */
+    function isShown(id) {
+        return !!(els.wrMessages.querySelector('[data-msg-id="' + id + '"]')
+               || (threadMsgs && threadMsgs.querySelector('[data-msg-id="' + id + '"]')));
+    }
+
+    /** Redraws messages wherever they are shown - the conversation and the open thread. */
+    function refreshRows(list) {
+        list.forEach(function (m) {
+            var a = els.wrMessages.querySelector('[data-msg-id="' + m.id + '"]');
+            if (a) a.parentNode.replaceChild(renderMessage(m, 'main'), a);
+            var b = threadMsgs && threadMsgs.querySelector('[data-msg-id="' + m.id + '"]');
+            if (b) b.parentNode.replaceChild(renderMessage(m, 'thread'), b);
+        });
+    }
+
+    /** Adds the open thread's new or changed messages - upserted, as the conversation is. */
+    function appendThread(list) {
+        if (!threadMsgs || !list.length) return;
+        var sc = els.wrPanelBody;   // the panel body scrolls, not the list inside it
+        var atBottom = (sc.scrollHeight - sc.scrollTop - sc.clientHeight) < 80;
+        var added = false;
+        list.forEach(function (m) {
+            messageById[m.id] = m;
+            var node = renderMessage(m, 'thread');
+            if (m.id === threadRoot) node.classList.add('wr-thread-root');
+            var ex = threadMsgs.querySelector('[data-msg-id="' + m.id + '"]');
+            if (ex) ex.parentNode.replaceChild(node, ex);
+            else { threadMsgs.appendChild(node); added = true; }
+            if (m.id > threadLastId) threadLastId = m.id;
+        });
+        if (atBottom && added) sc.scrollTop = sc.scrollHeight;
+        if (threadFocus) { var f = threadFocus; threadFocus = 0; highlightMessage(f, false); }
+        scheduleTranslate();
+    }
+
+    /**
+     * Opens a thread in the side panel: its first message, every reply, and a reply box
+     * with "Also send to this conversation". The same poll keeps it current.
+     * @param {number} rootId  the thread's first message
+     * @param {number} focus   a reply to highlight once loaded, or 0
+     */
+    function openThread(rootId, focus) {
+        var body = openPanel(t('war-room.thread.title'));
+        els.wrPanel.setAttribute('data-list', 'thread');
+        threadRoot = rootId; threadLastId = 0; threadFocus = focus || 0;
+        threadMsgs = el('div', 'wr-thread-msgs');
+        body.appendChild(threadMsgs);
+
+        if (!els.wrComposer.hidden) {   // an archived channel is read-only
+            var form = el('form', 'wr-thread-composer');
+            var ta = document.createElement('textarea');
+            ta.className = 'wr-input';
+            ta.rows = 2;
+            ta.placeholder = t('war-room.thread.placeholder');
+            ta.setAttribute('aria-label', t('war-room.thread.placeholder'));
+            form.appendChild(ta);
+            var also = el('label', 'wr-thread-also');
+            var cb = document.createElement('input');
+            cb.type = 'checkbox';
+            also.appendChild(cb);
+            also.appendChild(el('span', null, t('war-room.thread.also')));
+            form.appendChild(also);
+            var go = el('button', 'btn btn-primary', t('war-room.composer.send'));
+            go.type = 'submit';
+            form.appendChild(go);
+            /** Sends the reply into the thread (and the conversation when ticked). */
+            var sendReply = function () {
+                var text = ta.value;
+                if (!text.trim()) return;
+                go.disabled = true;
+                fetch(api + 'send.php', {
+                    method: 'POST', credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ channel_id: activeId, body: text, thread_root_id: rootId, also_in_channel: cb.checked ? 1 : 0 })
+                }).then(function (r) { return r.json(); })
+                  .then(function (d) {
+                      if (!d || !d.success) throw new Error('failed');
+                      ta.value = ''; cb.checked = false;
+                      poll();
+                      if (addressesWarbot(text) && d.id) askWarbot(d.id);
+                  })
+                  .catch(function () { toast(t('war-room.error.send')); })
+                  .then(function () { go.disabled = false; ta.focus(); });
+            };
+            form.addEventListener('submit', function (e) { e.preventDefault(); sendReply(); });
+            ta.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply(); }
+            });
+            body.appendChild(form);
+            setTimeout(function () { ta.focus(); }, 0);
+        }
+        poll();
+    }
+
+    /* ── forward and Seen by (5.9.0, piece 4) ── */
+
+    /**
+     * Forward a message: pick a conversation or a person, add a comment if you like.
+     * The text and any files go with it; its @names notify nobody again.
+     */
+    function openForward(m) {
+        var body = openModal(t('war-room.forward.title'));
+        var search = el('input', 'wr-input');
+        search.type = 'search';
+        search.placeholder = t('war-room.forward.search');
+        search.setAttribute('aria-label', t('war-room.forward.search'));
+        body.appendChild(search);
+        var list = el('div', 'wr-fwd-list');
+        list.setAttribute('role', 'listbox');
+        body.appendChild(list);
+        var note = document.createElement('textarea');
+        note.className = 'wr-input wr-fwd-note';
+        note.rows = 2;
+        note.placeholder = t('war-room.forward.comment');
+        note.setAttribute('aria-label', t('war-room.forward.comment'));
+        body.appendChild(note);
+        var actions = el('div', 'wr-modal-actions');
+        var go = el('button', 'btn btn-primary', t('war-room.forward.send'));
+        go.type = 'button';
+        go.disabled = true;
+        actions.appendChild(go);
+        var cancel = el('button', 'btn', t('war-room.create.cancel'));
+        cancel.type = 'button';
+        cancel.addEventListener('click', closeModal);
+        actions.appendChild(cancel);
+        body.appendChild(actions);
+
+        // Conversations you can post in (not archived), then people for a direct message.
+        var targets = channels.filter(function (c) { return !c.archived; })
+            .map(function (c) { return { kind: 'channel', id: c.id, name: c.name, group: t('war-room.forward.conversations') }; })
+            .concat(directory.map(function (p) { return { kind: 'person', id: p.id, name: p.name, group: t('war-room.forward.people') }; }));
+        var chosen = null;
+        /** Draws the matching destinations, grouped; click one to choose it. */
+        function draw() {
+            clear(list);
+            var q = search.value.trim().toLowerCase(), last = '';
+            targets.filter(function (x) { return !q || String(x.name).toLowerCase().indexOf(q) >= 0; }).slice(0, 60).forEach(function (x) {
+                if (x.group !== last) { list.appendChild(el('div', 'wr-fwd-group', x.group)); last = x.group; }
+                var b = el('button', 'wr-fwd-target' + (chosen === x ? ' is-chosen' : ''), x.name);
+                b.type = 'button';
+                b.setAttribute('role', 'option');
+                b.setAttribute('aria-selected', chosen === x ? 'true' : 'false');
+                b.addEventListener('click', function () { chosen = x; go.disabled = false; draw(); });
+                list.appendChild(b);
+            });
+        }
+        search.addEventListener('input', draw);
+        draw();
+        search.focus();
+
+        go.addEventListener('click', function () {
+            if (!chosen) return;
+            go.disabled = true;
+            var payload = { action: 'forward', id: m.id, comment: note.value };
+            if (chosen.kind === 'channel') payload.to_channel = chosen.id; else payload.to_analyst = chosen.id;
+            fetch(api + 'message.php', {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(function (r) { return r.json(); })
+              .then(function (d) {
+                  if (!d || !d.success) throw new Error('failed');
+                  closeModal();
+                  toast(t('war-room.forward.done', { name: chosen.name }));
+                  if (d.channel_id === activeId) poll();
+              })
+              .catch(function () { go.disabled = false; toast(t('war-room.menu.failed')); });
+        });
+    }
+
+    /** Who has read a message, and when - and, in a small conversation, who has not yet. */
+    function openSeenBy(m) {
+        var body = openPanel(t('war-room.seen.title'));
+        els.wrPanel.setAttribute('data-list', 'seen');
+        body.appendChild(el('div', 'wr-muted', t('war-room.emoji.loading')));
+        fetch(api + 'lists.php?list=seen&id=' + encodeURIComponent(m.id), { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                clear(body);
+                if (!d || !d.success) { body.appendChild(el('div', 'wr-muted', t('war-room.seen.unavailable'))); return; }
+                body.appendChild(el('div', 'wr-picker-head', t('war-room.seen.seen', { count: d.seen.length })));
+                if (!d.seen.length) body.appendChild(el('div', 'wr-muted', t('war-room.seen.nobody')));
+                d.seen.forEach(function (p) {
+                    var r = el('div', 'wr-seen-row');
+                    r.appendChild(el('span', 'wr-seen-name', p.name));
+                    r.appendChild(el('span', 'wr-msg-time', localTime(p.at)));
+                    body.appendChild(r);
+                });
+                if (d.not_yet) {
+                    body.appendChild(el('div', 'wr-picker-head wr-seen-gap', t('war-room.seen.not_yet', { count: d.not_yet.length })));
+                    d.not_yet.forEach(function (n) { body.appendChild(el('div', 'wr-seen-row wr-muted', n)); });
+                }
+            })
+            .catch(function () { clear(body); body.appendChild(el('div', 'wr-muted', t('war-room.menu.failed'))); });
+    }
+
+    /* ── pin, save, mark as unread (5.9.0, piece 2) ── */
+
+    /** Posts one message action to message.php; resolves with the reply, rejects on failure. */
+    function messagePost(action, id) {
+        return fetch(api + 'message.php', {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: action, id: id })
+        }).then(function (r) { return r.json(); })
+          .then(function (d) { if (!d || !d.success) { var e = new Error('failed'); e.reply = d; throw e; } return d; });
+    }
+
+    /** Pins (on) or unpins a message for everyone in the conversation. */
+    function pinMessage(m, on) {
+        messagePost(on ? 'pin' : 'unpin', m.id)
+            .then(function () { poll(); if (!els.wrPanel.hidden && els.wrPanel.getAttribute('data-list') === 'pins') openPins(); })
+            .catch(function (e) {
+                toast(e.reply && e.reply.error === 'pins_full'
+                    ? t('war-room.pins.full', { max: e.reply.max }) : t('war-room.menu.failed'));
+            });
+    }
+
+    /** Saves a message to your own list, or takes it off. Only you see it, so it is redrawn here rather than polled. */
+    function saveMessage(m, on) {
+        messagePost(on ? 'save' : 'unsave', m.id).then(function () {
+            var cur = messageById[m.id];
+            if (cur) { cur.saved = on; refreshRows([cur]); }
+            toast(t(on ? 'war-room.saved.done' : 'war-room.saved.removed'));
+            if (!els.wrPanel.hidden && els.wrPanel.getAttribute('data-list') === 'saved') openSaved();
+        }).catch(function () { toast(t('war-room.menu.failed')); });
+    }
+
+    /** Marks a message unread: the conversation stays unread from there until you leave it and come back. */
+    function markUnread(m) {
+        messagePost('unread', m.id).then(function () {
+            holdRead = activeId;
+            toast(t('war-room.unread.done'));
+            poll();
+        }).catch(function () { toast(t('war-room.menu.failed')); });
+    }
+
+    // The pinned bar, above the conversation: "Pinned (3)", opening the list.
+    var pinBar = el('button', 'wr-pinbar');
+    pinBar.type = 'button';
+    pinBar.hidden = true;
+    pinBar.addEventListener('click', openPins);
+    els.wrMessages.parentNode.insertBefore(pinBar, els.wrMessages);
+
+    /** Shows the pinned bar with its count, or hides it when nothing is pinned. */
+    function renderPinBar(n) {
+        pinBar.hidden = !n;
+        pinBar.textContent = '\uD83D\uDCCC ' + t('war-room.pins.bar', { count: n });
+    }
+
+    /** A clickable row for the pinned and saved lists: where, who, when, the start of the text. */
+    function listItem(r, where, extra) {
+        var item = el('div', 'wr-result wr-list-item');
+        var open = el('button', 'wr-list-open');
+        open.type = 'button';
+        var head = el('div', 'wr-result-head');
+        if (where) head.appendChild(el('span', 'wr-result-channel', where));
+        head.appendChild(el('span', 'wr-result-meta', r.author + ' \u00B7 ' + localTime(r.created)));
+        open.appendChild(head);
+        open.appendChild(el('div', 'wr-result-snippet', r.text));
+        if (extra) open.appendChild(el('div', 'wr-muted wr-list-note', extra));
+        item.appendChild(open);
+        return { item: item, open: open };
+    }
+
+    /** Lists this conversation's pinned messages in the side panel; click one to go to it. */
+    function openPins() {
+        var body = openPanel(t('war-room.pins.title'));
+        els.wrPanel.setAttribute('data-list', 'pins');
+        body.appendChild(el('div', 'wr-muted', t('war-room.emoji.loading')));
+        var canPost = !els.wrComposer.hidden;
+        fetch(api + 'lists.php?list=pins&channel_id=' + encodeURIComponent(activeId), { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (!d || !d.success) throw new Error('failed');
+                clear(body);
+                if (!d.items.length) { body.appendChild(el('div', 'wr-muted', t('war-room.pins.none'))); return; }
+                d.items.forEach(function (r) {
+                    var li = listItem(r, null, t('war-room.pins.by', { name: r.by, time: localTime(r.at) }));
+                    li.open.addEventListener('click', function () { highlightMessage(r.id, false); });
+                    if (canPost) {
+                        var un = el('button', 'wr-msg-act wr-list-act', t('war-room.menu.unpin'));
+                        un.type = 'button';
+                        un.addEventListener('click', function () { pinMessage({ id: r.id }, false); });
+                        li.item.appendChild(un);
+                    }
+                    body.appendChild(li.item);
+                });
+            })
+            .catch(function () { clear(body); body.appendChild(el('div', 'wr-muted', t('war-room.menu.failed'))); });
+    }
+
+    /** Lists your saved messages from every conversation you can still read; click one to go to it. */
+    function openSaved() {
+        var body = openPanel(t('war-room.saved.title'));
+        els.wrPanel.setAttribute('data-list', 'saved');
+        body.appendChild(el('div', 'wr-muted', t('war-room.emoji.loading')));
+        fetch(api + 'lists.php?list=saved', { credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (!d || !d.success) throw new Error('failed');
+                clear(body);
+                if (!d.items.length) { body.appendChild(el('div', 'wr-muted', t('war-room.saved.none'))); return; }
+                d.items.forEach(function (r) {
+                    var li = listItem(r, r.channel, null);
+                    li.open.addEventListener('click', function () {
+                        if (r.channel_id === activeId) { highlightMessage(r.id, false); return; }
+                        focusId = r.id;          // the switch loads around it, then highlights it
+                        switchChannel(r.channel_id);
+                    });
+                    var rm = el('button', 'wr-msg-act wr-list-act', t('war-room.saved.remove'));
+                    rm.type = 'button';
+                    rm.addEventListener('click', function () { saveMessage({ id: r.id }, false); });
+                    li.item.appendChild(rm);
+                    body.appendChild(li.item);
+                });
+            })
+            .catch(function () { clear(body); body.appendChild(el('div', 'wr-muted', t('war-room.menu.failed'))); });
+    }
+    if (els.wrSavedBtn) els.wrSavedBtn.addEventListener('click', openSaved);
+
+    /* ── a passing note ── */
+
+    var toastEl = null, toastTimer = null;
+    /** Shows a short note at the bottom of the window for a couple of seconds. */
+    function toast(text) {
+        if (!toastEl) {
+            toastEl = el('div', 'wr-toast');
+            toastEl.setAttribute('role', 'status');
+            document.body.appendChild(toastEl);
+        }
+        toastEl.textContent = text;
+        toastEl.classList.add('is-on');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { toastEl.classList.remove('is-on'); }, 2400);
+    }
+
     /* ── edit and delete ─────────────────────────────────────────────────────── */
 
     /** Opens the edit modal for one of the analyst's own messages; Save sends the new body through messageAction. */
@@ -732,6 +1674,7 @@
             var fd = new FormData();
             fd.append('channel_id', activeId);
             fd.append('body', body);
+            if (quoting) fd.append('quote_of_id', quoting.id);
             pending.forEach(function (f) { fd.append('files[]', f); });
             request = fetch(api + 'send.php', { method: 'POST', credentials: 'same-origin', body: fd });
         } else {
@@ -739,7 +1682,7 @@
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ channel_id: activeId, body: body })
+                body: JSON.stringify({ channel_id: activeId, body: body, quote_of_id: quoting ? quoting.id : 0 })
             });
         }
 
@@ -749,6 +1692,7 @@
                 els.wrBody.value = '';
                 pending = [];
                 renderPending();
+                clearQuote();
                 // A file we refused is reported by name. Posting the message and
                 // silently dropping the screenshot would be the worst outcome:
                 // the sender believes everyone can see it.
@@ -812,13 +1756,15 @@
 
     /** Opens the side panel (search or situation report) with a title and returns its empty body. */
     function openPanel(title) {
+        els.wrPanel.removeAttribute('data-list');   // set again by the pinned / saved lists (5.9.0)
+        threadRoot = 0; threadMsgs = null; threadFocus = 0;   // another panel replaces an open thread
         els.wrPanelTitle.textContent = title;
         clear(els.wrPanelBody);
         els.wrPanel.hidden = false;
         return els.wrPanelBody;
     }
     /** Hides the side panel. */
-    function closePanel() { els.wrPanel.hidden = true; }
+    function closePanel() { els.wrPanel.hidden = true; threadRoot = 0; threadMsgs = null; threadFocus = 0; }
     els.wrPanelClose.addEventListener('click', closePanel);
 
     els.wrSearchBtn.addEventListener('click', function () {
@@ -1180,6 +2126,8 @@
     }
 
     /* ── go ────────────────────────────────────────────────────────────────── */
+
+    if (window.WR_FOCUS_MISSING) toast(t('war-room.link.missing'));
 
     poll();
     startPolling();

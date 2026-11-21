@@ -40,72 +40,91 @@ $translationNamespaces = ['common', 'forms'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('forms', t('forms.nav.approvals'))); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
     <!-- inbox.css carries the shared header/nav styles (.header, .nav-btn); forms.css
          the module chrome. Same set forms/index.php loads. -->
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=93">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/forms.css">
     <style>
         .ca-container { display: flex; height: calc(100vh - 48px); background: var(--app-bg, #f5f5f5); }
         .ca-sidebar { width: 260px; background: var(--surface, #fff); border-right: 1px solid var(--border, #ddd); padding: 20px; display: flex; flex-direction: column; gap: 6px; }
-        .ca-sidebar h3 { font-size: 12px; font-weight: 600; color: var(--text-dim, #888); text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 10px; }
-        .ca-filter { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-size: 14px; color: var(--text, #333); transition: background 0.15s; }
+        .ca-sidebar h3 { font-size: var(--font-size-sm, 12px); font-weight: 600; color: var(--text-dim, #888); text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 10px; }
+        .ca-filter { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-size: var(--font-size-lg, 14px); color: var(--text, #333); transition: background 0.15s; }
         .ca-filter:hover { background: var(--surface-hover, #f5f5f5); }
         .ca-filter.active { background: var(--accent-soft, #e8f4fd); color: var(--accent, #0078d4); font-weight: 600; }
-        .ca-filter .cnt { font-size: 12px; background: var(--border-soft, #eee); color: var(--text-muted, #666); padding: 2px 8px; border-radius: 10px; font-weight: 600; min-width: 20px; text-align: center; }
+        .ca-filter .cnt { font-size: var(--font-size-sm, 12px); background: var(--border-soft, #eee); color: var(--text-muted, #666); padding: 2px 8px; border-radius: 10px; font-weight: 600; min-width: 20px; text-align: center; }
         .ca-filter.active .cnt { background: var(--accent, #0078d4); color: var(--on-accent, #fff); }
         .ca-main { flex: 1; overflow-y: auto; padding: 24px 30px; }
-        .ca-main h2 { margin: 0 0 20px; font-size: 20px; color: var(--text, #333); }
+        .ca-main h2 { margin: 0 0 20px; font-size: var(--font-size-3xl, 20px); color: var(--text, #333); }
         .ca-card { background: var(--surface, #fff); border-radius: 8px; padding: 16px 20px; margin-bottom: 12px; box-shadow: 0 1px 3px var(--shadow, rgba(0,0,0,0.06)); border-left: 4px solid var(--warning-border, #f0d9a8); }
         .ca-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 12px; }
-        .ca-card-title { font-size: 15px; font-weight: 600; color: var(--text, #333); }
-        .ca-card-meta { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--text-dim, #888); margin-bottom: 12px; }
+        .ca-card-title { font-size: var(--font-size-xl, 16px); font-weight: 600; color: var(--text, #333); }
+        .ca-card-meta { display: flex; flex-wrap: wrap; gap: 16px; font-size: var(--font-size-sm, 12px); color: var(--text-dim, #888); margin-bottom: 12px; }
         .ca-card-meta .lbl { font-weight: 600; color: var(--text-faint, #999); }
         .ca-answers { border: 1px solid var(--border-soft, #eee); border-radius: 6px; background: var(--surface-2, #fafafa); padding: 4px 0; margin-bottom: 12px; }
-        .ca-answer { display: flex; gap: 12px; padding: 6px 12px; font-size: 12.5px; }
+        .ca-answer { display: flex; gap: 12px; padding: 6px 12px; font-size: var(--font-size-md, 13px); }
         .ca-answer .a-lbl { font-weight: 600; color: var(--text-muted, #666); flex: 0 0 40%; }
         .ca-answer .a-val { color: var(--text, #333); white-space: pre-wrap; }
-        .ca-comment { width: 100%; padding: 8px 10px; border: 1px solid var(--border, #ddd); border-radius: 5px; font-size: 13px; font-family: inherit; background: var(--surface, #fff); color: var(--text, #333); margin-bottom: 10px; resize: vertical; min-height: 38px; }
+        .ca-comment { width: 100%; padding: 8px 10px; border: 1px solid var(--border, #ddd); border-radius: 5px; font-size: var(--font-size-md, 13px); font-family: inherit; background: var(--surface, #fff); color: var(--text, #333); margin-bottom: 10px; resize: vertical; min-height: 38px; }
         .ca-actions { display: flex; gap: 10px; }
-        .ca-btn { padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 500; }
+        .ca-btn { padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer; font-size: var(--font-size-md, 13px); font-weight: 500; }
         .ca-btn-secondary { background: var(--surface, #fff); color: var(--text, #333); border: 1px solid var(--border, #ddd); }   /* Move (GH #220) */
         .ca-btn-approve { background: var(--success-accent, #16a34a); color: #fff; }
         .ca-btn-reject { background: var(--surface, #fff); color: var(--danger-accent, #d13438); border: 1px solid var(--danger-accent, #d13438); }
         .ca-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        .ca-badge { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 10px; }
+        .ca-badge { font-size: var(--font-size-xs, 11px); font-weight: 600; padding: 2px 9px; border-radius: 10px; }
         .ca-badge.approved { background: var(--success-bg, #dcfce7); color: var(--success-text, #166534); }
         .ca-badge.rejected { background: var(--danger-bg, #fee2e2); color: var(--danger-text, #991b1b); }
-        .ca-decided-note { font-size: 12.5px; color: var(--text-muted, #666); }
+        .ca-decided-note { font-size: var(--font-size-md, 13px); color: var(--text-muted, #666); }
         /* Team approvals (GH #220): progress, the votes so far, a stuck request, the
            administrator's moves and overrides, and the Move panel. */
-        .ca-progress { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 4px; font-size: 12.5px; }
+        .ca-progress { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 4px; font-size: var(--font-size-md, 13px); }
         .ca-progress strong { color: var(--text, #333); }
-        .ca-votes { margin: 4px 0 8px; padding: 0; list-style: none; font-size: 12.5px; color: var(--text-muted, #666); }
+        .ca-votes { margin: 4px 0 8px; padding: 0; list-style: none; font-size: var(--font-size-md, 13px); color: var(--text-muted, #666); }
         .ca-votes li { padding: 2px 0; }
         .ca-vote-approved { color: var(--success-text, #166534); font-weight: 600; }
         .ca-vote-rejected { color: var(--danger-text, #991b1b); font-weight: 600; }
-        .ca-stuck, .ca-override-hint { margin: 8px 0; padding: 8px 11px; border-radius: 6px; font-size: 12.5px; background: var(--warning-bg, #fef3c7); color: var(--warning-text, #92400e); }
-        .ca-event { font-size: 12px; color: var(--text-muted, #666); margin: 2px 0; }
+        .ca-stuck, .ca-override-hint { margin: 8px 0; padding: 8px 11px; border-radius: 6px; font-size: var(--font-size-md, 13px); background: var(--warning-bg, #fef3c7); color: var(--warning-text, #92400e); }
+        .ca-event { font-size: var(--font-size-sm, 12px); color: var(--text-muted, #666); margin: 2px 0; }
         .ca-move { display: none; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
         .ca-move.open { display: flex; }
-        .ca-move select, .ca-move input { padding: 7px 9px; border: 1px solid var(--border, #ddd); border-radius: 5px; font-size: 13px; background: var(--surface, #fff); color: var(--text, #333); }
+        /* #298: changing a waiting request's answers. */
+        .ca-edit { display: none; margin-top: 12px; padding: 12px 14px; border: 1px solid var(--border, #ddd); border-radius: 6px; background: var(--surface-2, #fafafa); }
+        .ca-edit.open { display: block; }
+        .ca-edit-hint { font-size: var(--font-size-md, 13px); color: var(--text-muted, #666); margin: 0 0 10px; }
+        .ca-edit-row { display: grid; grid-template-columns: minmax(140px, 220px) 1fr; gap: 10px; align-items: start; padding: 6px 0; }
+        .ca-edit-row > label { font-size: var(--font-size-md, 13px); font-weight: 600; color: var(--text, #333); padding-top: 7px; }
+        .ca-edit-row input[type="text"], .ca-edit-row input[type="email"], .ca-edit-row input[type="number"],
+        .ca-edit-row input[type="date"], .ca-edit-row input[type="time"], .ca-edit-row input[type="datetime-local"],
+        .ca-edit-row select, .ca-edit-row textarea, .ca-edit-reason {
+            width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid var(--border, #ddd); border-radius: 5px;
+            font-size: var(--font-size-md, 13px); background: var(--surface, #fff); color: var(--text, #333); font-family: inherit;
+        }
+        .ca-edit-row textarea { min-height: 64px; resize: vertical; }
+        .ca-edit-ticks { display: flex; flex-wrap: wrap; gap: 6px 14px; padding-top: 6px; }
+        .ca-edit-ticks label { display: inline-flex; gap: 5px; align-items: center; font-size: var(--font-size-md, 13px); }
+        .ca-edit-locked { font-size: var(--font-size-md, 13px); color: var(--text-muted, #666); padding-top: 7px; }
+        .ca-edit-locked em { font-style: normal; color: var(--text-dim, #999); margin-left: 6px; }
+        .ca-edit-reason { margin-top: 8px; }
+        .ca-event-change { font-size: var(--font-size-md, 13px); }
+        .ca-move select, .ca-move input { padding: 7px 9px; border: 1px solid var(--border, #ddd); border-radius: 5px; font-size: var(--font-size-md, 13px); background: var(--surface, #fff); color: var(--text, #333); }
         .ca-move input[type=text] { flex: 1; min-width: 160px; }
         .ca-move input[type=number] { width: 70px; }
         .ca-decided-note a { color: var(--accent, #0078d4); }
         .ca-empty { text-align: center; padding: 60px 20px; color: var(--text-faint, #999); }
-        .ca-empty h3 { font-size: 16px; color: var(--text-muted, #666); margin: 0 0 6px; }
-        .ca-empty p { font-size: 13px; margin: 0; }
+        .ca-empty h3 { font-size: var(--font-size-xl, 16px); color: var(--text-muted, #666); margin: 0 0 6px; }
+        .ca-empty p { font-size: var(--font-size-md, 13px); margin: 0; }
 
         /* The list could not be loaded. Left-aligned and plain rather than
            centred like .ca-empty: this is something to read and copy, not a
            decorative "nothing here" state. Every colour is a theme token, so it
            is legible in dark mode too. */
         .ca-error { max-width: 760px; margin: 24px auto; background: var(--surface, #fff); border: 1px solid var(--danger-border, #f3c9c9); border-left: 4px solid var(--danger-accent, #d13438); border-radius: 8px; padding: 20px 22px; }
-        .ca-error h3 { margin: 0 0 8px; font-size: 16px; font-weight: 600; color: var(--text, #333); }
-        .ca-error p { margin: 0 0 14px; font-size: 13.5px; line-height: 1.5; color: var(--text-muted, #666); }
-        .ca-error pre { margin: 0; padding: 12px 14px; background: var(--surface-2, #fafafa); border: 1px solid var(--border-soft, #eee); border-radius: 6px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; line-height: 1.5; color: var(--text, #333); white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow-y: auto; }
+        .ca-error h3 { margin: 0 0 8px; font-size: var(--font-size-xl, 16px); font-weight: 600; color: var(--text, #333); }
+        .ca-error p { margin: 0 0 14px; font-size: var(--font-size-lg, 14px); line-height: 1.5; color: var(--text-muted, #666); }
+        .ca-error pre { margin: 0; padding: 12px 14px; background: var(--surface-2, #fafafa); border: 1px solid var(--border-soft, #eee); border-radius: 6px; font-family: ui-monospace, Consolas, monospace; font-size: var(--font-size-sm, 12px); line-height: 1.5; color: var(--text, #333); white-space: pre-wrap; word-break: break-word; max-height: 320px; overflow-y: auto; }
         .ca-error-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
-        .ca-error-note { font-size: 12px; color: var(--text-faint, #999); flex: 1 1 260px; }
+        .ca-error-note { font-size: var(--font-size-sm, 12px); color: var(--text-faint, #999); flex: 1 1 260px; }
     </style>
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <?php echo Tz::scriptTag(); ?>
@@ -261,6 +280,8 @@ $translationNamespaces = ['common', 'forms'];
 
         function renderApprovals(items) {
             const list = document.getElementById('caList');
+            CA_ITEMS = {};
+            items.forEach(it => { CA_ITEMS[it.id] = it; });   // #298: the edit panel reads its fields from here
             if (!items.length) {
                 list.innerHTML = `<div class="ca-empty"><h3>${esc(window.t('forms.approval.empty_heading'))}</h3><p>${esc(window.t('forms.approval.empty_text'))}</p></div>`;
                 return;
@@ -287,7 +308,7 @@ $translationNamespaces = ['common', 'forms'];
                         + (votes ? `<ul class="ca-votes">${votes}</ul>` : '');
                 }
                 const stuck = (!decided && pr.stuck) ? `<div class="ca-stuck">${esc(window.t('forms.approval.stuck'))}</div>` : '';
-                const events = (it.events || []).map(e => `<div class="ca-event">${esc(e.action === 'moved'
+                const events = (it.events || []).map(e => e.action === 'answer_changed' ? changeEventHtml(e) : `<div class="ca-event">${esc(e.action === 'moved'
                     ? window.t('forms.approval.event_moved', { name: e.full_name || '', detail: e.detail || '', reason: e.reason || '' })
                     : window.t('forms.approval.event_override', { name: e.full_name || '', decision: window.t('forms.approval.voted_' + e.action.replace('override_', '')), reason: e.reason || '' }))}</div>`).join('');
                 let footer;
@@ -309,6 +330,9 @@ $translationNamespaces = ['common', 'forms'];
                     const override = !it.can_vote && it.can_override;
                     const canAct = it.can_vote || it.can_decide || override;
                     const placeholder = team || override ? window.t('forms.approval.reason_placeholder') : window.t('forms.approval.comment_placeholder');
+                    // #298: change the answers before deciding - every change recorded.
+                    const editBtn = it.can_edit
+                        ? `<button class="ca-btn ca-btn-secondary" onclick="toggleEdit(${it.id})">${esc(window.t('forms.approval.edit'))}</button>` : '';
                     const moveBtn = it.can_move
                         ? `<button class="ca-btn ca-btn-secondary" title="${escAttr(window.t('forms.approval.move_title'))}" onclick="toggleMove(${it.id})">${esc(window.t('forms.approval.move'))}</button>` : '';
                     footer = (override ? `<div class="ca-override-hint">${esc(window.t('forms.approval.override_hint'))}</div>` : '')
@@ -317,8 +341,9 @@ $translationNamespaces = ['common', 'forms'];
                         <div class="ca-actions">
                             <button class="ca-btn ca-btn-approve" onclick="decide(${it.id}, 'approved', this, ${override}, ${team})">${esc(window.t('forms.approval.approve'))}</button>
                             <button class="ca-btn ca-btn-reject" onclick="decide(${it.id}, 'rejected', this, ${override}, ${team})">${esc(window.t('forms.approval.reject'))}</button>
-                            ${moveBtn}
-                        </div>` : (moveBtn ? `<div class="ca-actions">${moveBtn}</div>` : ''))
+                            ${editBtn}${moveBtn}
+                        </div>` : ((editBtn || moveBtn) ? `<div class="ca-actions">${editBtn}${moveBtn}</div>` : ''))
+                        + (it.can_edit ? `<div class="ca-edit" id="edit-${it.id}"></div>` : '')
                         + (it.can_move ? `<div class="ca-move" id="move-${it.id}"></div>` : '');
                 }
 
@@ -378,6 +403,109 @@ $translationNamespaces = ['common', 'forms'];
 
         // ===== Move a waiting request (GH #220, administrators) =====
         let moveChoices = null;   // {teams, people}, fetched the first time a Move panel opens
+        /* ── #298: changing a waiting request's answers ─────────────────────────────
+           Every question that takes an answer is listed, including ones the requester
+           was not shown (the approver often fills those). A lookup or a table cannot be
+           changed here. Only the answers actually changed are sent; the server checks
+           them by the same rules a submission passes and records each change. */
+        let CA_ITEMS = {};
+
+        function changeEventHtml(e) {
+            let d = {};
+            try { d = JSON.parse(e.detail || '{}') || {}; } catch (x) { /* an unreadable detail still shows who and when */ }
+            const blank = window.t('forms.approval.changed_blank');
+            const line = window.t('forms.approval.changed_event', {
+                name: e.full_name || '', field: d.label || '',
+                old: d.old !== undefined && d.old !== '' ? d.old : blank, new: d.new !== undefined && d.new !== '' ? d.new : blank
+            });
+            return `<div class="ca-event ca-event-change">${esc(line)} · ${esc(formatDate(e.event_datetime))}${e.reason ? ' · ' + esc(e.reason) : ''}</div>`;
+        }
+
+        function editInput(f) {
+            const id = `ef-${f.id}`;
+            if (!f.editable) return `<div class="ca-edit-locked">${esc(f.text || '—')}<em>${esc(window.t('forms.approval.edit_locked'))}</em></div>`;
+            const v = f.value || '';
+            switch (f.type) {
+                case 'textarea': return `<textarea id="${id}">${esc(v)}</textarea>`;
+                case 'email':    return `<input type="email" id="${id}" value="${escAttr(v)}">`;
+                case 'number':   return `<input type="number" step="any" id="${id}" value="${escAttr(v)}">`;
+                case 'datetime': {
+                    const kind = f.date_mode === 'time' ? 'time' : (f.date_mode === 'datetime' ? 'datetime-local' : 'date');
+                    return `<input type="${kind}" id="${id}" value="${escAttr(v)}">`;
+                }
+                case 'dropdown':
+                case 'radio':
+                    return `<select id="${id}"><option value=""></option>${f.options.map(o =>
+                        `<option value="${escAttr(o)}"${o === v ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+                case 'checkbox':
+                    return `<div class="ca-edit-ticks"><label><input type="checkbox" id="${id}"${['1', 'true', 'yes', 'on'].includes(String(v).toLowerCase()) ? ' checked' : ''}></label></div>`;
+                case 'checkboxes': {
+                    let chosen = [];
+                    try { chosen = JSON.parse(v || '[]') || []; } catch (x) { chosen = []; }
+                    return `<div class="ca-edit-ticks" id="${id}">${f.options.map(o =>
+                        `<label><input type="checkbox" value="${escAttr(o)}"${chosen.includes(o) ? ' checked' : ''}> ${esc(o)}</label>`).join('')}</div>`;
+                }
+                default:         return `<input type="text" id="${id}" value="${escAttr(v)}">`;
+            }
+        }
+
+        function toggleEdit(id) {
+            const box = document.getElementById('edit-' + id);
+            const it = CA_ITEMS[id];
+            if (!box || !it) return;
+            if (box.classList.toggle('open')) {
+                box.innerHTML = `<p class="ca-edit-hint">${esc(window.t('forms.approval.edit_hint'))}</p>`
+                    + (it.edit_fields || []).map(f => `<div class="ca-edit-row"><label for="ef-${f.id}">${esc(f.label)}${f.required ? ' *' : ''}</label>${editInput(f)}</div>`).join('')
+                    + `<input type="text" class="ca-edit-reason" id="ef-reason-${id}" placeholder="${escAttr(window.t('forms.approval.edit_reason'))}">`
+                    + `<div class="ca-actions"><button class="ca-btn ca-btn-approve" onclick="saveEdit(${id}, this)">${esc(window.t('forms.approval.edit_save'))}</button>`
+                    + `<button class="ca-btn ca-btn-secondary" onclick="toggleEdit(${id})">${esc(window.t('forms.approval.edit_cancel'))}</button></div>`;
+            } else {
+                box.innerHTML = '';
+            }
+        }
+
+        /** What the panel says for one question, in the stored form - or undefined when untouched. */
+        function editedValue(f) {
+            if (f.type === 'checkboxes') {
+                const box = document.getElementById(`ef-${f.id}`);
+                const now = Array.from(box.querySelectorAll('input:checked')).map(c => c.value);
+                let was = [];
+                try { was = JSON.parse(f.value || '[]') || []; } catch (x) { was = []; }
+                return JSON.stringify(now) === JSON.stringify(was) ? undefined : now;
+            }
+            const el = document.getElementById(`ef-${f.id}`);
+            if (f.type === 'checkbox') {
+                const was = ['1', 'true', 'yes', 'on'].includes(String(f.value || '').toLowerCase());
+                return el.checked === was ? undefined : (el.checked ? '1' : '');
+            }
+            const now = f.type === 'textarea' ? el.value : el.value.trim();
+            return now === (f.value || '') ? undefined : now;
+        }
+
+        async function saveEdit(id, btn) {
+            const it = CA_ITEMS[id];
+            const answers = {};
+            (it.edit_fields || []).filter(f => f.editable).forEach(f => {
+                const v = editedValue(f);
+                if (v !== undefined) answers[f.id] = v;
+            });
+            if (!Object.keys(answers).length) { showToast(window.t('forms.approval.edit_none'), 'info'); return; }
+            btn.disabled = true;
+            try {
+                const r = await fetch('../api/forms/edit_submission_answers.php', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ submission_id: id, answers, reason: (document.getElementById('ef-reason-' + id) || {}).value || '' })
+                });
+                const d = await r.json();
+                if (!d.success) { showToast(d.error || window.t('forms.approval.edit_failed'), 'error'); btn.disabled = false; return; }
+                showToast(window.t('forms.approval.edit_saved'), 'success');
+                loadApprovals();
+            } catch (x) {
+                showToast(window.t('forms.approval.edit_failed'), 'error');
+                btn.disabled = false;
+            }
+        }
+
         async function toggleMove(id) {
             const box = document.getElementById('move-' + id);
             if (box.classList.toggle('open') && !box.innerHTML) {
@@ -433,6 +561,6 @@ $translationNamespaces = ['common', 'forms'];
     </script>
     <!-- Mobile layer. Adds the views hamburger and the module drawer on a phone.
          Loaded last so it can wrap the page's own globals rather than edit them. -->
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

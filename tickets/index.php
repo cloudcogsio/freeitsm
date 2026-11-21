@@ -62,15 +62,15 @@ $translationNamespaces = ['common', 'tickets'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('tickets', t('tickets.nav.inbox'))); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
     <link rel="stylesheet" href="../checklists/ticket_checklist.css?v=4">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=94">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/address-suggest.css?v=1">   <!-- GH #307 -->
     <link rel="stylesheet" href="../assets/css/save-to-files.css?v=1">
     <link rel="stylesheet" href="../assets/css/files-picker.css?v=1">
     <link rel="stylesheet" href="../assets/css/float-window.css?v=1">
     <link rel="stylesheet" href="../assets/css/ticket-fields.css?v=1">
-    <link rel="stylesheet" href="../assets/css/reading-pane.css?v=5">
+    <link rel="stylesheet" href="../assets/css/reading-pane.css?v=10">
     <link rel="stylesheet" href="../assets/css/ticket-workspace.css?v=4">
     <link rel="stylesheet" href="../assets/css/mobile.css?v=198">
     <link rel="stylesheet" href="../assets/css/data-table.css?v=7">
@@ -263,7 +263,7 @@ $jsTranslations['files'] = array_intersect_key($filesStrings, array_flip(['wm', 
                             <span class="toggle-slider"></span>
                         </span>
                     </label>
-                    <div class="form-hint" id="noteSharedHint" style="font-size:12px;color:#666;margin-top:6px;">
+                    <div class="form-hint" id="noteSharedHint" style="font-size:var(--font-size-sm, 12px);color:#666;margin-top:6px;">
                         <?php echo htmlspecialchars(t('tickets.note_modal.share_hint')); ?>
                     </div>
                 </div>
@@ -340,12 +340,15 @@ $jsTranslations['files'] = array_intersect_key($filesStrings, array_flip(['wm', 
                         <div class="dropzone-content">
                             <span class="dropzone-icon">📎</span>
                             <span><?php echo htmlspecialchars(t('tickets.reply_modal.drop_files')); ?> <a href="#" onclick="document.getElementById('attachmentInput').click(); return false;"><?php echo htmlspecialchars(t('tickets.reply_modal.browse')); ?></a></span>
+                            <?php /* GH #397: a file already in Files, sent as an attachment. Shown by inbox.js
+                                     (syncReplyFromFiles) only to someone who can open Files. */ ?>
+                            <span id="replyFromFilesWrap" hidden>&middot; <a href="#" onclick="replyFromFiles(); return false;"><?php echo htmlspecialchars(t('tickets.reply_modal.from_files')); ?></a></span>
                         </div>
                     </div>
                     <div class="attachment-list" id="attachmentList"></div>
                 </div>
             </div>
-            <div id="replyCleanupUndoBar" style="display:none; padding: 8px 0; color: #555; font-size: 13px;">
+            <div id="replyCleanupUndoBar" style="display:none; padding: 8px 0; color: #555; font-size: var(--font-size-md, 13px);">
                 ✨ <?php echo htmlspecialchars(t('tickets.reply_modal.cleaned_up')); ?> — <a href="#" id="replyCleanupUndoLink" style="color: #0078d4;"><?php echo htmlspecialchars(t('tickets.reply_modal.undo')); ?></a> <span id="replyCleanupUndoTimer" style="color: #999;"></span>
             </div>
             <div class="modal-footer">
@@ -406,7 +409,7 @@ $jsTranslations['files'] = array_intersect_key($filesStrings, array_flip(['wm', 
         <div class="modal-content" style="max-width: 620px;">
             <div class="modal-header"><?php echo htmlspecialchars(t('tickets.split.title')); ?></div>
             <div class="modal-body">
-                <p style="margin:0 0 14px;color:var(--text-muted,#666);font-size:13px;"><?php echo htmlspecialchars(t('tickets.split.pick_intro')); ?></p>
+                <p style="margin:0 0 14px;color:var(--text-muted,#666);font-size:var(--font-size-md, 13px);"><?php echo htmlspecialchars(t('tickets.split.pick_intro')); ?></p>
 
                 <div class="form-group">
                     <div class="split-pick-bar">
@@ -426,7 +429,7 @@ $jsTranslations['files'] = array_intersect_key($filesStrings, array_flip(['wm', 
                     <small style="color:var(--text-muted,#666);"><?php echo htmlspecialchars(t('tickets.split.subject_help')); ?></small>
                 </div>
 
-                <div class="info-box" id="splitWarning" style="display:none;margin-top:6px;padding:10px 13px;border-radius:6px;background:var(--warning-bg,#fff4e5);border-left:4px solid var(--warning-border,#ffd9a8);color:var(--warning-text,#8a5300);font-size:12.5px;"></div>
+                <div class="info-box" id="splitWarning" style="display:none;margin-top:6px;padding:10px 13px;border-radius:6px;background:var(--warning-bg,#fff4e5);border-left:4px solid var(--warning-border,#ffd9a8);color:var(--warning-text,#8a5300);font-size:var(--font-size-md, 13px);"></div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeSplitModal()"><?php echo htmlspecialchars(t('common.cancel')); ?></button>
@@ -446,16 +449,16 @@ $jsTranslations['files'] = array_intersect_key($filesStrings, array_flip(['wm', 
             <div class="modal-body">
 
                 <div id="mergeStageChoose">
-                    <p style="margin:0 0 14px;color:var(--text-muted,#666);font-size:13px;" id="mergeIntro"></p>
+                    <p style="margin:0 0 14px;color:var(--text-muted,#666);font-size:var(--font-size-md, 13px);" id="mergeIntro"></p>
                     <div class="form-group">
                         <label class="form-label" id="mergePickLabel"><?php echo htmlspecialchars(t('tickets.merge.pick_survivor')); ?></label>
                         <div id="mergeCandidates" class="merge-candidates"></div>
                     </div>
-                    <div class="info-box" id="mergeEffect" style="margin-top:14px;padding:11px 13px;border-radius:6px;background:var(--accent-soft,#eff6ff);border-left:4px solid var(--accent,#0078d4);font-size:12.5px;"></div>
+                    <div class="info-box" id="mergeEffect" style="margin-top:14px;padding:11px 13px;border-radius:6px;background:var(--accent-soft,#eff6ff);border-left:4px solid var(--accent,#0078d4);font-size:var(--font-size-md, 13px);"></div>
                 </div>
 
                 <div id="mergeStageSummary" style="display:none;">
-                    <div id="mergeResultLine" style="font-size:13px;margin-bottom:12px;"></div>
+                    <div id="mergeResultLine" style="font-size:var(--font-size-md, 13px);margin-bottom:12px;"></div>
                     <div class="form-group">
                         <label class="form-label">
                             <?php echo htmlspecialchars(t('tickets.merge.ai_heading')); ?>
@@ -492,7 +495,7 @@ $jsTranslations['files'] = array_intersect_key($filesStrings, array_flip(['wm', 
                 <div class="form-group">
                     <label class="form-label"><?php echo htmlspecialchars(t('tickets.reply_modal.save_template_name')); ?></label>
                     <input type="text" class="form-input" id="saveReplyTemplateName" maxlength="100" autocomplete="off" placeholder="<?php echo htmlspecialchars(t('tickets.reply_modal.save_template_placeholder')); ?>">
-                    <div class="form-hint" style="font-size:12px;color:var(--text-muted,#666);margin-top:6px;">
+                    <div class="form-hint" style="font-size:var(--font-size-sm, 12px);color:var(--text-muted,#666);margin-top:6px;">
                         <?php echo htmlspecialchars(t('tickets.reply_modal.save_template_hint')); ?>
                     </div>
                 </div>
@@ -565,7 +568,7 @@ $jsTranslations['files'] = array_intersect_key($filesStrings, array_flip(['wm', 
                         <span id="newTicketCompanyLabel" style="color:#888;font-weight:normal;"></span>
                     </label>
                     <select class="form-select" id="newTicketMailbox"></select>
-                    <div id="newTicketMailboxHint" style="font-size:12px;color:#999;margin-top:4px;"></div>
+                    <div id="newTicketMailboxHint" style="font-size:var(--font-size-sm, 12px);color:#999;margin-top:4px;"></div>
                 </div>
                 <div class="form-group">
                     <label class="form-label"><?php echo htmlspecialchars(t('tickets.new_ticket_modal.subject')); ?> *</label>
@@ -873,6 +876,15 @@ $jsTranslations['files'] = array_intersect_key($filesStrings, array_flip(['wm', 
             <svg class="ctx-sub-arrow" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
             <div class="ticket-context-submenu" id="ctxFormsSubmenu" role="menu"></div>
         </div>
+        <?php if ($ticketsModuleOn['assets']): /* Assets -> Consumables (5.8.0; Ed: "right click and choose Use a consumable",
+            the first 10 with a search). One ticket at a time; filled by populateContextConsumablesSubmenu(). */ ?>
+        <div class="ticket-context-menu-item ticket-context-menu-parent" role="menuitem" tabindex="0" id="ctxConsumablesItem">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><line x1="12" y1="13" x2="12" y2="21"/></svg>
+            <span><?php echo htmlspecialchars(t('tickets.consumables.use')); ?></span>
+            <svg class="ctx-sub-arrow" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+            <div class="ticket-context-submenu" id="ctxConsumablesSubmenu" role="menu"></div>
+        </div>
+        <?php endif; ?>
         <?php if ($ticketsModuleOn['time-tracking']): /* GH #217 */ ?>
         <button class="ticket-context-menu-item" type="button" onclick="openContextRecordTime()">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
@@ -978,8 +990,8 @@ $jsTranslations['files'] = array_intersect_key($filesStrings, array_flip(['wm', 
                 </div>
                 <div class="ctx-cmdb-results" id="ctxCmdbResults"></div>
                 <div class="form-group" style="margin-top: 12px;">
-                    <label class="form-label" style="font-size: 12px; color: #666;">Recently linked (this session)</label>
-                    <div id="ctxCmdbSessionLog" style="font-size: 12px; color: #555;">None yet — pick from the search results above.</div>
+                    <label class="form-label" style="font-size: var(--font-size-sm, 12px); color: #666;">Recently linked (this session)</label>
+                    <div id="ctxCmdbSessionLog" style="font-size: var(--font-size-sm, 12px); color: #555;">None yet — pick from the search results above.</div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1044,7 +1056,7 @@ $jsTranslations['files'] = array_intersect_key($filesStrings, array_flip(['wm', 
             <div class="modal-header">Link <span id="linkTicketRef"></span> to another ticket</div>
             <div class="modal-body">
                 <div class="form-group">
-                    <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:13px;">
+                    <div style="display:flex;flex-wrap:wrap;gap:14px;font-size:var(--font-size-md, 13px);">
                         <label style="display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="radio" name="ticketLinkRelation" value="related" checked> Related to</label>
                         <label style="display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="radio" name="ticketLinkRelation" value="duplicate_of"> Duplicate of</label>
                         <label style="display:flex;align-items:center;gap:5px;cursor:pointer;"><input type="radio" name="ticketLinkRelation" value="parent_of"> Parent of</label>
@@ -1096,8 +1108,8 @@ $jsTranslations['files'] = array_intersect_key($filesStrings, array_flip(['wm', 
                     <label class="form-label"><?php echo htmlspecialchars(t('tickets.tracker.preview_label')); ?></label>
                     <pre id="escPreview" style="max-height:260px;overflow:auto;white-space:pre-wrap;word-break:break-word;
                         background:var(--surface-2);border:1px solid var(--border);border-radius:6px;
-                        padding:12px;font-size:12.5px;line-height:1.55;color:var(--text);margin:0;"></pre>
-                    <div style="font-size:12px;color:var(--text-muted);margin-top:6px;">
+                        padding:12px;font-size:var(--font-size-md, 13px);line-height:1.55;color:var(--text);margin:0;"></pre>
+                    <div style="font-size:var(--font-size-sm, 12px);color:var(--text-muted);margin-top:6px;">
                         <?php echo htmlspecialchars(t('tickets.tracker.preview_hint')); ?>
                     </div>
                     <?php /* Files leaving the building. Hidden when the ticket has
@@ -1188,22 +1200,33 @@ $jsTranslations['files'] = array_intersect_key($filesStrings, array_flip(['wm', 
     <script src="../checklists/ticket_view.js?v=16"></script>
     <script src="../assets/js/ticket-fields.js?v=2"></script>
     <script src="../assets/js/ticket-workspace.js?v=7"></script>
-    <script src="../assets/js/data-table.js?v=10"></script>
+    <script src="../assets/js/data-table.js?v=11"></script>
     <!-- Note images open in the Files viewer, in a floating window (GH #226). -->
     <script src="../assets/js/float-window.js?v=2"></script>
     <script src="../assets/js/files-icons.js?v=4"></script>
     <script src="../assets/js/files-viewer.js?v=10"></script>
     <script src="../assets/js/note-images.js?v=2"></script>
     <script src="../assets/js/save-to-files.js?v=2"></script>
-    <script src="../assets/js/files-picker.js?v=2"></script>
+    <script src="../assets/js/files-picker.js?v=3"></script>
     <script src="../assets/js/address-suggest.js?v=1"></script>   <!-- GH #307: before inbox.js, which attaches it to To and Cc -->
     <script src="../assets/js/location-picker.js?v=1"></script>   <!-- GH #311: before inbox.js -->
-    <script src="../assets/js/inbox.js?v=215"></script>
-    <script src="../assets/js/ticket-folders-pane.js?v=1"></script>   <!-- discussion #292 -->
+    <?php /* A link to one status, by its id (discussion #388): resolved here, so a URL never carries
+         a status NAME - names change, ids do not. An unknown or retired id opens the list as normal. */
+    $__linkStatus = null;
+    if (isset($_GET['status_id']) && ctype_digit((string)$_GET['status_id'])) {
+        try {
+            $__ls = connectToDatabase()->prepare("SELECT name FROM ticket_statuses WHERE id = ? AND is_active = 1");
+            $__ls->execute([(int)$_GET['status_id']]);
+            $__linkStatus = $__ls->fetchColumn() ?: null;
+        } catch (Throwable $e) { $__linkStatus = null; }
+    } ?>
+    <script>window.TICKET_LINK_STATUS = <?php echo json_encode($__linkStatus, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;</script>
+    <script src="../assets/js/inbox.js?v=222"></script>
+    <script src="../assets/js/ticket-folders-pane.js?v=2"></script>   <!-- discussion #292 -->
     <script src="../assets/js/ticket-watchers.js?v=2"></script>
     <script src="../assets/js/ticket-forms.js?v=5"></script>
     <script src="../assets/js/tickets-table.js?v=7"></script>
-    <script src="../assets/js/mobile.js?v=85"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
     <script>
     // Auto-check mailboxes every 60 seconds - and refresh the inbox whenever
     // ANYTHING new has arrived, however it came in.

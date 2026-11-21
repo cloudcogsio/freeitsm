@@ -27,7 +27,7 @@ return [
             // derives ownership from the manifest, so the tab that shows the
             // setting and the capability that guards it cannot disagree — and
             // the generic settings writer refuses any key nobody owns.
-            'setting_keys' => ['warroom_retention_days'],
+            'setting_keys' => ['warroom_retention_days', 'warroom_seen_by'],   // 5.9.0: Seen by on/off
         ],
         [
             'id'        => 'ai',
@@ -37,6 +37,7 @@ return [
             'setting_keys' => [
                 'warroom_ai_provider', 'warroom_ai_model',
                 'warroom_ai_api_key', 'warroom_ai_verify_ssl',
+                'warroom_translate',   // 5.9.0: translate messages into each reader's language (off by default)
             ],
         ],
     ],

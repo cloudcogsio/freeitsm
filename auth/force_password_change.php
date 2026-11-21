@@ -16,6 +16,12 @@ if (!isset($_SESSION['analyst_id']) || empty($_SESSION['password_expired'])) {
 }
 
 $analyst_name = $_SESSION['analyst_name'] ?? 'Analyst';
+
+// Once the password is changed: the page that sent them to sign in, or the landing page.
+require_once __DIR__ . '/../includes/base_url.php';
+require_once __DIR__ . '/../includes/login_return.php';
+// Peeked, not used up, so reloading this page keeps it.
+$afterChange = loginReturnPeek() ?? ((defined('BASE_URL') ? BASE_URL : '/') . 'index.php');
 ?>
 <!DOCTYPE html>
 <html lang="<?= trLocale() ?>">
@@ -38,12 +44,18 @@ $analyst_name = $_SESSION['analyst_name'] ?? 'Analyst';
         }
 
         .change-container {
-            background: white;
+            background: var(--surface, #fff);
             padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            width: 100%;
+            border-radius: var(--radius-xl, 10px);
+            box-shadow: var(--shadow-3, 0 10px 40px rgba(0, 0, 0, 0.2));
+            /* Full width less a margin each side, so on a phone the card never
+               touches the screen edges. */
+            width: calc(100% - 2 * var(--space-5, 20px));
             max-width: 420px;
+        }
+        /* On a phone the 40px padding leaves the fields a narrow column. */
+        @media (max-width: 480px) {
+            .change-container { padding: var(--space-6, 24px) var(--space-5, 20px); }
         }
 
         .change-header {
@@ -60,13 +72,13 @@ $analyst_name = $_SESSION['analyst_name'] ?? 'Analyst';
 
         .change-header h1 {
             color: #333;
-            font-size: 22px;
+            font-size: var(--font-size-4xl, 24px);
             margin-bottom: 8px;
         }
 
         .change-header p {
             color: #666;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             line-height: 1.5;
         }
 
@@ -79,7 +91,7 @@ $analyst_name = $_SESSION['analyst_name'] ?? 'Analyst';
             margin-bottom: 6px;
             color: #333;
             font-weight: 500;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
         }
 
         .form-group input {
@@ -87,7 +99,7 @@ $analyst_name = $_SESSION['analyst_name'] ?? 'Analyst';
             padding: 11px 12px;
             border: 1px solid #ddd;
             border-radius: 5px;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             transition: border-color 0.3s;
         }
 
@@ -100,7 +112,7 @@ $analyst_name = $_SESSION['analyst_name'] ?? 'Analyst';
             padding: 10px 14px;
             border-radius: 5px;
             margin-bottom: 16px;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             display: none;
         }
 
@@ -125,7 +137,7 @@ $analyst_name = $_SESSION['analyst_name'] ?? 'Analyst';
             color: white;
             border: none;
             border-radius: 5px;
-            font-size: 15px;
+            font-size: var(--font-size-xl, 16px);
             font-weight: 600;
             cursor: pointer;
             transition: transform 0.2s;
@@ -141,7 +153,7 @@ $analyst_name = $_SESSION['analyst_name'] ?? 'Analyst';
             margin-top: 16px;
             color: #999;
             text-decoration: none;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
         }
 
         .logout-link:hover { color: #666; }
@@ -216,7 +228,7 @@ $analyst_name = $_SESSION['analyst_name'] ?? 'Analyst';
             if (data.success) {
                 msgEl.className = 'msg success';
                 msgEl.textContent = <?= trj('expired_success', 'Password changed successfully. Redirecting...') ?>;
-                setTimeout(() => { window.location.href = '<?php echo defined('BASE_URL') ? BASE_URL : '/'; ?>index.php'; }, 1500);
+                setTimeout(() => { window.location.href = <?php echo json_encode($afterChange, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES); ?>; }, 1500);
             } else {
                 msgEl.className = 'msg error';
                 msgEl.textContent = data.error;

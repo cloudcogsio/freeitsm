@@ -110,7 +110,7 @@ return [
 
         'topology_title'    => 'Topology',
         'topology_desc'     => 'See how companies, mailboxes, domains, sign-in and analysts fit together',
-        'topology_keywords' => 'topology map overview tree relationships companies mailboxes domains analysts structure diagram graph',
+        'topology_keywords' => 'topology map overview tree relationships companies mailboxes domains analysts structure diagram graph',
         'storage_usage_title'    => 'Storage usage',
         'storage_usage_desc'     => 'Where uploaded files are kept, how many there are and how much space they use',
         'storage_usage_keywords' => 'storage disk space folders files attachments uploads size usage where location path backup',
@@ -1121,6 +1121,13 @@ return [
         'intro'           => 'Fields you make up for companies and for people. Answers are filled in on the company (System → Companies) and the person, and read and written through the REST API as custom_fields.',
         'tab_companies'   => 'Companies',
         'tab_people'      => 'People',
+        // Assets -> Consumables (5.8.0)
+        'tab_consumables' => 'Consumables',
+        'intro_consumables' => 'Fields on consumable items in Assets → Consumables. A field belongs to every type, or to one type - a toner can have a page yield and paper a weight.',
+        'f_consumable_type' => 'Type',
+        'f_consumable_type_hint' => 'Every type, or just one. Fixed once the field is made.',
+        'col_consumable_type' => 'Type',
+        'every_type' => 'Every type',
         'intro_companies' => 'One list for every company.',
         'intro_people'    => 'Shared by every company, or one company\'s own. A person who moves company keeps their old company\'s answers out of sight.',
         'col_name'        => 'Name',
@@ -1478,6 +1485,39 @@ return [
 
         'step_open_title' => 'Open FreeITSM over HTTPS',
         'step_open_body'  => 'Go to {url}. If it does not load, check that your docker-compose.yml publishes port 443 (the standard file maps it to 8443). If you changed that, use your port instead.',
+
+        // Behind a reverse proxy (GH #410)
+        'proxy_heading' => 'Behind a reverse proxy',
+        'proxy_intro' => 'If a reverse proxy, load balancer or Cloudflare Tunnel sits in front of FreeITSM, every request reaches FreeITSM from the proxy. Unless you tell FreeITSM which address is the proxy, it records the proxy\'s address for everyone: in Reporting → Logs, in the audit trails, and when an API key checks which addresses it allows.',
+        'proxy_off_title' => 'Off',
+        'proxy_off_body' => 'FreeITSM records the address each connection comes from. That is right when people connect straight to FreeITSM, and wrong behind a proxy - use Test below to see which you have.',
+        'proxy_on_title' => 'On',
+        'proxy_on_body' => 'The real address is taken from the {header} header, but only on requests that come from {list}.',
+        'proxy_refused_title' => 'Set, but not in force',
+        'proxy_refused_body' => 'TRUSTED_PROXIES is set to {list}, but it was turned down when the container started, so FreeITSM records the address each connection comes from. Run {cmd} to see why.',
+        'proxy_wide_title' => 'Warning: this setting is too wide',
+        'proxy_wide_body' => '{ranges} covers more than one proxy. Every machine in it can claim to be any address it likes. Change TRUSTED_PROXIES to the proxy\'s own address and restart the container.',
+        'proxy_danger_title' => 'What a wrong setting does - read this before you change it',
+        'proxy_danger_wide' => 'Too wide - the dangerous mistake. FreeITSM believes the address in the proxy\'s header only on requests from the addresses you list, because anyone can write that header. List a range such as {example} or the whole Docker network, and any machine in it can claim to be any address: it can put a false address in the sign-in log and the audit trails, and get past an API key that only allows certain addresses. List only the proxy\'s own address.',
+        'proxy_danger_missing' => 'Not set, when there is a proxy. Nothing breaks, but every sign-in and every change is recorded from the proxy\'s address, so the logs cannot tell people apart - and an API key\'s allowed addresses can only name the proxy, which lets in anyone who comes through it.',
+        'proxy_danger_wrong' => 'The wrong address. The header is ignored, so you are back to everyone being recorded as the proxy. Test shows this straight away.',
+        'proxy_how' => 'This is set in docker-compose.yml, not on this page, and takes effect when the container restarts (docker compose up -d):',
+        'proxy_how_cf' => 'For a Cloudflare Tunnel, also set {setting}. Several proxies: separate them with spaces.',
+        'proxy_test_heading' => 'Test.',
+        'proxy_test_intro' => 'Shows the address FreeITSM recorded for you just now, and what it means. It changes nothing.',
+        'proxy_test' => 'Test',
+        'proxy_testing' => 'Testing...',
+        'proxy_test_failed' => 'The test could not run.',
+        'proxy_recorded' => 'FreeITSM recorded your address as',
+        'verdict_direct' => 'You are connecting straight to FreeITSM - no proxy header arrived - so there is nothing to set. If you know there is a proxy in front, it is not adding a header: check its settings.',
+        'verdict_off_proxy' => 'A proxy is in front of FreeITSM (this request carried {headers}), and FreeITSM is recording the proxy\'s address, {ip}, for everyone. To record real addresses, add this to the app\'s environment in docker-compose.yml:',
+        'proxy_suggest_then' => 'That is the proxy\'s address as FreeITSM sees it - list it alone, nothing wider. Then run docker compose up -d and test again.',
+        'verdict_working' => 'Working: this address came from the proxy\'s header. Check it really is your computer\'s address - on Windows, ipconfig shows it; from outside your network, your public address. If it shows the proxy\'s address or 127.0.0.1, something is wrong.',
+        'verdict_too_wide' => 'Not safe: your own address, {ip}, is inside the range FreeITSM trusts as the proxy, so FreeITSM cannot tell you from the proxy - and anyone else in that range can claim any address. Change TRUSTED_PROXIES to the proxy\'s own address and restart the container.',
+        'verdict_still_proxy' => 'Not working: the address recorded is the proxy itself, so the proxy is not sending the {header} header. Make the proxy add {header}, or set TRUSTED_PROXY_HEADER to the header it does send.',
+        'verdict_refused' => 'The setting is not in force (see above), so FreeITSM records the address each connection comes from. Fix the setting first, then test again.',
+        'proxy_headers_seen' => 'Proxy headers on this request:',
+        'proxy_headers_none' => 'No proxy headers on this request.',
     ],
 
     // Module access page (system/modules/index.php)
@@ -1727,10 +1767,13 @@ return [
         'nt_company_none' => 'None - I choose each time',
         'search_dismiss_heading' => 'Closing the search panel',
         'search_dismiss_desc'    => 'The search panel can be dragged out of the way and left open, so by default only its ✕ or the Escape key closes it. Turn this on to have it close as soon as you click away — on the folder list, the ticket list or the toolbar. Clicking the ticket you just found, or its properties, still leaves the panel open, so a search survives you acting on its result.',
-        'search_dismiss_label'   => 'Close it when I click away',
+        'search_dismiss_label'   => 'Close it when I click away',
         'section_memory_heading' => 'Coming back to a module',   // GH #376
         'section_memory_desc' => 'When you open a module from the menu, the home page or Ctrl+K, go back to the section you last used there - Assets → Servers, say - instead of its front page. Links to a particular page or record still open exactly that. Remembered in this browser.',
         'section_memory_label' => 'Reopen the last section of each module',
+        'remember_company_heading' => 'Company at sign-in',
+        'remember_company_desc' => 'Start each sign-in in the company you last picked in the company switcher (or in All companies), instead of the Default company. A company you can no longer see, or one that has been deactivated, is skipped. New tickets are filed to the company you are working in, so check the switcher before you create one.',
+        'remember_company_label' => 'Start in the company I last used',
         'landing_heading' => 'Start page',
         'workcal_heading' => 'My work calendar',
         'taskcal_heading'    => 'Tasks in this calendar',
@@ -1852,6 +1895,7 @@ return [
 
         'panels_heading' => 'Left panels',
         'panels_desc'    => 'Choose, per module, whether the left panel stays pinned open or collapses to a thin strip that expands on hover. Tickets can also open it with a click (or the [ key). Modules with a settings page also offer this on their own Left panel tab.',
+        'panels_narrow'  => 'In a window 1100px wide or less, the Tickets folders start as the strip even on Always visible, so the ticket you are reading has room. They come back when the window is wider.',   // GH #413
         'panel_tickets'           => 'Tickets - folders',
         'panel_knowledge'         => 'Knowledge',
         'panel_process_mapper'    => 'Process Mapper',
@@ -3273,13 +3317,21 @@ return [
         'preview_row'         => 'Laptop will not turn on',
 
         'behaviour_heading' => 'What the portal lets people do',
-        'behaviour_desc'    => 'Both are off to begin with, so an existing portal behaves exactly as it did before these settings arrived.',
+        'behaviour_desc'    => 'All of these are off to begin with, so an existing portal behaves exactly as it did before these settings arrived.',
 
         'self_close_label' => 'Let people close their own ticket',
         'self_close_desc'  => 'Adds a <strong>No longer needed</strong> button to a ticket in the portal. The ticket is closed with a note saying the requester closed it, so the trail shows who did it rather than an analyst appearing to have resolved something they never touched. They cannot close a ticket somebody is already working on if it has been resolved awaiting their confirmation &mdash; that one is already theirs to confirm.',
 
         'my_assets_label' => 'Show people the equipment assigned to them',
         'my_assets_desc'  => 'Adds a <strong>My equipment</strong> page listing the assets assigned to that person, so they can check a serial number without raising a ticket to ask. Read only, and only ever their own.',
+        // GH #414: the organisation chart on the portal
+        'org_chart_label' => 'Organisation chart',
+        'org_chart_desc' => 'Adds an <strong>Organisation</strong> page showing who reports to whom in the person\'s own company: names, job titles and departments only, current staff only. Built from each person\'s manager in People.',
+        'org_chart_off' => 'Off',
+        'org_chart_all' => 'Everyone',
+        'org_chart_groups' => 'Only members of chosen People groups',
+        'org_chart_groups_label' => 'People groups who can see it',
+        'org_chart_no_groups' => 'There are no People groups yet. They come from a directory sync (System → Single sign-on).',
 
         'load_failed' => 'Could not load the settings. Nothing has been changed.',
         'save_failed' => 'Could not save the settings.',
