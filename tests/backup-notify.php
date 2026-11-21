@@ -57,7 +57,7 @@ if (getenv('FREEITSM_TEST_DATABASE') !== (string)$conn->query('SELECT DATABASE()
 }
 
 $types = NotificationsService::types();
-foreach (['backup.changed', 'backup.failed'] as $t) {
+foreach (['backup.changed', 'backup.failed', 'backup.restore'] as $t) {
     ok("a notification type $t, on by default", ($types[$t]['default'] ?? null) === true, json_encode($types[$t] ?? null));
     foreach (["common.notifications.pref.$t", "common.notifications.event.$t"] as $k) ok("...with a label: $k", t($k) !== $k && t($k) !== '');
 }
