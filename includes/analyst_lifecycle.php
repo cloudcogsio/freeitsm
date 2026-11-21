@@ -383,6 +383,7 @@ function analystReferenceRegistry(): array {
         ['files_audit', 'analyst_id', 'history'],
         ['files_shortcuts', 'created_by', 'history'],
         ['report_downloads', 'revoked_by', 'history'],   // 5.3.0: the admin who revoked a report link
+        ['files_offline', 'marked_by', 'history'],
     ];
 }
 

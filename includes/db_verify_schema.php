@@ -7360,6 +7360,29 @@ return [
         'created_datetime'    => 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP',
         'updated_datetime'    => 'DATETIME NULL',
     ],
+    // Files offline copies: what is kept on the server as well as in S3 - see freeitsm.sql.
+    'files_offline' => [
+        'id'                  => 'INT NOT NULL AUTO_INCREMENT',
+        'target_type'         => 'VARCHAR(10) NOT NULL',
+        'target_id'           => 'INT NOT NULL',
+        'excluded'            => 'TINYINT(1) NOT NULL DEFAULT 0',
+        'marked_by'           => 'INT NULL',
+        'marked_datetime'     => 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP',
+    ],
+    'files_offline_copies' => [
+        'id'                  => 'INT NOT NULL AUTO_INCREMENT',
+        'storage_path'        => 'VARCHAR(255) NOT NULL',
+        'size_bytes'          => 'BIGINT NOT NULL DEFAULT 0',
+        'state'               => 'VARCHAR(10) NOT NULL',
+        'failed_datetime'     => 'DATETIME NULL',
+        'updated_datetime'    => 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP',
+    ],
+    'files_offline_folders' => [
+        'id'                  => 'INT NOT NULL AUTO_INCREMENT',
+        'folder_id'           => 'INT NOT NULL',
+        'state'               => 'TINYINT NOT NULL DEFAULT 2',
+        'updated_datetime'    => 'DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)',
+    ],
     // Starters & leavers (4.6.0) - see freeitsm.sql.
     'jml_templates' => [
         'id'                => 'INT NOT NULL AUTO_INCREMENT',
