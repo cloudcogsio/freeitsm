@@ -13,7 +13,8 @@ require_once __DIR__ . '/../../includes/functions.php';
  * before requiring this file, and an analyst with that module and capability may
  * open it too. Its endpoints check the same capability, as they always did.
  *
- * @param ?array $grant  ['module' => string, 'cap' => Cap] or null - the page's own exception
+ * @param ?array $grant  ['module' => string, 'cap' => Cap or its key, capKey(Cap::X)] or null - the
+ *                       page's own exception. The key is the form capabilities.php asks data to hold.
  */
 function systemPageAllowed(PDO $conn, int $analystId, string $page, ?array $grant): bool
 {
@@ -22,8 +23,9 @@ function systemPageAllowed(PDO $conn, int $analystId, string $page, ?array $gran
     if ($grant === null || empty($grant['module']) || !isset($grant['cap'])) return false;
     require_once __DIR__ . '/../../includes/rbac.php';
     try {
+        $key = $grant['cap'] instanceof Cap ? capKey($grant['cap']) : (string)$grant['cap'];
         return analystCanAccessModule($conn, $analystId, (string)$grant['module'])
-            && analystHasCapability($conn, $analystId, $grant['cap']);
+            && analystHasCapability($conn, $analystId, Cap::from($key));   // an unknown key throws: refused below
     } catch (Throwable $e) {
         return false;   // fail closed
     }

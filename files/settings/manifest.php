@@ -63,4 +63,19 @@ return [
             'sensitive' => true,   // a short period deletes files sooner
         ],
     ],
+
+    'actions' => [
+        [
+            // #286 (wiki Storage-Series-Follow-Ups S3): where a copy of every stored file goes is
+            // its own grant. Opens System -> Backups; System -> Storage is to use it too. NOT part
+            // of "Manage everything in Files", and not administrator-only. A settings power, not
+            // everyday work: 'everyday' => false. Restore stays with administrators.
+            'cap'              => capKey(Cap::FILES_STORAGE_BACKUPS),
+            'grant'            => 'Storage and backups: set up System -> Backups - where backups of everything are sent, the backup passphrase and schedule, starting a backup and Verify. A holder can send a copy of every file to a bucket of their choosing. Restoring a backup stays with administrators',
+            'everyday'         => false,
+            'sensitive'        => true,
+            'restrict'         => null,   // always applies
+            'outside_umbrella' => true,
+        ],
+    ],
 ];

@@ -290,6 +290,13 @@ enum Cap: string
     // RECYCLE sets how long deleted files stay in the recycle bin before they are
     // deleted for good - it never lets anyone see or restore a file.
     case FILES_RECYCLE = 'files.recycle';
+    // STORAGE_BACKUPS (#286, wiki Storage-Series-Follow-Ups S3): System -> Backups - where a copy
+    // of everything (the database, every stored file, the encryption key) is sent, the backup
+    // passphrase, the schedule, Back up now, history and Verify. Whoever holds it can send every
+    // file to a bucket of their choosing, past the folder permissions, so it is NEVER part of
+    // FILES_MANAGE ('outside_umbrella' in the manifest). Named for System -> Storage too, which
+    // is to use it. Restoring a backup stays administrator-only: it replaces users and roles.
+    case FILES_STORAGE_BACKUPS = 'files.storage_backups';
 
     // ---- Projects (3.2.0) --------------------------------------------------
     // GENERAL decides who may create and change projects - the module's own
@@ -538,6 +545,7 @@ function capRegistry(): array
                 'umbrella'  => false,
                 'sensitive' => !empty($tab['sensitive']),
                 'label'     => $tab['grant'] ?? $tab['id'],
+                'outside_umbrella' => !empty($tab['outside_umbrella']),
             ];
         }
 
@@ -552,10 +560,15 @@ function capRegistry(): array
             $registry[$cap] = [
                 'module'    => $module,
                 'umbrella'  => false,
-                'everyday'  => true,
+                // A power that is not a settings tab of the module (Storage and backups opens a
+                // System page) says 'everyday' => false: it sits with the settings on Roles and
+                // never goes through analystMayAct() - a plain capability, checked as one.
+                'everyday'  => ($action['everyday'] ?? true) !== false,
                 'sensitive' => !empty($action['sensitive']),
                 'label'     => $action['grant'] ?? $cap,
                 'restrict'  => $action['restrict'] ?? null,   // ['setting' => key, 'value' => v]; null = always restricted
+                // Granted only on its own: the module's "manage everything" does not include it.
+                'outside_umbrella' => !empty($action['outside_umbrella']),
             ];
         }
     }
@@ -699,7 +712,9 @@ function capExpandUmbrellas(array $held): array
     foreach ($held as $key) {
         $meta = capRegistry()[$key] ?? null;
         if ($meta && !empty($meta['umbrella'])) {
-            $expanded = array_merge($expanded, capsForModule($meta['module']));
+            // Not what the module marks 'outside_umbrella': that is granted only on its own.
+            $expanded = array_merge($expanded, array_filter(capsForModule($meta['module']),
+                fn($k) => empty(capRegistry()[$k]['outside_umbrella'])));
         }
     }
     return array_values(array_unique($expanded));
@@ -737,6 +752,7 @@ function capGroups(): array
                 'sensitive' => capIsSensitive($key),
                 'umbrella'  => $key === $umbrella,
                 'everyday'  => capIsEveryday($key),
+                'outside_umbrella' => !empty(capRegistry()[$key]['outside_umbrella']),
             ];
         }
         $groups[$module] = ['label' => $moduleLabel, 'capabilities' => $entries];
