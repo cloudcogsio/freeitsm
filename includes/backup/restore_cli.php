@@ -9,6 +9,7 @@
 
 require_once __DIR__ . '/restore.php';
 require_once __DIR__ . '/runner.php';
+require_once __DIR__ . '/maintenance.php';
 
 const BACKUP_CLI_USAGE = <<<'TXT'
 Restore FreeITSM from a backup made on System -> Backups.
@@ -160,8 +161,12 @@ function backupRestoreCli(array $argv, $in = STDIN, $out = STDOUT): int
         return 2;
     } catch (Throwable $e) {
         $say('The restore stopped: ' . $e->getMessage());
+        if ($dbName === DB_NAME) backupSessionEpochBump();   // part of the database may already be replaced
         return 1;
     }
+    // Over the live install: everyone signed in before the restore signs in again, as after a
+    // restore from System -> Backups (their sessions belong to the database that was replaced).
+    if ($dbName === DB_NAME) backupSessionEpochBump();
     foreach ($r['warnings'] as $w) $say('Warning: ' . $w);
     foreach ($r['errors'] as $e) $say('Error: ' . $e);
 
