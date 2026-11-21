@@ -70,9 +70,10 @@ require __DIR__ . '/_top.php';
     <p>Each of these people gets a bell and an email (when a mailbox can send) when:</p>
     <ul>
         <li>where backups go changes, the passphrase is set or changed, or the schedule changes (scheduled backups switched off included);</li>
-        <li>a backup fails, or Verify finds a problem.</li>
+        <li>a backup fails, or Verify finds a problem;</li>
+        <li>a restore over this install starts, and when it finishes or fails (by email above all: the install is in maintenance mode while it runs).</li>
     </ul>
-    <p>Never the person who made the change, and never for a backup that worked. Each can be switched off in Preferences.</p>
+    <p>Never the person who made the change (the administrator who starts a restore follows it on the progress page - but is told too if a restore leaves FreeITSM in maintenance mode), and never for a backup that worked. Each can be switched off in Preferences.</p>
     <p>While something is wrong - the last backup failed, there has been none within its schedule plus a day, the last Verify failed, or no backup has ever been verified - Watchtower shows a <strong>Backups</strong> card to the same people. It goes once that is put right.</p>
 </div>
 
@@ -94,7 +95,21 @@ require __DIR__ . '/_top.php';
             <h3>Restoring</h3>
         </div>
     </div>
-    <p>Restoring is done from the command line with <code>scripts/backup_restore.php</code>. It asks where the backups are, which one, and the passphrase, then restores the encryption key, the database and every file, and runs Database Verification. It only needs the backup location and the passphrase - nothing from the old server.</p>
+    <h4>Putting this install back to a backup</h4>
+    <p>Only administrators can restore: a restore replaces analysts, roles and permissions too.</p>
+    <p>Press <strong>Restore</strong> on a backup's row, enter the passphrase, check what the backup is, and type <code>RESTORE</code>. It is a true rollback of the whole install: the database, every uploaded file and everything in Files go back to how they were when the backup was made. Everything since is replaced, and files added since are deleted.</p>
+    <ol>
+        <li>FreeITSM goes into <strong>maintenance mode</strong>: everyone else sees a maintenance page, the API answers 503, and no background job starts. Your browser shows the progress.</li>
+        <li>It waits for background jobs, and for requests that were already running, to finish, then takes a <strong>safety backup</strong> of the current state, so the restore can itself be undone (restore the safety backup the same way).</li>
+        <li>It restores the backup into the current storage, deletes what the backup does not hold (including stored Files content that no file in Files refers to), and runs Database Verification, so a backup from an older version is brought up to date. If Database Verification fails, the restore counts as failed and is undone. <code>.htaccess</code> and <code>web.config</code> files are never deleted.</li>
+        <li>This install's backup settings (location, passphrase, schedule), its Files storage settings and the backup history are kept as they are now, not taken from the backup.</li>
+        <li>Maintenance mode switches off and the restore is listed in the history. Everyone, you included, signs in again: the people and permissions are now the backup's.</li>
+    </ol>
+    <p>If the restore fails part way, the safety backup is put back automatically and FreeITSM is as it was. If that fails too, FreeITSM stays in maintenance mode and the progress page says which safety backup to restore from the command line (below), and everyone concerned is told by email. If the restore process dies (out of memory, say), maintenance mode is switched off at once when nothing had been restored yet; otherwise the progress page says the restore stopped part way. If the server is restarted during a restore, it does not continue: the progress page says so and lets you switch maintenance mode off once you have checked the install. It is never switched off while the restore is still running.</p>
+    <p>On the server, <code>php scripts/backup_maintenance.php</code> shows what a restore is doing, and <code>--off</code> switches maintenance mode off once it has stopped - for when no browser can (the session that started it has gone). When the safety backup has to be put back by hand, use <code>php scripts/backup_restore.php --set=&lt;safety backup&gt; --force</code>; a command-line restore pauses scheduled backups and gives the install a new backup id, so turn backups back on here and remove older backups from the target yourself when they are no longer needed.</p>
+    <div class="help-note">If the backup was made with a different encryption key, its key replaces this install's (the restored settings need it); the page warns before you start. Maintenance mode is kept in a file beside the encryption key, so that folder must be writable by the web server.</div>
+    <h4>Onto a new server (command line)</h4>
+    <p>Restoring onto a new server is done from the command line with <code>scripts/backup_restore.php</code>. It asks where the backups are, which one, and the passphrase, then restores the encryption key, the database and every file, and runs Database Verification. It only needs the backup location and the passphrase - nothing from the old server.</p>
     <h4>With Docker</h4>
     <ol>
         <li>Set up a new install with the same <code>docker-compose.yml</code>, and add <code>FREEITSM_SCHEDULER=0</code> to the app's environment so no background job runs during the restore.</li>
@@ -110,7 +125,7 @@ require __DIR__ . '/_top.php';
     </ol>
     <p>It refuses to overwrite a database that is in use, or a different encryption key that install may need, unless you add <code>--force</code>. <code>--help</code> lists every option, including restoring into a scratch database to try a backup out.</p>
     <h4>What happens to passwords and other secrets</h4>
-    <p>Mailbox passwords, API keys, integration secrets and the like are kept in the database, encrypted with this install's encryption key. A backup holds that key too, sealed so that only the backup passphrase opens it - someone with only the bucket or folder cannot read it. A restore puts the key back with the database, so every secret works again exactly as it was when the backup was made: one changed since then is back to its old value, and the key that was on the server before is replaced.</p>
+    <p>Mailbox passwords, API keys, integration secrets and the like are kept in the database, encrypted with this install's encryption key. A backup holds that key too, sealed so that only the backup passphrase opens it - someone with only the bucket or folder cannot read it. A restore puts the key back with the database, so every secret works again exactly as it was when the backup was made: one changed since then is back to its old value, and the key that was on the server before is replaced. <strong>Restore</strong> on this page is the exception for the backup and Files storage settings: they, and their secrets, stay as they are now (re-encrypted with the restored key when it differs).</p>
     <div class="help-note">After a restore, scheduled backups are <strong>off</strong> on the restored install, so a trial restore can never remove the original install's backups. Turn them back on here when this is the install you are keeping.</div>
 </div>
 <?php require __DIR__ . '/_bottom.php'; ?>
