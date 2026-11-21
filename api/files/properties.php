@@ -6,6 +6,7 @@
  * is still looking.
  */
 require_once __DIR__ . '/../../includes/files/api_bootstrap.php';
+require_once __DIR__ . '/../../includes/files/offline.php';
 
 filesApiRun(function () use ($conn, $analystId) {
     $type = ($_GET['type'] ?? '') === 'folder' ? 'folder' : 'item';
@@ -13,6 +14,7 @@ filesApiRun(function () use ($conn, $analystId) {
 
     if ($type === 'folder') {
         $lvl = filesNeed($conn, $analystId, $id, FilesAcl::VIEW);
+        $offCov = filesOfflineDisplayCoverage($conn);
         $st = $conn->prepare("SELECT f.*, c.full_name AS created_by_name, u.full_name AS updated_by_name
                                 FROM files_folders f
                            LEFT JOIN analysts c ON c.id = f.created_by
@@ -38,11 +40,14 @@ filesApiRun(function () use ($conn, $analystId) {
             'files'      => (int)$agg['n'],
             'size'       => (int)$agg['bytes'],
             'level'      => $lvl,
+            'offline'    => ['state' => $offCov ? $offCov->folder($id) : null,
+                             'status' => $offCov ? (filesOfflineFolderStates($conn, $offCov, FilesAcl::levels($conn, $analystId), [$id])[$id] ?? null) : null],
         ]]);
     }
 
     $it = filesNeedItem($conn, $analystId, $id, FilesAcl::VIEW);
     $lvl = FilesAcl::level($conn, $analystId, (int)$it['folder_id']);
+    $offCov = filesOfflineDisplayCoverage($conn);
     $st = $conn->prepare("SELECT v.id, v.version_no, v.size_bytes, v.mime_type, v.sha256, v.uploaded_datetime, v.note, v.restored_from_no, a.full_name AS uploaded_by
                             FROM files_versions v LEFT JOIN analysts a ON a.id = v.uploaded_by
                            WHERE v.item_id = ? ORDER BY v.version_no DESC");
@@ -66,5 +71,7 @@ filesApiRun(function () use ($conn, $analystId) {
         ], $st->fetchAll(PDO::FETCH_ASSOC)),
         'current_version_id' => (int)$it['current_version_id'],
         'level'      => $lvl,
+        'offline'    => ['state' => $off = ($offCov ? $offCov->item($id, (int)$it['folder_id']) : null),
+                         'status' => filesOfflineKept($off) ? (filesOfflineItemStates($conn, [$id])[$id] ?? null) : null],
     ]]);
 });
