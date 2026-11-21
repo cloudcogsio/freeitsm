@@ -25,8 +25,8 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('system', t('system.backups.title'))); ?></title>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=79">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <style>
         body { --accent: var(--sys-accent, #546e7a); --accent-hover: var(--sys-accent-hover, #37474f); --on-accent: var(--sys-on-accent, #fff); }
         .main-container { flex: 1; background: var(--app-bg, #f5f7fa); overflow-y: auto; }
@@ -76,7 +76,7 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
         .bk-detail { color: var(--text-dim, #777); font-size: 12px; white-space: pre-line; margin-top: 4px; }
         .bk-hidden { display: none !important; }
     </style>
-    <link rel="stylesheet" href="../../assets/css/mobile.css?v=196">
+    <link rel="stylesheet" href="../../assets/css/mobile.css?v=200">
 </head>
 <body data-mobile-module="system" data-mobile-page="backups">
     <?php include '../includes/header.php'; ?>
@@ -201,8 +201,8 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <script>window.BK_API = '<?php echo $path_prefix; ?>api/system/backups.php';</script>
     <script src="../../assets/js/tz.js?v=5"></script>
-    <script src="../../assets/js/i18n.js?v=3"></script>
+    <script src="../../assets/js/i18n.js?v=4"></script>
     <script src="../../assets/js/system-backups.js?v=1"></script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>
