@@ -122,6 +122,10 @@ function entityLink(string $type, int $id): ?string {
         // The help assistant's unanswered questions - one list, whatever the id.
         case 'help_unanswered':
             return 'system/help-assistant/#unanswered';
+
+        // Backups (#286): a setting changed, or a backup or a Verify failed - one page, whatever the id.
+        case 'backup':
+            return 'system/backups/';
     }
 
     return null;
@@ -137,6 +141,6 @@ function entityLinkTypes(): array {
     return [
         'ticket', 'task', 'problem', 'change',
         'asset', 'cmdb_object', 'knowledge_article', 'contract', 'domain', 'project',
-        'person', 'company', 'supplier', 'supplier_contact', 'jml_case', 'help_unanswered', 'virt_connection', 'consumable',
+        'person', 'company', 'supplier', 'supplier_contact', 'jml_case', 'help_unanswered', 'virt_connection', 'consumable', 'backup',
     ];
 }

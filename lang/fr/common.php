@@ -692,6 +692,10 @@ return [
             'consumable' => [
                 'low_stock' => 'Stock bas - il est temps de recommander',
             ],
+            'backup' => [
+                'changed' => 'Un réglage des sauvegardes a changé',
+                'failed' => 'Une sauvegarde ou sa vérification a échoué',
+            ],
             'hyperv' => [
                 'collector' => 'Un collecteur Hyper-V demande votre attention',
             ],
@@ -753,6 +757,10 @@ return [
             ],
             'consumable' => [
                 'low_stock' => 'Un consommable atteint son seuil de réapprovisionnement (les personnes prévenues se choisissent dans Actifs -> Paramètres -> Consommables)',
+            ],
+            'backup' => [
+                'changed' => 'La destination, la phrase secrète ou la planification des sauvegardes change (administrateurs et personnes ayant Stockage et sauvegardes)',
+                'failed' => 'Une sauvegarde ou la vérification d\'une sauvegarde échoue (administrateurs et personnes ayant Stockage et sauvegardes)',
             ],
             'hyperv' => [
                 'collector' => 'Un collecteur Hyper-V cesse de remonter des rapports, ou le stockage d\'un cluster est illisible (personnes qui gèrent les connexions Hyper-V)',
