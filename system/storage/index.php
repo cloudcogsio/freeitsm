@@ -37,35 +37,35 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
            .sys-page is the body's own child, so system-page.css sizes it to the window (no wrapper). */
         .st-container { min-width: 0; background: var(--app-bg, #f5f7fa); }
         .st-card { margin-bottom: 16px; }
-        .st-card h3 { margin: 0 0 4px 0; font-size: 16px; color: var(--text, #333); }
-        .st-hint { margin: 0 0 14px 0; font-size: 13px; color: var(--text-dim, #777); }
+        .st-card h3 { margin: 0 0 4px 0; font-size: var(--font-size-xl, 16px); color: var(--text, #333); }
+        .st-hint { margin: 0 0 14px 0; font-size: var(--font-size-md, 13px); color: var(--text-dim, #777); }
         .st-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
         .st-field { display: flex; flex-direction: column; gap: 4px; min-width: 200px; flex: 1; }
-        .st-field label { font-size: 12px; font-weight: 600; color: var(--text-dim, #666); }
-        .st-field input, select.st-select { padding: 8px 10px; border: 1px solid var(--border, #ccc); border-radius: 5px; font-size: 14px;
+        .st-field label { font-size: var(--font-size-sm, 12px); font-weight: 600; color: var(--text-dim, #666); }
+        .st-field input, select.st-select { padding: 8px 10px; border: 1px solid var(--border, #ccc); border-radius: 5px; font-size: var(--font-size-lg, 14px);
                            background: var(--input-bg, #fff); color: var(--text, #333); }
         /* A field alone on its row keeps the width of the paired fields above it. */
         .st-field.st-half { flex: 0 1 calc(50% - 6px); }
-        .st-check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text, #333); }
+        .st-check { display: flex; align-items: center; gap: 6px; font-size: var(--font-size-md, 13px); color: var(--text, #333); }
         .st-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        .btn { padding: 8px 16px; border-radius: 5px; border: 1px solid var(--border, #ccc); background: var(--surface, #fff); color: var(--text, #333); cursor: pointer; font-size: 14px; }
+        .btn { padding: 8px 16px; border-radius: 5px; border: 1px solid var(--border, #ccc); background: var(--surface, #fff); color: var(--text, #333); cursor: pointer; font-size: var(--font-size-lg, 14px); }
         .btn:disabled { opacity: .55; cursor: default; }
         .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
         .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
-        .btn-small { padding: 4px 10px; font-size: 13px; }
-        .st-msg { font-size: 13px; }
+        .btn-small { padding: 4px 10px; font-size: var(--font-size-md, 13px); }
+        .st-msg { font-size: var(--font-size-md, 13px); }
         .st-msg.ok { color: var(--success, #2e7d32); }
         .st-msg.err { color: var(--danger, #c62828); white-space: pre-line; }
-        .st-status { font-size: 13px; color: var(--text, #333); margin-bottom: 12px; }
+        .st-status { font-size: var(--font-size-md, 13px); color: var(--text, #333); margin-bottom: 12px; }
         .st-warning { background: var(--warn-bg, #fff8e1); border: 1px solid var(--warn-border, #ffe082); color: var(--text, #5d4037);
-                      border-radius: 6px; padding: 10px 12px; font-size: 13px; margin-bottom: 14px; }
+                      border-radius: 6px; padding: 10px 12px; font-size: var(--font-size-md, 13px); margin-bottom: 14px; }
         [data-theme-mode="dark"] .st-warning { background: #3a3220; border-color: #6d5a2a; color: var(--text); }
-        .st-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .st-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-md, 13px); }
         .st-table th, .st-table td { text-align: left; padding: 10px 6px; border-bottom: 1px solid var(--border, #eee); vertical-align: top; }
         .st-table th { color: var(--text-dim, #666); font-weight: 600; }
         .st-name { font-weight: 600; color: var(--text, #333); }
-        .st-desc { color: var(--text-dim, #777); font-size: 12px; margin-top: 2px; }
-        .st-move { margin-top: 8px; font-size: 12px; color: var(--text, #333); }
+        .st-desc { color: var(--text-dim, #777); font-size: var(--font-size-sm, 12px); margin-top: 2px; }
+        .st-move { margin-top: 8px; font-size: var(--font-size-sm, 12px); color: var(--text, #333); }
         .st-move .st-actions { margin-top: 6px; }
         .st-where { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
         .st-hidden { display: none !important; }
