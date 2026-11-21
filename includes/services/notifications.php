@@ -252,6 +252,8 @@ class NotificationsService
             // can get them (administrators hold every capability).
             'backup.changed'             => ['default' => true,  'entity' => 'backup', 'cap' => capKey(Cap::FILES_STORAGE_BACKUPS)],
             'backup.failed'              => ['default' => true,  'entity' => 'backup', 'cap' => capKey(Cap::FILES_STORAGE_BACKUPS)],
+            // RESTORE: a restore over this install started, and how it ended (System -> Backups -> Restore).
+            'backup.restore'             => ['default' => true,  'entity' => 'backup', 'cap' => capKey(Cap::FILES_STORAGE_BACKUPS)],
         ];
     }
 
