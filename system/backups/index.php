@@ -40,32 +40,32 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
             body > .main-container { display: block; height: auto; flex: 1 1 auto; min-height: 0; }
         }
         .bk-container { max-width: 960px; margin: 0 auto; padding: 30px 20px; }
-        .page-title { font-size: 22px; font-weight: 600; color: var(--text, #333); margin: 0 0 6px 0; }
-        .page-subtitle { font-size: 13px; color: var(--text-dim, #888); margin: 0 0 24px 0; }
+        .page-title { font-size: var(--font-size-4xl, 24px); font-weight: 600; color: var(--text, #333); margin: 0 0 6px 0; }
+        .page-subtitle { font-size: var(--font-size-md, 13px); color: var(--text-dim, #888); margin: 0 0 24px 0; }
         .bk-card { background: var(--surface, #fff); border: 1px solid var(--border, #e0e0e0); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
-        .bk-card h3 { margin: 0 0 4px 0; font-size: 16px; color: var(--text, #333); }
-        .bk-card .bk-hint { margin: 0 0 14px 0; font-size: 13px; color: var(--text-dim, #777); }
+        .bk-card h3 { margin: 0 0 4px 0; font-size: var(--font-size-xl, 16px); color: var(--text, #333); }
+        .bk-card .bk-hint { margin: 0 0 14px 0; font-size: var(--font-size-md, 13px); color: var(--text-dim, #777); }
         .bk-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
         .bk-field { display: flex; flex-direction: column; gap: 4px; min-width: 200px; flex: 1; }
-        .bk-field label { font-size: 12px; font-weight: 600; color: var(--text-dim, #666); }
-        .bk-field input, .bk-field select { padding: 8px 10px; border: 1px solid var(--border, #ccc); border-radius: 5px; font-size: 14px;
+        .bk-field label { font-size: var(--font-size-sm, 12px); font-weight: 600; color: var(--text-dim, #666); }
+        .bk-field input, .bk-field select { padding: 8px 10px; border: 1px solid var(--border, #ccc); border-radius: 5px; font-size: var(--font-size-lg, 14px);
                                             background: var(--input-bg, #fff); color: var(--text, #333); }
-        .bk-check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text, #333); }
+        .bk-check { display: flex; align-items: center; gap: 6px; font-size: var(--font-size-md, 13px); color: var(--text, #333); }
         .bk-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        .btn { padding: 8px 16px; border-radius: 5px; border: 1px solid var(--border, #ccc); background: var(--surface, #fff); color: var(--text, #333); cursor: pointer; font-size: 14px; }
+        .btn { padding: 8px 16px; border-radius: 5px; border: 1px solid var(--border, #ccc); background: var(--surface, #fff); color: var(--text, #333); cursor: pointer; font-size: var(--font-size-lg, 14px); }
         .btn:disabled { opacity: .55; cursor: default; }
         .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
         .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
-        .bk-msg { font-size: 13px; }
+        .bk-msg { font-size: var(--font-size-md, 13px); }
         .bk-msg.ok { color: var(--success, #2e7d32); }
         .bk-msg.err { color: var(--danger, #c62828); white-space: pre-line; }
         .bk-warning { background: var(--warn-bg, #fff8e1); border: 1px solid var(--warn-border, #ffe082); color: var(--text, #5d4037);
-                      border-radius: 6px; padding: 10px 12px; font-size: 13px; margin-bottom: 14px; }
-        .bk-status { font-size: 13px; color: var(--text, #333); margin-bottom: 12px; }
-        .bk-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+                      border-radius: 6px; padding: 10px 12px; font-size: var(--font-size-md, 13px); margin-bottom: 14px; }
+        .bk-status { font-size: var(--font-size-md, 13px); color: var(--text, #333); margin-bottom: 12px; }
+        .bk-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-md, 13px); }
         .bk-table th, .bk-table td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border, #eee); vertical-align: top; }
         .bk-table th { color: var(--text-dim, #666); font-weight: 600; }
-        .bk-pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; background: var(--chip-bg, #eceff1); }
+        .bk-pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: var(--font-size-sm, 12px); background: var(--chip-bg, #eceff1); }
         .bk-pill.ok { background: #e8f5e9; color: #2e7d32; }
         .bk-pill.failed { background: #ffebee; color: #c62828; }
         .bk-pill.running { background: #e3f2fd; color: #1565c0; }
@@ -73,7 +73,7 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
         [data-theme-mode="dark"] .bk-pill.failed { background: #4a1c1c; color: #ef9a9a; }
         [data-theme-mode="dark"] .bk-pill.running { background: #0d2a45; color: #90caf9; }
         [data-theme-mode="dark"] .bk-warning { background: #3a3220; border-color: #6d5a2a; color: var(--text); }
-        .bk-detail { color: var(--text-dim, #777); font-size: 12px; white-space: pre-line; margin-top: 4px; }
+        .bk-detail { color: var(--text-dim, #777); font-size: var(--font-size-sm, 12px); white-space: pre-line; margin-top: 4px; }
         .bk-hidden { display: none !important; }
     </style>
     <link rel="stylesheet" href="../../assets/css/mobile.css?v=200">
