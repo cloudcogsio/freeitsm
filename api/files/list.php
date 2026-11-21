@@ -12,6 +12,7 @@
  * top, with its full path as a hint, and never learns what else is in Finance.
  */
 require_once __DIR__ . '/../../includes/files/api_bootstrap.php';
+require_once __DIR__ . '/../../includes/files/offline.php';
 
 filesApiRun(function () use ($conn, $analystId) {
     $folderId = (int)($_GET['folder'] ?? 0);
@@ -20,6 +21,10 @@ filesApiRun(function () use ($conn, $analystId) {
     $tree     = FilesAcl::tree($conn);
 
     if ($folderId > 0 && !isset($levels[$folderId])) filesApiFail('Folder not found.');
+
+    // "Make available offline" badges: 'self' (marked), 'folder' (a marked folder above),
+    // 'excluded' (left out of one), null.
+    $offCov = filesOfflineDisplayCoverage($conn);   // null: copies mean nothing here
 
     // Subfolders the caller can see.
     $childIds = [];
@@ -50,12 +55,20 @@ filesApiRun(function () use ($conn, $analystId) {
                 // caller may not see, which is fine: expanding one reveals nothing.
                 'has_children' => (int)$r['sub_count'] > 0,
                 'path'      => $folderId === 0 && $r['parent_id'] !== null ? FilesAcl::path($conn, $id) : null,
+                'offline'   => $offCov ? $offCov->folder($id) : null,
             ];
         }
         usort($folders, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
     }
 
     if ($treeOnly) filesApiOk(['folders' => $folders]);
+
+    // How far the copies have got: 'ready', 'pending' (still being copied), 'failed' (could
+    // not be copied; tried again later) or 'unknown'. A folder is ready once everything in it
+    // that this person can see is.
+    $offStates = $offCov ? filesOfflineFolderStates($conn, $offCov, $levels, array_column($folders, 'id')) : [];
+    foreach ($folders as &$f) $f['offline_status'] = $offStates[$f['id']] ?? null;
+    unset($f);
 
     $items = [];
     if ($folderId > 0) {
@@ -77,8 +90,13 @@ filesApiRun(function () use ($conn, $analystId) {
                 'modified'    => $r['modified'],
                 'modified_by' => $r['modified_by'],
                 'versions'    => (int)$r['versions'],
+                'offline'     => $offCov ? $offCov->item((int)$r['id'], $folderId) : null,
             ];
         }
+        $kept = array_column(array_filter($items, fn($i) => filesOfflineKept($i['offline'])), 'id');
+        $offItems = $offCov ? filesOfflineItemStates($conn, $kept) : [];
+        foreach ($items as &$i) $i['offline_status'] = $offItems[$i['id']] ?? null;
+        unset($i);
         usort($items, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
     }
 
@@ -123,11 +141,15 @@ filesApiRun(function () use ($conn, $analystId) {
         'folders' => $folders,
         'items'   => $items,
         'shortcuts' => $shortcuts,
+        // Whether "Make available offline" means anything here (Files is in S3-compatible storage).
+        'offline_enabled' => $offCov !== null,
         'can'     => [
             'upload' => $folderId > 0 ? $level >= FilesAcl::UPLOAD : filesHasCap($conn, $analystId, Cap::FILES_FOLDERS),
             'modify' => $level >= FilesAcl::MODIFY,
             'full'   => $level >= FilesAcl::FULL,
             'download' => $level >= FilesAcl::DOWNLOAD,
+            // Change what is kept offline anywhere they can see (otherwise Modify is needed).
+            'offline_any' => $offCov !== null && filesHasCap($conn, $analystId, Cap::FILES_STORAGE),
         ],
     ]);
 });

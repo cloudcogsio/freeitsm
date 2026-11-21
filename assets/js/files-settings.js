@@ -176,6 +176,18 @@
             return v.endpoint.replace(/\/+$/, '') !== o.endpoint || v.bucket !== o.bucket || norm(v.prefix) !== norm(o.prefix);
         };
 
+        /** The status box's "Make available offline" sentences: what the copies use, what is marked, the limit. */
+        var offlineText = function (o) {
+            if (!o) return '';
+            if (o.error) return ' <strong>' + esc(L('settings.offline_read_error', 'Offline copies: could not be read.')) + '</strong>';
+            var m = o.marks, u = o.usage, out = '';
+            if (u && u.files) out += ' ' + esc(L('settings.storage_offline', 'Offline copies on this server: {n}, {size}.', { n: u.files, size: fmtSize(u.bytes) }));
+            if (m && (m.folders || m.files || m.excluded)) out += ' ' + esc(L('settings.offline_marks', 'Kept offline: folders {folders}, files {files}, left out {excluded}. People: {people}.', m));
+            if (m && m.inactive) out += ' <strong>' + esc(L('settings.offline_marks_inactive', 'Marks by people no longer active (they keep nothing offline until marked again): {n}.', { n: m.inactive })) + '</strong>';
+            if (o.limit) out += ' ' + esc(L('settings.offline_limit_now', 'Limit for offline copies: {size}.', { size: fmtSize(o.limit) }));
+            if (o.limit_reached) out += ' <strong>' + esc(L('settings.offline_limit_reached', 'The offline copies have reached their limit: some files kept offline are not copied until it is raised or copies are removed.')) + '</strong>';
+            return out;
+        };
         /** Draws the status box and the move panel from the server's reply. */
         var render = function (r) {
             state = r;
@@ -185,6 +197,7 @@
             $('stoState').innerHTML = where +
                 esc(L('settings.storage_usage', '{n} stored files, {size} in all.', { n: r.stored_files, size: fmtSize(r.stored_bytes) })) +
                 (r.recycle && r.recycle.files ? ' ' + esc(L('settings.storage_in_bin', 'In the recycle bin (freed when it is emptied): {n}, {size}.', { n: r.recycle.files, size: fmtSize(r.recycle.bytes) })) : '') +
+                offlineText(r.offline) +
                 (r.free_bytes ? ' ' + esc(L('settings.storage_free', '{size} free on that disk.', { size: fmtSize(r.free_bytes) })) : '') +
                 (r.writable ? '' : ' <strong>' + esc(L('settings.not_writable', 'The web server cannot write there - uploads will fail.')) + '</strong>');
 
@@ -229,8 +242,54 @@
                     showType();
                 }
                 render(r);
+                // "Make available offline": shown while Files is in S3, or anything is marked or copied.
+                var o = r.offline || {}, om = o.marks || {};
+                $('stoOffline').hidden = !(r.driver === 's3' || o.error || om.folders || om.files || om.excluded || (o.usage && o.usage.files) || (o.unproven && o.unproven.length));
+                var gb = o.limit ? Math.round(o.limit / 1e9) : 0;
+                $('stoOfflineLimit').innerHTML = (o.limit_choices || [0]).map(function (n) {
+                    return '<option value="' + n + '"' + (n === gb ? ' selected' : '') + '>' + esc(n ? L('settings.offline_limit_gb', '{n} GB', { n: n }) : L('settings.offline_limit_none', 'No limit')) + '</option>';
+                }).join('');
+                // Earlier storage folders that could not be proved to be other places: Remove probes again.
+                $('stoOfflineOld').innerHTML = (o.unproven || []).map(function (root, i) {
+                    return '<div class="set-actions"><span style="font-size:var(--font-size-md, 13px)">' + esc(L('settings.offline_old_unproven', 'Offline copies may be left in an earlier storage folder: {path}. It could not be confirmed to be a different place from the current one, so nothing there was deleted.', { path: root })) +
+                        '</span><button type="button" class="fil-btn" data-old="' + i + '">' + esc(L('settings.offline_old_remove', 'Remove')) + '</button></div>';
+                }).join('');
+                $('stoOfflineOld').querySelectorAll('button[data-old]').forEach(function (b) {
+                    var root = o.unproven[+b.getAttribute('data-old')];
+                    b.addEventListener('click', function () {
+                        confirmThen(L('settings.offline_old_title', 'Remove old offline copies'),
+                            L('settings.offline_old_q', 'Check {path} again, and if it is a different place from the current storage folder, delete the offline copies left there? If it turns out to be the same place, nothing is deleted.', { path: root }),
+                            L('settings.offline_old_remove', 'Remove'),
+                            function () {
+                                api('offline.php', { action: 'remove_old_folder', root: root }).then(function (r) {
+                                    $('stoOfflineMsg').textContent = r.result === 'queued' ? L('settings.offline_old_queued', 'The copies there are deleted within a few minutes.')
+                                        : L('settings.offline_old_forgotten', 'Nothing to delete there.');
+                                    load(false);
+                                }).catch(function (e) { $('stoOfflineMsg').textContent = e.message; });
+                            }, true);
+                    });
+                });
             }).catch(function (e) { $('stoState').textContent = e.message; });
         };
+        // The limit on what offline copies use (0 = none).
+        $('stoOfflineLimitSave').addEventListener('click', function () {
+            api('offline.php', { action: 'limit', gb: parseInt($('stoOfflineLimit').value, 10) || 0 }).then(function () {
+                $('stoOfflineMsg').textContent = L('settings.offline_limit_saved', 'Limit saved.');
+                load(false);
+            }).catch(function (e) { $('stoOfflineMsg').textContent = e.message; });
+        });
+        // "Remove all offline copies": every mark goes, so everything is read from S3 only again.
+        $('stoOfflineClear').addEventListener('click', function () {
+            confirmThen(L('settings.offline_clear_title', 'Remove all offline copies'),
+                L('settings.offline_clear_q', 'Remove every "Make available offline" mark, for everyone? Files are then read from S3 only, and the Files offline copies job deletes the copies on this server.'),
+                L('settings.offline_clear', 'Clear'),
+                function () {
+                    api('offline.php', { action: 'clear_all' }).then(function (r) {
+                        $('stoOfflineMsg').textContent = L('settings.offline_cleared', 'Marks removed: {n}. The copies are deleted within a few minutes.', { n: r.marks });
+                        load(false);
+                    }).catch(function (e) { $('stoOfflineMsg').textContent = e.message; });
+                }, true);
+        });
         /** Asks first (in the app's dialog when there is one), then runs go(). */
         var confirmThen = function (title, msg, ok, go, danger) {
             if (window.showConfirm) window.showConfirm({ title: title, message: msg, okLabel: ok, okClass: danger ? 'danger' : undefined, onConfirm: go });
