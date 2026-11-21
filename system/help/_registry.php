@@ -48,6 +48,20 @@ function getHelpTopics() {
             ],
             'terms' => 'aes key secret credentials at rest cipher rotate',
         ],
+        'backups' => [
+            'hero' => 'Backups',
+            'sub'  => 'Encrypted, scheduled backups of the database, every stored file and the encryption key - and how to rebuild FreeITSM from them.',
+            'sections' => [
+                ['id' => 'overview',   'label' => 'What is backed up'],
+                ['id' => 'target',     'label' => 'Where backups go'],
+                ['id' => 'passphrase', 'label' => 'The passphrase'],
+                ['id' => 'schedule',   'label' => 'Schedule & retention'],
+                ['id' => 'access',     'label' => 'Who can use this page, and who is told'],
+                ['id' => 'verify',     'label' => 'Verifying a backup'],
+                ['id' => 'restore',    'label' => 'Restoring'],
+            ],
+            'terms' => 'backup restore recovery disaster rebuild offsite s3 bucket nas passphrase schedule retention verify encryption key permission storage and backups role alert notification bell watchtower secrets',
+        ],
         'docker' => [
             'hero' => 'Docker',
             'sub'  => 'Turn on HTTPS for FreeITSM running in its Docker image, with a certificate for the name your people type - no certificate knowledge needed.',
