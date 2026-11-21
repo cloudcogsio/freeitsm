@@ -5,7 +5,7 @@
     'use strict';
     var t = function (k, p) { return window.t('system.backups.' + k, p); };
     var $ = function (id) { return document.getElementById(id); };
-    var state = { settings: null, runs: null, verifyRun: null, polling: null };
+    var state = { settings: null, runs: null, verifyRun: null, restoreRun: null, polling: null };
 
     function esc(s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -77,6 +77,7 @@
         // set, a run finished), but never a message from Start itself.
         if (why) { msg('bkNowMsg', why, s.running); state.nowWhy = why; }
         else if (state.nowWhy && $('bkNowMsg').textContent === state.nowWhy) { msg('bkNowMsg', ''); state.nowWhy = ''; }
+        renderLastRestore();
         renderRuns();
     }
 
@@ -105,10 +106,39 @@
                 + '<td>' + esc(mb(r.size_bytes)) + '</td>'
                 + '<td>' + (r.files_total != null ? esc(t('files_line', { total: r.files_total, n: r.files_new })) : '') + '</td>'
                 + '<td>' + verified + '</td>'
-                + '<td>' + (r.status === 'ok' && r.verify_status !== 'running'
-                    ? '<button class="btn" type="button" data-verify="' + esc(r.id) + '" data-set="' + esc(r.set_name) + '">' + esc(t('verify')) + '</button>' : '')
+                + '<td class="bk-row-actions">' + (r.status === 'ok' && r.kind !== 'restore' && r.verify_status !== 'running'
+                    ? '<button class="btn" type="button" data-verify="' + esc(r.id) + '" data-set="' + esc(r.set_name) + '">' + esc(t('verify')) + '</button>'
+                      + (state.settings.can_restore ? '<button class="btn" type="button" data-restore="' + esc(r.id) + '" data-set="' + esc(r.set_name) + '">' + esc(t('restore')) + '</button>' : '') : '')
                 + '</td></tr>';
         }).join('');
+    }
+
+    function renderLastRestore() {
+        var l = state.settings.last_restore, el = $('bkLastRestore');
+        var text = !l ? '' : l.state === 'done' ? t('restore_last_done', { set: l.set, when: when(l.ended_at), safety: l.safety_set || '' })
+                 : l.state === 'failed' ? t('restore_last_failed', { set: l.set, when: when(l.ended_at), error: l.error || '' })
+                 : l.state === 'abandoned' ? t('restore_last_abandoned', { set: l.set, when: when(l.ended_at) }) : '';
+        el.textContent = text;
+        el.className = text ? 'bk-msg ' + (l.state === 'done' ? 'ok' : 'err') : 'bk-hidden';
+    }
+
+    function openRestore(runId, set) {
+        state.restoreRun = runId;
+        $('bkVerifyBox').classList.add('bk-hidden');
+        $('bkRestoreHeading').textContent = t('restore_heading', { set: set });
+        $('bkRestorePass').value = '';
+        $('bkRestoreConfirm').value = '';
+        $('bkRestoreGo').disabled = true;
+        $('bkRestoreStep2').classList.add('bk-hidden');
+        $('bkRestoreCheck').disabled = false;
+        msg('bkRestoreMsg', '');
+        $('bkRestoreBox').classList.remove('bk-hidden');
+        $('bkRestorePass').focus();
+    }
+
+    function closeRestore() {
+        $('bkRestorePass').value = '';
+        $('bkRestoreBox').classList.add('bk-hidden');
     }
 
     async function load() {
@@ -184,8 +214,11 @@
             });
         });
         $('bkRuns').addEventListener('click', function (e) {
+            var r = e.target.closest('button[data-restore]');
+            if (r) { openRestore(parseInt(r.getAttribute('data-restore'), 10), r.getAttribute('data-set')); return; }
             var b = e.target.closest('button[data-verify]');
             if (!b) return;
+            closeRestore();
             state.verifyRun = parseInt(b.getAttribute('data-verify'), 10);
             $('bkVerifyLabel').textContent = t('verify_prompt', { set: b.getAttribute('data-set') });
             $('bkVerifyPass').value = '';
@@ -202,6 +235,33 @@
                 msg('bkVerifyMsg', d.verify.ok ? t('verify_ok', { n: d.verify.checked }) : t('verify_failed'), d.verify.ok);
                 return load();
             });
+        });
+        $('bkRestoreCancel').addEventListener('click', closeRestore);
+        $('bkRestoreCancel2').addEventListener('click', closeRestore);
+        $('bkRestoreCheck').addEventListener('click', function () {
+            run(this, 'bkRestoreMsg', { action: 'restore_check', run_id: state.restoreRun, passphrase: $('bkRestorePass').value }, '', function (d) {
+                var r = d.restore;
+                msg('bkRestoreMsg', '');
+                $('bkRestoreInfo').textContent = t('restore_info', { when: when(r.created_at), version: r.app_version || '?', files: r.files, size: mb(r.size) });
+                $('bkRestoreKeyWarn').classList.toggle('bk-hidden', !r.key_differs);
+                $('bkRestoreConfirmLabel').textContent = t('restore_confirm_label', { word: state.settings.restore_confirm });
+                $('bkRestoreStep2').classList.remove('bk-hidden');
+                $('bkRestoreCheck').disabled = true;
+                $('bkRestoreConfirm').focus();
+            }).then(function () { if (!$('bkRestoreStep2').classList.contains('bk-hidden')) $('bkRestoreCheck').disabled = true; });
+        });
+        $('bkRestoreConfirm').addEventListener('input', function () {
+            $('bkRestoreGo').disabled = this.value !== state.settings.restore_confirm;
+        });
+        $('bkRestoreGo').addEventListener('click', function () {
+            var btn = this;
+            run(btn, 'bkRestoreMsg', { action: 'restore_start', run_id: state.restoreRun, passphrase: $('bkRestorePass').value, confirm: $('bkRestoreConfirm').value },
+                t('restore_starting'), function () {
+                    $('bkRestorePass').value = '';
+                    btn.disabled = true;
+                    // From now on every page is the maintenance page; this browser's is the progress page.
+                    setTimeout(function () { window.location.reload(); }, 800);
+                });
         });
         load();
     });
