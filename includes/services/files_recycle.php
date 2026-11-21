@@ -705,6 +705,7 @@ final class FilesRecycleService
             throw $ex;
         }
         FilesAcl::reset();
+        self::offlineFoldersChanged($conn, $type === 'folder' ? self::subtree($conn, $id) : [(int)$parent]);
 
         $t = $type === 'folder' ? ['folder_id' => $id] : ['folder_id' => $parent, 'item_id' => $id, 'item_name' => $name];
         filesAudit($conn, $analystId, 'restore', $t, array_filter(['type' => $type, 'restored_as' => $name !== $e['name'] ? $name : null]));
@@ -812,6 +813,7 @@ final class FilesRecycleService
                 $conn->prepare("DELETE FROM files_uploads WHERE item_id IN ($in)")->execute($items);
                 $conn->prepare("DELETE FROM files_versions WHERE item_id IN ($in)")->execute($items);
                 $conn->prepare("DELETE FROM files_items WHERE id IN ($in)")->execute($items);
+                self::dropOfflineMarks($conn, 'item', $items);
             }
             if ($folders) {
                 $in = implode(',', array_fill(0, count($folders), '?'));
@@ -819,6 +821,7 @@ final class FilesRecycleService
                      ->execute(array_merge($folders, $folders));
                 $conn->prepare("DELETE FROM files_uploads WHERE folder_id IN ($in)")->execute($folders);
                 $conn->prepare("DELETE FROM files_permissions WHERE folder_id IN ($in)")->execute($folders);
+                self::dropOfflineMarks($conn, 'folder', $folders);
                 // Deepest first, so a parent is never deleted before its children.
                 $depth = function (int $fid) use ($all): int {
                     $d = 0; $f = $all[$fid] ?? null;
@@ -847,6 +850,7 @@ final class FilesRecycleService
                 // Left recorded for the job - storage is down, or this request is out of time.
                 $inUse->execute([$key]);
                 if ($inUse->fetchColumn()) { self::unqueueKey($conn, $key); continue; }   // a copy still uses it
+                self::dropOfflineCopy($conn, $key);   // local: needs no storage
                 $bytes += (int)$size;
                 $pending++;
                 continue;
@@ -869,6 +873,25 @@ final class FilesRecycleService
     }
 
     /**
+     * Forgets "Make available offline" marks on things being deleted for good, so a new
+     * row that reuses an id never inherits one. files_offline may not exist yet (before
+     * Database Verification): then there is nothing to forget.
+     *
+     * @param string $type 'item' | 'folder'
+     * @param int[]  $ids
+     */
+    private static function dropOfflineMarks(PDO $conn, string $type, array $ids): void
+    {
+        require_once __DIR__ . '/../files/offline.php';
+        try {
+            $in = implode(',', array_map('intval', $ids));
+            $conn->prepare("DELETE FROM files_offline WHERE target_type = ? AND target_id IN ($in)")->execute([$type]);
+        } catch (PDOException $e) {
+            if (!filesOfflineMissingTable($e)) throw $e;
+        }
+    }
+
+    /**
      * Documents that link to these files (documents.kind = 'files', upstream GH #303) keep
      * their row, so the record still shows something was there, but point at nothing.
      */
@@ -878,6 +901,23 @@ final class FilesRecycleService
         if (!$items || !DocumentsService::filesLinkReady($conn)) return;
         $in = implode(',', array_fill(0, count($items), '?'));
         $conn->prepare("UPDATE documents SET files_item_id = NULL WHERE files_item_id IN ($in)")->execute($items);
+    }
+
+    /**
+     * Deletes the offline copy ("Make available offline") of bytes nothing uses any more,
+     * and its record. A leftover would be removed by the files_offline_sync job anyway.
+     */
+    private static function dropOfflineCopy(PDO $conn, string $key): void
+    {
+        require_once __DIR__ . '/files_offline.php';
+        FilesOfflineService::forgetKey($conn, $key);
+    }
+
+    /** Restored files may need offline copies: their folders' offline ticks say so until the job has run. */
+    private static function offlineFoldersChanged(PDO $conn, array $folderIds): void
+    {
+        require_once __DIR__ . '/files_offline.php';
+        FilesOfflineService::foldersChanged($conn, $folderIds);
     }
 
     /**
@@ -927,6 +967,7 @@ final class FilesRecycleService
             error_log("files: could not delete stored bytes {$key}: " . $e->getMessage());
             $res = 'failed';
         }
+        if ($res !== 'in_use') self::dropOfflineCopy($conn, $key);
         try {
             if ($res === 'deleted' || $res === 'in_use') {
                 $conn->prepare("DELETE FROM files_purge_pending WHERE storage_path = ?")->execute([$key]);

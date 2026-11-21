@@ -20,6 +20,7 @@
  * Each entry succeeds or fails on its own; the response lists what failed and why.
  */
 require_once __DIR__ . '/../../includes/files/api_bootstrap.php';
+require_once __DIR__ . '/../../includes/services/files_offline.php';
 
 // Changes data: never on a GET, which a link on another site can send (csrf.php).
 csrfRequireWriteMethod();
@@ -82,12 +83,14 @@ function filesTransferItem(PDO $conn, int $analystId, string $mode, int $id, int
         $name = filesFreeName($conn, $target, $it['name']);
         $conn->prepare("UPDATE files_items SET folder_id = ?, name = ?, updated_by = ?, updated_datetime = UTC_TIMESTAMP() WHERE id = ?")
              ->execute([$target, $name, $analystId, $id]);
+        FilesOfflineService::foldersChanged($conn, [$target]);   // it may need an offline copy there
         filesAudit($conn, $analystId, 'move', ['folder_id' => $target, 'item_id' => $id, 'item_name' => $name], ['from' => $fromPath]);
         return;
     }
 
     $name = filesFreeName($conn, $target, $it['name']);
     $newId = filesCopyItemRow($conn, $analystId, $it, $target, $name);
+    FilesOfflineService::foldersChanged($conn, [$target]);   // it may need an offline copy there
     filesAudit($conn, $analystId, 'copy', ['folder_id' => $target, 'item_id' => $newId, 'item_name' => $name],
                ['from' => $fromPath, 'source_item_id' => $id]);
 }
@@ -161,6 +164,7 @@ function filesTransferFolder(PDO $conn, int $analystId, string $mode, int $id, i
         if (!$target) filesGrantCreatorFull($conn, $analystId, $id);
         $conn->commit();
         FilesAcl::reset();
+        FilesOfflineService::foldersChanged($conn, FilesAcl::descendants($conn, $id));   // they may need offline copies where they are now
         filesAudit($conn, $analystId, 'move', ['folder_id' => $id], [
             'from' => $fromPath,
             // Moving changes what an inheriting folder inherits - worth saying so
