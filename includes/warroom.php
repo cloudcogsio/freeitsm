@@ -37,7 +37,6 @@
  */
 
 require_once __DIR__ . '/uploads.php';
-require_once __DIR__ . '/storage/stores.php';   // the war-room store: a server folder or S3 (System -> Storage)
 
 /** How long since a poll before we stop calling someone "here". */
 const WARROOM_PRESENCE_WINDOW_SECONDS = 90;
@@ -55,11 +54,15 @@ const WARROOM_MAX_BODY = 4000;
  */
 const WARBOT_NAME = 'Warbot';
 
+/** Pins per conversation (5.9.0). Past this a pin list stops being a shortlist. */
+const WARROOM_MAX_PINS = 50;
+
 /** Attachments per message. Enough for a screenshot set, not a file share. */
 const WARROOM_MAX_ATTACHMENTS = 5;
 
 /** Where attachment bytes live. Never served from here — see warRoomAttachmentPath. */
-define('WARROOM_ATTACH_DIR', __DIR__ . '/../war-room/attachments');
+require_once __DIR__ . '/file_stores.php';
+define('WARROOM_ATTACH_DIR', fileStoreDir('war-room'));   // the one place: includes/file_stores.php
 
 /** The four kinds of channel. Stored as a string so db_verify stays simple. */
 const WARROOM_KIND_ALL    = 'all';      // the one all-hands room
@@ -142,7 +145,8 @@ function warRoomChannelList(PDO $conn, int $analystId, bool $includeArchived = f
                (SELECT COUNT(*) FROM warroom_messages wm
                  WHERE wm.channel_id = c.id
                    AND wm.id > COALESCE(r.last_read_message_id, 0)
-                   AND wm.analyst_id <> :me4) AS unread
+                   AND wm.analyst_id <> :me4
+                   AND (wm.thread_root_id IS NULL OR wm.also_in_channel = 1)) AS unread
           FROM warroom_channels c
           LEFT JOIN teams t ON t.id = c.team_id
           LEFT JOIN warroom_reads r ON r.channel_id = c.id AND r.analyst_id = :me1
@@ -492,9 +496,19 @@ function warRoomDirectory(PDO $conn, int $analystId): array
  * @param int $sinceId  the newest message id the page holds; 0 for the first load (the latest $limit)
  * @param int $limit  the most messages to return, 1-500
  */
-function warRoomMessages(PDO $conn, int $channelId, int $sinceId = 0, int $limit = 200): array
+function warRoomMessages(PDO $conn, int $channelId, int $sinceId = 0, int $limit = 200, int $viewerId = 0, int $aroundId = 0, string $viewerLang = '', int $threadRootId = 0): array
 {
     $limit = max(1, min(500, $limit));
+
+    // Threads (5.9.0): the conversation shows top-level messages and the thread
+    // replies also sent to it; a thread ($threadRootId) is its first message and
+    // every reply. Both are this one function, so reactions, quotes, pins and
+    // translations work the same in either.
+    $scope = $threadRootId > 0
+        ? " AND (m.id = " . $threadRootId . " OR m.thread_root_id = " . $threadRootId . ")"
+        : " AND (m.thread_root_id IS NULL OR m.also_in_channel = 1)";
+    try { $conn->query("SELECT thread_root_id FROM warroom_messages LIMIT 0"); }
+    catch (Throwable $e) { $scope = ''; }   // before Database Verification
 
     // ⚠️ `m.id > :since` cannot see an EDIT or a DELETE — both change a message the
     // caller already holds, so its id is below the watermark and it never comes
@@ -502,23 +516,41 @@ function warRoomMessages(PDO $conn, int $channelId, int $sinceId = 0, int $limit
     // polled; the page replaces the row it already has by id. Without this an
     // edited message stays as it was on everyone else's screen, which in an
     // incident is the one kind of stale that actually misleads.
+    // changed_datetime (5.9.0) is the same idea for a reaction: it changes a message
+    // the reader already holds without touching its text.
     $changedClause = $sinceId > 0
-        ? "OR ((m.edited_datetime IS NOT NULL OR m.deleted_datetime IS NOT NULL)
+        ? "OR ((m.edited_datetime IS NOT NULL OR m.deleted_datetime IS NOT NULL OR m.changed_datetime IS NOT NULL)
                AND GREATEST(COALESCE(m.edited_datetime, '1970-01-01'),
-                            COALESCE(m.deleted_datetime, '1970-01-01')) >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL 30 SECOND))"
+                            COALESCE(m.deleted_datetime, '1970-01-01'),
+                            COALESCE(m.changed_datetime, '1970-01-01')) >= DATE_SUB(UTC_TIMESTAMP(), INTERVAL 30 SECOND))"
         : '';
 
     $cols = "m.id, m.body, m.created_datetime, m.analyst_id, a.full_name,
              m.edited_datetime, m.deleted_datetime, d.full_name AS deleted_by_name,
-             m.is_bot, m.reply_to_id";
+             m.is_bot, m.reply_to_id, m.quote_of_id, m.lang" . ($scope !== '' ? ", m.thread_root_id, m.also_in_channel, m.forwarded_from_id, m.fwd_author, m.fwd_channel, m.fwd_created" : '');
     $joins = "LEFT JOIN analysts a ON a.id = m.analyst_id
               LEFT JOIN analysts d ON d.id = m.deleted_by";
 
-    if ($sinceId > 0) {
+    if ($aroundId > 0) {
+        // A permanent link (5.9.0): a few messages before the linked one, then
+        // everything after it, oldest first - the poll carries on from the newest.
+        $start = $conn->prepare(
+            "SELECT MIN(id) FROM (SELECT id FROM warroom_messages
+                                    WHERE channel_id = :cid AND id <= :aid ORDER BY id DESC LIMIT 31) AS b"
+        );
+        $start->execute([':cid' => $channelId, ':aid' => $aroundId]);
+        $from = (int) $start->fetchColumn();
         $sql = "SELECT $cols
                   FROM warroom_messages m
                   $joins
-                 WHERE m.channel_id = :cid AND (m.id > :since $changedClause)
+                 WHERE m.channel_id = :cid AND m.id >= " . max(1, $from) . $scope . "
+                 ORDER BY m.id ASC
+                 LIMIT 500";
+    } elseif ($sinceId > 0) {
+        $sql = "SELECT $cols
+                  FROM warroom_messages m
+                  $joins
+                 WHERE m.channel_id = :cid AND (m.id > :since $changedClause)$scope
                  ORDER BY m.id ASC
                  LIMIT $limit";
     } else {
@@ -527,7 +559,7 @@ function warRoomMessages(PDO $conn, int $channelId, int $sinceId = 0, int $limit
                     SELECT $cols
                       FROM warroom_messages m
                       $joins
-                     WHERE m.channel_id = :cid
+                     WHERE m.channel_id = :cid$scope
                      ORDER BY m.id DESC
                      LIMIT $limit
                 ) AS recent ORDER BY id ASC";
@@ -563,6 +595,22 @@ function warRoomMessages(PDO $conn, int $channelId, int $sinceId = 0, int $limit
             'deleted'     => $r['deleted_datetime'] !== null,
             'deleted_by'  => $r['deleted_by_name'],
             'attachments' => [],
+            'reactions'   => [],
+            'lang'        => $r['lang'] ?? null,   // 5.9.0: the language it is written in, once detected
+            'tr'          => null,    // 5.9.0: a stored translation into the viewer's language
+            'thread_root' => isset($r['thread_root_id']) && $r['thread_root_id'] !== null ? (int) $r['thread_root_id'] : null,
+            'in_channel'  => !empty($r['also_in_channel']),
+            'thread'      => null,    // 5.9.0: on a first message: {count, last} of its replies
+            'forward'     => !empty($r['forwarded_from_id']) && $r['deleted_datetime'] === null ? [   // 5.9.0
+                'from'    => (int) $r['forwarded_from_id'],
+                'author'  => (string) $r['fwd_author'],
+                'channel' => (string) $r['fwd_channel'],
+                'created' => $r['fwd_created'],
+            ] : null,
+            'pinned'      => null,    // 5.9.0: {by, at} when pinned for everyone
+            'saved'       => false,   // 5.9.0: the viewer's own bookmark
+            'quote'       => $r['quote_of_id'] !== null && $r['deleted_datetime'] === null
+                ? ['id' => (int) $r['quote_of_id'], 'gone' => true] : null,
         ];
     }
     if ($ids) {
@@ -585,8 +633,689 @@ function warRoomMessages(PDO $conn, int $channelId, int $sinceId = 0, int $limit
                 'inline' => attachmentServeRules((string) $a['original_name'])['inline'],
             ];
         }
+        warRoomAttachReactions($conn, $rows, $in, $viewerId);
+        warRoomAttachQuotes($conn, $rows, $channelId);
+        warRoomAttachPinsAndSaved($conn, $rows, $in, $viewerId);
+        warRoomAttachThreadCounts($conn, $rows, $in);
+        if ($viewerLang !== '') warRoomAttachTranslations($conn, $rows, $in, $viewerLang);
     }
     return array_values($rows);
+}
+
+/**
+ * Each message's reactions, in the order they were first given: emoji, how many,
+ * whether the viewer gave it, and who (names, for the hover).
+ *
+ * @param array $rows  warRoomMessages()' rows by id - filled in place
+ * @param string $in   the same ids as a comma list (already integers)
+ * @param int $viewerId  the analyst looking, for 'mine'; 0 = nobody
+ */
+function warRoomAttachReactions(PDO $conn, array &$rows, string $in, int $viewerId): void
+{
+    try {
+        $q = $conn->query(
+            "SELECT r.message_id, r.emoji, r.analyst_id, a.full_name
+               FROM warroom_reactions r LEFT JOIN analysts a ON a.id = r.analyst_id
+              WHERE r.message_id IN ($in) ORDER BY r.id"
+        );
+    } catch (Throwable $e) {
+        return;   // before Database Verification: no reactions yet, nothing broken
+    }
+    $by = [];
+    foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $mid = (int) $r['message_id'];
+        $e = (string) $r['emoji'];
+        if (!isset($by[$mid][$e])) $by[$mid][$e] = ['emoji' => $e, 'count' => 0, 'mine' => false, 'names' => []];
+        $by[$mid][$e]['count']++;
+        if ((int) $r['analyst_id'] === $viewerId) $by[$mid][$e]['mine'] = true;
+        $by[$mid][$e]['names'][] = $r['full_name'] ?? (function_exists('t') ? t('war-room.former_analyst') : 'Former analyst');
+    }
+    foreach ($by as $mid => $list) {
+        if (isset($rows[$mid])) $rows[$mid]['reactions'] = array_values($list);
+    }
+}
+
+/**
+ * Fill in what each quoting message quotes: its author, time and the start of its
+ * text - or that it was deleted, or that it is no longer there at all (retention).
+ * Only a message in the SAME channel is ever shown: a quote is how a reply points
+ * back up the conversation, never a way to read another channel.
+ *
+ * @param array $rows  warRoomMessages()' rows by id - filled in place
+ * @param int $channelId  the channel being read
+ */
+function warRoomAttachQuotes(PDO $conn, array &$rows, int $channelId): void
+{
+    $ids = [];
+    foreach ($rows as $r) if ($r['quote'] !== null) $ids[] = (int) $r['quote']['id'];
+    if (!$ids) return;
+    $in = implode(',', array_unique($ids));
+    $q = $conn->query(
+        "SELECT m.id, m.channel_id, m.body, m.created_datetime, m.is_bot, m.deleted_datetime, a.full_name
+           FROM warroom_messages m LEFT JOIN analysts a ON a.id = m.analyst_id
+          WHERE m.id IN ($in)"
+    );
+    $found = [];
+    foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $o) {
+        if ((int) $o['channel_id'] !== $channelId) continue;
+        $found[(int) $o['id']] = $o;
+    }
+    foreach ($rows as $id => $r) {
+        if ($r['quote'] === null) continue;
+        $o = $found[$r['quote']['id']] ?? null;
+        if ($o === null) continue;   // stays 'gone': removed by retention
+        $rows[$id]['quote'] = [
+            'id'      => (int) $o['id'],
+            'gone'    => false,
+            'deleted' => $o['deleted_datetime'] !== null,
+            'author'  => !empty($o['is_bot']) ? WARBOT_NAME
+                : ($o['full_name'] ?? (function_exists('t') ? t('war-room.former_analyst') : 'Former analyst')),
+            'created' => $o['created_datetime'],
+            'text'    => $o['deleted_datetime'] !== null ? '' : mb_substr(trim((string) $o['body']), 0, 200),
+        ];
+    }
+}
+
+/**
+ * The emoji a reaction may be: exactly the ones the picker offers
+ * (assets/js/war-room-emoji.json, built by scripts/gen_warroom_emoji.php). Checked
+ * against the list, not a pattern, so the server and the picker cannot disagree
+ * and nothing but an emoji is ever stored.
+ */
+function warRoomEmojiAllowed(string $emoji): bool
+{
+    static $set = null;
+    if ($set === null) {
+        $set = [];
+        $data = json_decode((string) @file_get_contents(__DIR__ . '/../assets/js/war-room-emoji.json'), true);
+        foreach ((array) $data as $g) foreach ((array) ($g['emoji'] ?? []) as $e) $set[(string) $e[0]] = true;
+    }
+    return isset($set[$emoji]);
+}
+
+/**
+ * Add or take away the analyst's reaction to a message. Anyone who can post in the
+ * channel may react - a reaction is a small message. Stamps changed_datetime so the
+ * poll re-sends the message to everybody already looking at it.
+ *
+ * @param int $messageId  the warroom_messages id
+ * @param string $emoji   one emoji from the picker's list
+ * @param bool $on        true = add, false = take away
+ * @return bool  false for no such message, a deleted one, a channel the analyst cannot post in, or an unknown emoji
+ */
+function warRoomReact(PDO $conn, int $analystId, int $messageId, string $emoji, bool $on): bool
+{
+    if (!warRoomEmojiAllowed($emoji)) return false;
+    $row = warRoomMessageRow($conn, $messageId);
+    if ($row === null || $row['deleted_datetime'] !== null) return false;
+    if (!warRoomCanPostChannel($conn, $analystId, (int) $row['channel_id'])) return false;
+
+    if ($on) {
+        $conn->prepare("INSERT IGNORE INTO warroom_reactions (message_id, analyst_id, emoji, created_datetime) VALUES (?, ?, ?, UTC_TIMESTAMP())")
+             ->execute([$messageId, $analystId, $emoji]);
+    } else {
+        $conn->prepare("DELETE FROM warroom_reactions WHERE message_id = ? AND analyst_id = ? AND emoji = ?")
+             ->execute([$messageId, $analystId, $emoji]);
+    }
+    $conn->prepare("UPDATE warroom_messages SET changed_datetime = UTC_TIMESTAMP() WHERE id = ?")->execute([$messageId]);
+    return true;
+}
+
+/**
+ * Where a permanent link points: the message's channel, if the analyst may read it.
+ * 0 when the message is gone or out of reach - one answer for both, so a link
+ * cannot be used to find out which messages exist in channels you cannot read.
+ *
+ * @param int $messageId  the id from ?message=
+ */
+function warRoomChannelOfMessage(PDO $conn, int $analystId, int $messageId): int
+{
+    $row = warRoomMessageRow($conn, $messageId);
+    if ($row === null || $row['channel_id'] === null) return 0;
+    return warRoomCanAccessChannel($conn, $analystId, (int) $row['channel_id']) ? (int) $row['channel_id'] : 0;
+}
+
+/**
+ * On each first message of a thread: how many replies it has and when the last came.
+ *
+ * @param array $rows  warRoomMessages()' rows by id - filled in place
+ * @param string $in   the same ids as a comma list (already integers)
+ */
+function warRoomAttachThreadCounts(PDO $conn, array &$rows, string $in): void
+{
+    try {
+        $q = $conn->query(
+            "SELECT thread_root_id, COUNT(*) AS n, MAX(created_datetime) AS last
+               FROM warroom_messages
+              WHERE thread_root_id IN ($in) AND deleted_datetime IS NULL
+              GROUP BY thread_root_id"
+        );
+        foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $t) {
+            $rid = (int) $t['thread_root_id'];
+            if (isset($rows[$rid])) $rows[$rid]['thread'] = ['count' => (int) $t['n'], 'last' => $t['last']];
+        }
+    } catch (Throwable $e) {
+        // before Database Verification
+    }
+}
+
+/**
+ * The first message of the thread a message is in, or 0 when it is not a thread reply.
+ * Used to open the thread when a link, a pin, a saved message or a mention points at a reply.
+ *
+ * @param int $messageId  the warroom_messages id
+ */
+function warRoomThreadRootOf(PDO $conn, int $messageId): int
+{
+    $row = warRoomMessageRow($conn, $messageId);
+    return $row !== null && !empty($row['thread_root_id']) ? (int) $row['thread_root_id'] : 0;
+}
+
+/**
+ * Forward a message to another conversation (5.9.0). The text comes WITH it - the
+ * readers there may not be able to read the original - under "Forwarded from <author>
+ * in <channel>", kept as they were. An optional comment is posted first, as the
+ * forwarder's own message. Files are copied (war room files never change, and a copy
+ * means deleting a message still really destroys its files). @names in the forwarded
+ * text do NOT notify anybody again.
+ *
+ * @param int $messageId   the original - the forwarder must be able to read it
+ * @param int $toChannel   the destination - the forwarder must be able to post there
+ * @param string $comment  optional, posted before the forward
+ * @return int  the forward's id, or 0 when not allowed
+ */
+function warRoomForward(PDO $conn, int $analystId, int $messageId, int $toChannel, string $comment = ''): int
+{
+    $o = warRoomMessageRow($conn, $messageId);
+    if ($o === null || $o['deleted_datetime'] !== null) return 0;
+    if (!warRoomCanAccessChannel($conn, $analystId, (int) $o['channel_id'])) return 0;
+    if (!warRoomCanPostChannel($conn, $analystId, $toChannel)) return 0;
+
+    if (trim($comment) !== '') warRoomSend($conn, $analystId, $toChannel, $comment);
+
+    // Who and where, as the forwarder sees them (a DM is named from their side).
+    $author = !empty($o['is_bot']) ? WARBOT_NAME : '';
+    if ($author === '' && $o['analyst_id'] !== null) {
+        $a = $conn->prepare("SELECT full_name FROM analysts WHERE id = ?");
+        $a->execute([(int) $o['analyst_id']]);
+        $author = (string) $a->fetchColumn();
+    }
+    if ($author === '') $author = function_exists('t') ? t('war-room.former_analyst') : 'Former analyst';
+    $where = '';
+    foreach (warRoomChannelList($conn, $analystId, true) as $c) if ((int) $c['id'] === (int) $o['channel_id']) $where = (string) $c['name'];
+
+    $body = trim((string) $o['body']) === '' ? ' ' : (string) $o['body'];
+    $conn->prepare(
+        "INSERT INTO warroom_messages (channel_id, analyst_id, body, created_datetime, forwarded_from_id, fwd_author, fwd_channel, fwd_created)
+         VALUES (?, ?, ?, UTC_TIMESTAMP(), ?, ?, ?, ?)"
+    )->execute([$toChannel, $analystId, $body, $messageId, mb_substr($author, 0, 150), mb_substr($where, 0, 150), $o['created_datetime']]);
+    $id = (int) $conn->lastInsertId();   // TRAP (§8): read before anything else touches the connection
+
+    // Copy the files, each under a new random name.
+    $at = $conn->prepare("SELECT stored_name, original_name, size_bytes FROM warroom_attachments WHERE message_id = ?");
+    $at->execute([$messageId]);
+    $ins = $conn->prepare("INSERT INTO warroom_attachments (message_id, stored_name, original_name, size_bytes, created_datetime) VALUES (?, ?, ?, ?, UTC_TIMESTAMP())");
+    $dir = rtrim(WARROOM_ATTACH_DIR, '/\\') . DIRECTORY_SEPARATOR;
+    foreach ($at->fetchAll(PDO::FETCH_ASSOC) as $f) {
+        $src = $dir . basename((string) $f['stored_name']);
+        if (!is_file($src)) continue;
+        $ext = pathinfo((string) $f['stored_name'], PATHINFO_EXTENSION);
+        $new = bin2hex(random_bytes(16)) . ($ext !== '' ? '.' . $ext : '');
+        if (@copy($src, $dir . $new)) $ins->execute([$id, $new, $f['original_name'], (int) $f['size_bytes']]);
+    }
+    return $id;
+}
+
+/**
+ * Whether Seen by is on: War room -> Settings. On unless an administrator turned it off.
+ *
+ * @param bool $fresh  read the setting again rather than this request's cached answer (tests)
+ */
+function warRoomSeenByEnabled(PDO $conn, bool $fresh = false): bool
+{
+    static $cache = null;
+    if ($cache !== null && !$fresh) return $cache;
+    try {
+        $st = $conn->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'warroom_seen_by' LIMIT 1");
+        $st->execute();
+        $v = $st->fetchColumn();
+        return $cache = ($v === false || (string) $v !== '0');
+    } catch (Throwable $e) {
+        return $cache = false;
+    }
+}
+
+/**
+ * Who has read a message, and when: the first time each person's read marker passed
+ * it. The author is left out. For a small conversation, who has not read it yet too.
+ * A reply that lives only in a thread has no answer - reading the conversation does
+ * not mean reading the thread.
+ *
+ * @param int $messageId  checked here: the analyst must be able to read its channel
+ * @return array|null  {seen: [{name, at}], not_yet: [names] | null}, or null when not available
+ */
+function warRoomSeenBy(PDO $conn, int $analystId, int $messageId): ?array
+{
+    if (!warRoomSeenByEnabled($conn)) return null;
+    $m = warRoomMessageRow($conn, $messageId);
+    if ($m === null || $m['deleted_datetime'] !== null) return null;
+    $channelId = (int) $m['channel_id'];
+    if (!warRoomCanAccessChannel($conn, $analystId, $channelId)) return null;
+    if (!empty($m['thread_root_id']) && empty($m['also_in_channel'])) return null;
+
+    $st = $conn->prepare(
+        "SELECT rm.analyst_id, a.full_name, MIN(rm.read_datetime) AS at
+           FROM warroom_read_marks rm JOIN analysts a ON a.id = rm.analyst_id
+          WHERE rm.channel_id = ? AND rm.up_to_message_id >= ?
+          GROUP BY rm.analyst_id, a.full_name
+          ORDER BY at"
+    );
+    $st->execute([$channelId, $messageId]);
+    $author = $m['analyst_id'] !== null ? (int) $m['analyst_id'] : 0;
+    $seen = []; $seenIds = [];
+    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        if ((int) $r['analyst_id'] === $author) continue;
+        $seen[] = ['name' => $r['full_name'], 'at' => $r['at']];
+        $seenIds[(int) $r['analyst_id']] = true;
+    }
+    $notYet = null;
+    $aud = warRoomChannelAudience($conn, $channelId);
+    if (count($aud) <= 30) {
+        $notYet = [];
+        foreach ($aud as $pid => $name) {   // warRoomChannelAudience(): [analyst id => full name]
+            if ((int) $pid === $author || isset($seenIds[(int) $pid])) continue;
+            $notYet[] = (string) $name;
+        }
+        sort($notYet);
+    }
+    return ['seen' => $seen, 'not_yet' => $notYet];
+}
+
+/**
+ * Whether each message is pinned (and by whom, when) and whether the viewer saved it.
+ *
+ * @param array $rows  warRoomMessages()' rows by id - filled in place
+ * @param string $in   the same ids as a comma list (already integers)
+ * @param int $viewerId  the analyst looking, for 'saved'
+ */
+function warRoomAttachPinsAndSaved(PDO $conn, array &$rows, string $in, int $viewerId): void
+{
+    try {
+        $q = $conn->query(
+            "SELECT p.message_id, p.pinned_datetime, a.full_name
+               FROM warroom_pins p LEFT JOIN analysts a ON a.id = p.pinned_by
+              WHERE p.message_id IN ($in)"
+        );
+        foreach ($q->fetchAll(PDO::FETCH_ASSOC) as $p) {
+            $mid = (int) $p['message_id'];
+            if (isset($rows[$mid])) $rows[$mid]['pinned'] = [
+                'by' => $p['full_name'] ?? (function_exists('t') ? t('war-room.former_analyst') : 'Former analyst'),
+                'at' => $p['pinned_datetime'],
+            ];
+        }
+        if ($viewerId > 0) {
+            $s = $conn->prepare("SELECT message_id FROM warroom_saved WHERE analyst_id = ? AND message_id IN ($in)");
+            $s->execute([$viewerId]);
+            foreach ($s->fetchAll(PDO::FETCH_COLUMN) as $mid) {
+                if (isset($rows[(int) $mid])) $rows[(int) $mid]['saved'] = true;
+            }
+        }
+    } catch (Throwable $e) {
+        // before Database Verification: nothing pinned or saved yet
+    }
+}
+
+/**
+ * Pin a message for everyone in the conversation, or unpin it. Anyone who can post
+ * there may do either - who pinned it is shown. Stamps changed_datetime so the poll
+ * re-sends the message to everybody looking at it.
+ *
+ * @param int $messageId  the warroom_messages id
+ * @param bool $on  true = pin, false = unpin
+ * @return string 'ok', 'full' (WARROOM_MAX_PINS already), or 'no' (no such / deleted message, cannot post)
+ */
+function warRoomPin(PDO $conn, int $analystId, int $messageId, bool $on): string
+{
+    $row = warRoomMessageRow($conn, $messageId);
+    if ($row === null || $row['deleted_datetime'] !== null) return 'no';
+    $channelId = (int) $row['channel_id'];
+    if (!warRoomCanPostChannel($conn, $analystId, $channelId)) return 'no';
+
+    if ($on) {
+        $have = $conn->prepare("SELECT COUNT(*) FROM warroom_pins WHERE channel_id = ? AND message_id <> ?");
+        $have->execute([$channelId, $messageId]);
+        if ((int) $have->fetchColumn() >= WARROOM_MAX_PINS) return 'full';
+        $conn->prepare("INSERT IGNORE INTO warroom_pins (channel_id, message_id, pinned_by, pinned_datetime) VALUES (?, ?, ?, UTC_TIMESTAMP())")
+             ->execute([$channelId, $messageId, $analystId]);
+    } else {
+        $conn->prepare("DELETE FROM warroom_pins WHERE message_id = ?")->execute([$messageId]);
+    }
+    $conn->prepare("UPDATE warroom_messages SET changed_datetime = UTC_TIMESTAMP() WHERE id = ?")->execute([$messageId]);
+    return 'ok';
+}
+
+/** How many messages are pinned in a channel - the poll sends it for the pinned bar. */
+function warRoomPinCount(PDO $conn, int $channelId): int
+{
+    try {
+        $st = $conn->prepare("SELECT COUNT(*) FROM warroom_pins WHERE channel_id = ?");
+        $st->execute([$channelId]);
+        return (int) $st->fetchColumn();
+    } catch (Throwable $e) {
+        return 0;
+    }
+}
+
+/**
+ * The pinned messages of a channel, newest pin first, for the pinned list.
+ *
+ * @param int $channelId  checked by the caller (warRoomCanAccessChannel)
+ * @return array<int,array> id, author, created, text (the start), by, at
+ */
+function warRoomPins(PDO $conn, int $channelId): array
+{
+    $st = $conn->prepare(
+        "SELECT m.id, m.body, m.created_datetime, m.is_bot, a.full_name, pb.full_name AS pinned_by_name, p.pinned_datetime
+           FROM warroom_pins p
+           JOIN warroom_messages m ON m.id = p.message_id
+           LEFT JOIN analysts a ON a.id = m.analyst_id
+           LEFT JOIN analysts pb ON pb.id = p.pinned_by
+          WHERE p.channel_id = ? AND m.deleted_datetime IS NULL
+          ORDER BY p.id DESC"
+    );
+    $st->execute([$channelId]);
+    $former = function_exists('t') ? t('war-room.former_analyst') : 'Former analyst';
+    return array_map(fn($r) => [
+        'id'      => (int) $r['id'],
+        'author'  => !empty($r['is_bot']) ? WARBOT_NAME : ($r['full_name'] ?? $former),
+        'created' => $r['created_datetime'],
+        'text'    => mb_substr(trim((string) $r['body']), 0, 200),
+        'by'      => $r['pinned_by_name'] ?? $former,
+        'at'      => $r['pinned_datetime'],
+    ], $st->fetchAll(PDO::FETCH_ASSOC));
+}
+
+/**
+ * Save a message to the analyst's own list, or take it off. Saving needs only that
+ * they can READ the conversation - an archived channel's messages can be saved.
+ *
+ * @param int $messageId  the warroom_messages id
+ * @param bool $on  true = save, false = remove
+ */
+function warRoomSave(PDO $conn, int $analystId, int $messageId, bool $on): bool
+{
+    $row = warRoomMessageRow($conn, $messageId);
+    if ($row === null || $row['deleted_datetime'] !== null) return false;
+    if (!warRoomCanAccessChannel($conn, $analystId, (int) $row['channel_id'])) return false;
+    if ($on) {
+        $conn->prepare("INSERT IGNORE INTO warroom_saved (analyst_id, message_id, saved_datetime) VALUES (?, ?, UTC_TIMESTAMP())")
+             ->execute([$analystId, $messageId]);
+    } else {
+        $conn->prepare("DELETE FROM warroom_saved WHERE analyst_id = ? AND message_id = ?")->execute([$analystId, $messageId]);
+    }
+    return true;
+}
+
+/**
+ * The analyst's saved messages, newest saved first - only from conversations they can
+ * still read. Leaving a private channel hides what was saved from it, rather than
+ * keeping a way in.
+ *
+ * @return array<int,array> id, channel_id, channel, author, created, text, saved
+ */
+function warRoomSavedList(PDO $conn, int $analystId, int $limit = 200): array
+{
+    $st = $conn->prepare(
+        "SELECT m.id, m.channel_id, m.body, m.created_datetime, m.is_bot, a.full_name, s.saved_datetime
+           FROM warroom_saved s
+           JOIN warroom_messages m ON m.id = s.message_id
+           LEFT JOIN analysts a ON a.id = m.analyst_id
+          WHERE s.analyst_id = ? AND m.deleted_datetime IS NULL
+          ORDER BY s.id DESC
+          LIMIT " . max(1, min(500, $limit))
+    );
+    $st->execute([$analystId]);
+    $former = function_exists('t') ? t('war-room.former_analyst') : 'Former analyst';
+    // The reader's own channel list (archived included) names each channel from their
+    // side - a DM is "Sarah", not "Ed, Sarah" - and is exactly the set they can read.
+    $names = [];
+    foreach (warRoomChannelList($conn, $analystId, true) as $c) $names[(int) $c['id']] = $c['name'];
+    $out = [];
+    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $cid = (int) $r['channel_id'];
+        if (!isset($names[$cid])) continue;
+        $out[] = [
+            'id'         => (int) $r['id'],
+            'channel_id' => $cid,
+            'channel'    => $names[$cid],
+            'author'     => !empty($r['is_bot']) ? WARBOT_NAME : ($r['full_name'] ?? $former),
+            'created'    => $r['created_datetime'],
+            'text'       => mb_substr(trim((string) $r['body']), 0, 200),
+            'saved'      => $r['saved_datetime'],
+        ];
+    }
+    return $out;
+}
+
+/**
+ * Mark a message as unread: the analyst's read marker for its channel moves back to
+ * just before it, so the channel shows as unread from there. The one place the marker
+ * moves backwards - warRoomMarkRead() only ever moves it forward.
+ *
+ * @param int $messageId  the first message to show as unread
+ */
+function warRoomMarkUnread(PDO $conn, int $analystId, int $messageId): bool
+{
+    $row = warRoomMessageRow($conn, $messageId);
+    if ($row === null) return false;
+    $channelId = (int) $row['channel_id'];
+    if (!warRoomCanAccessChannel($conn, $analystId, $channelId)) return false;
+    $prev = $conn->prepare("SELECT COALESCE(MAX(id), 0) FROM warroom_messages WHERE channel_id = ? AND id < ?");
+    $prev->execute([$channelId, $messageId]);
+    $to = (int) $prev->fetchColumn();
+    $conn->prepare(
+        "INSERT INTO warroom_reads (analyst_id, channel_id, last_read_message_id, updated_datetime)
+         VALUES (?, ?, ?, UTC_TIMESTAMP())
+         ON DUPLICATE KEY UPDATE last_read_message_id = VALUES(last_read_message_id), updated_datetime = VALUES(updated_datetime)"
+    )->execute([$analystId, $channelId, $to]);
+    return true;
+}
+
+/* ── Translation (5.9.0) - wiki War-Room-Message-Actions-Design ─────────────────
+   Every message is stored as typed; each reader can see it in their own FreeITSM
+   language. A translation is stored once per message per LANGUAGE (not per person)
+   and a message's own language is detected once, so nothing is translated twice
+   and an English message is never sent anywhere for an English reader. Off unless
+   an administrator switches it on (War room -> Settings -> AI), because it sends
+   message text to the AI provider. Without the provider, or the internet, readers
+   simply see the originals - the chat never waits for it. */
+
+/** True when an administrator has switched translation on AND an AI provider is set up. */
+function warRoomTranslateEnabled(PDO $conn): bool
+{
+    try {
+        $st = $conn->prepare("SELECT setting_value FROM system_settings WHERE setting_key = 'warroom_translate' LIMIT 1");
+        $st->execute();
+        if ((string) $st->fetchColumn() !== '1') return false;
+        require_once __DIR__ . '/ai_settings.php';
+        require_once __DIR__ . '/ai_provider.php';
+        return aiConfigured(aiSettingsLoad($conn, 'warroom_ai'));
+    } catch (Throwable $e) {
+        return false;
+    }
+}
+
+/** The primary language subtag, lower-case: 'pt-BR' -> 'pt', 'FR' -> 'fr'. */
+function warRoomLangKey(?string $code): string
+{
+    return strtolower(explode('-', str_replace('_', '-', trim((string) $code)))[0]);
+}
+
+/** Drop a message's translations and its detected language - after an edit or a delete. */
+function warRoomForgetTranslations(PDO $conn, int $messageId): void
+{
+    try {
+        $conn->prepare("DELETE FROM warroom_translations WHERE message_id = ?")->execute([$messageId]);
+        $conn->prepare("UPDATE warroom_messages SET lang = NULL WHERE id = ?")->execute([$messageId]);
+    } catch (Throwable $e) {
+        // before Database Verification: nothing stored yet
+    }
+}
+
+/**
+ * Put each message's stored translation into the viewer's language on its row.
+ *
+ * @param array $rows  warRoomMessages()' rows by id - filled in place
+ * @param string $in   the same ids as a comma list (already integers)
+ * @param string $lang the viewer's FreeITSM language, e.g. 'de'
+ */
+function warRoomAttachTranslations(PDO $conn, array &$rows, string $in, string $lang): void
+{
+    try {
+        $st = $conn->prepare("SELECT message_id, body FROM warroom_translations WHERE lang = ? AND message_id IN ($in)");
+        $st->execute([warRoomLangKey($lang)]);
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $t) {
+            $mid = (int) $t['message_id'];
+            if (isset($rows[$mid]) && !$rows[$mid]['deleted']) $rows[$mid]['tr'] = $t['body'];
+        }
+    } catch (Throwable $e) {
+        // before Database Verification
+    }
+}
+
+/**
+ * Translate messages of one channel into a language, using and filling the store.
+ *
+ * Returns, for each message asked about that has text: ['lang' => its language,
+ * 'text' => the translation, or null when it is already in that language]. Messages
+ * it could not translate (the provider failed) are left out, so the page keeps the
+ * original. Two readers asking at once for the same language wait on one lock, so
+ * the second finds the first one's translations instead of paying again.
+ *
+ * @param int $channelId  checked here: the analyst must be able to read it
+ * @param int[] $ids      message ids in that channel (at most 60 are looked at)
+ * @param string $target  the reader's FreeITSM language, e.g. 'de'
+ * @throws RuntimeException  when the AI provider cannot be reached
+ */
+function warRoomTranslate(PDO $conn, int $analystId, int $channelId, array $ids, string $target): array
+{
+    if (!warRoomCanAccessChannel($conn, $analystId, $channelId)) return [];
+    $want = warRoomLangKey($target);
+    $ids = array_slice(array_values(array_unique(array_filter(array_map('intval', $ids), fn($i) => $i > 0))), 0, 60);
+    if (!$ids || $want === '') return [];
+
+    /** The messages still to do, and the answers so far. */
+    $load = function () use ($conn, $channelId, $ids, $want): array {
+        $in = implode(',', $ids);
+        $st = $conn->prepare(
+            "SELECT m.id, m.body, m.lang, t.body AS tr
+               FROM warroom_messages m
+               LEFT JOIN warroom_translations t ON t.message_id = m.id AND t.lang = ?
+              WHERE m.channel_id = ? AND m.id IN ($in) AND m.deleted_datetime IS NULL AND TRIM(m.body) <> ''"
+        );
+        $st->execute([$want, $channelId]);
+        $done = []; $todo = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+            $id = (int) $r['id'];
+            if ($r['lang'] !== null && warRoomLangKey($r['lang']) === $want) $done[$id] = ['lang' => $r['lang'], 'text' => null];
+            elseif ($r['tr'] !== null) $done[$id] = ['lang' => $r['lang'], 'text' => $r['tr']];
+            else $todo[$id] = (string) $r['body'];
+        }
+        return [$done, $todo];
+    };
+
+    [$done, $todo] = $load();
+    if (!$todo) return $done;
+
+    $lock = 'wr_tr_' . $channelId . '_' . $want;
+    $locked = (int) $conn->query("SELECT GET_LOCK(" . $conn->quote($lock) . ", 25)")->fetchColumn() === 1;
+    try {
+        if ($locked) [$done, $todo] = $load();   // somebody else may have just done them
+        if (!$todo) return $done;
+
+        require_once __DIR__ . '/ai_settings.php';
+        require_once __DIR__ . '/ai_provider.php';
+        $cfg = aiSettingsLoad($conn, 'warroom_ai');
+        $setLang = $conn->prepare("UPDATE warroom_messages SET lang = ? WHERE id = ? AND lang IS NULL");
+        $save = $conn->prepare("INSERT IGNORE INTO warroom_translations (message_id, lang, body, created_datetime) VALUES (?, ?, ?, UTC_TIMESTAMP())");
+
+        foreach (array_chunk($todo, 20, true) as $batch) {
+            foreach (warRoomTranslateBatch($cfg, $want, $batch) as $id => $res) {
+                $src = $res['lang'];
+                if ($src !== '') $setLang->execute([$src, $id]);
+                if ($res['same'] || ($src !== '' && warRoomLangKey($src) === $want)) {
+                    $done[$id] = ['lang' => $src ?: $want, 'text' => null];
+                } elseif ($res['text'] !== '') {
+                    $save->execute([$id, $want, $res['text']]);
+                    $done[$id] = ['lang' => $src, 'text' => $res['text']];
+                }
+            }
+        }
+        return $done;
+    } finally {
+        if ($locked) $conn->query("SELECT RELEASE_LOCK(" . $conn->quote($lock) . ")");
+    }
+}
+
+/**
+ * One call to the AI provider: detect each message's language and translate the
+ * ones that are not already in the target language.
+ *
+ * @param array $cfg     aiSettingsLoad($conn, 'warroom_ai')
+ * @param string $want   the target language key, e.g. 'de'
+ * @param array $batch   [message id => original text], at most 20
+ * @return array [id => ['lang' => detected code, 'same' => bool, 'text' => translation or '']]
+ */
+function warRoomTranslateBatch(array $cfg, string $want, array $batch): array
+{
+    $name = class_exists('I18n') ? (I18n::getSupportedLocales()[$want] ?? '') : '';
+    $items = [];
+    $chars = 0;
+    foreach ($batch as $id => $text) { $items[] = ['id' => $id, 'text' => $text]; $chars += mb_strlen($text); }
+    $result = aiProviderChat($cfg, [
+        'system' => 'You translate short messages from an IT team\'s incident chat. Reply with JSON only - no commentary, no code fences.',
+        'user'   => warRoomTranslatePrompt($want, $name, $items),
+        // Room for every translation, plus any thinking the model does first.
+        'max_tokens' => min(16000, 1500 + $chars * 2),
+    ]);
+    $raw = (string) ($result['content'] ?? '');
+    $a = strpos($raw, '['); $b = strrpos($raw, ']');
+    $list = ($a !== false && $b !== false && $b > $a) ? json_decode(substr($raw, $a, $b - $a + 1), true) : null;
+    $out = [];
+    foreach ((array) $list as $r) {
+        $id = (int) ($r['id'] ?? 0);
+        if (!isset($batch[$id])) continue;   // only the messages we asked about
+        $lang = preg_match('/^[a-z]{2,3}(-[a-z0-9]{2,8})?$/i', (string) ($r['lang'] ?? '')) ? strtolower((string) $r['lang']) : '';
+        $out[$id] = [
+            'lang' => $lang,
+            'same' => !empty($r['same']),
+            'text' => mb_substr(trim((string) ($r['text'] ?? '')), 0, WARROOM_MAX_BODY * 2),
+        ];
+    }
+    return $out;
+}
+
+/**
+ * The translation request. Names, addresses and codes are kept as written - in an
+ * incident chat "@Sarah restart srv-db01 (INC-1042)" must not come back as anything else.
+ *
+ * @param string $want  the target language code, e.g. 'de'
+ * @param string $name  its own name, e.g. 'Deutsch' - helps the model
+ * @param array $items  [['id' => int, 'text' => string], ...]
+ */
+function warRoomTranslatePrompt(string $want, string $name, array $items): string
+{
+    return "Target language: {$want}" . ($name !== '' ? " ({$name})" : '') . ".\n\n"
+        . "For each message below:\n"
+        . "- Detect the language it is written in, as an ISO 639-1 code (e.g. en, fr, de, es).\n"
+        . "- If it is already in the target language, return \"same\": true and no text.\n"
+        . "- Otherwise translate it into the target language, naturally, as a colleague would write it.\n\n"
+        . "Keep exactly as written: @mentions and people's names, server and host names, IP addresses, URLs, "
+        . "email addresses, file paths, ticket and change references (like INC-1042 or CHG-0037), error codes, "
+        . "commands and anything that looks like code, numbers, and emoji. Keep line breaks. Do not add, explain or answer anything.\n\n"
+        . "Reply with only a JSON array, one object per message, in the same order:\n"
+        . "[{\"id\": 1, \"lang\": \"fr\", \"same\": false, \"text\": \"...\"}]\n\n"
+        . "Messages:\n" . json_encode($items, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 }
 
 /**
@@ -616,6 +1345,7 @@ function warRoomEditMessage(PDO $conn, int $analystId, int $messageId, string $b
           WHERE id = :id AND deleted_datetime IS NULL"
     );
     $stmt->execute([':b' => $body, ':id' => $messageId]);
+    warRoomForgetTranslations($conn, $messageId);   // 5.9.0: the old translations say the old thing
 
     // Re-resolve from the NEW text. A name removed by the edit should stop being a
     // mention; one added should start being one.
@@ -649,10 +1379,17 @@ function warRoomDeleteMessage(PDO $conn, int $analystId, int $messageId, bool $m
     $at = $conn->prepare("SELECT stored_name FROM warroom_attachments WHERE message_id = :m");
     $at->execute([':m' => $messageId]);
     foreach ($at->fetchAll(PDO::FETCH_ASSOC) as $a) {
-        storeDelete($conn, 'warroom', (string) $a['stored_name']);
+        $path = rtrim(WARROOM_ATTACH_DIR, '/\\') . DIRECTORY_SEPARATOR . $a['stored_name'];
+        if (is_file($path)) @unlink($path);
     }
     $conn->prepare("DELETE FROM warroom_attachments WHERE message_id = :m")->execute([':m' => $messageId]);
     $conn->prepare("DELETE FROM warroom_mentions WHERE message_id = :m")->execute([':m' => $messageId]);
+    // Its content is gone, so a pin or a bookmark would point at a tombstone (5.9.0).
+    warRoomForgetTranslations($conn, $messageId);
+    try {
+        $conn->prepare("DELETE FROM warroom_pins WHERE message_id = :m")->execute([':m' => $messageId]);
+        $conn->prepare("DELETE FROM warroom_saved WHERE message_id = :m")->execute([':m' => $messageId]);
+    } catch (Throwable $e) { /* before Database Verification */ }
 
     $stmt = $conn->prepare(
         "UPDATE warroom_messages
@@ -682,19 +1419,40 @@ function warRoomMessageRow(PDO $conn, int $messageId): ?array
  * @param int $channelId  the warroom_channels id; the caller has already checked it may post there
  * @param string $body  the message text as typed; blank posts nothing; cut to WARROOM_MAX_BODY
  */
-function warRoomSend(PDO $conn, int $analystId, int $channelId, string $body): int
+function warRoomSend(PDO $conn, int $analystId, int $channelId, string $body, int $quoteOfId = 0, int $threadRootId = 0, bool $alsoInChannel = false): int
 {
     $body = trim($body);
     if ($body === '') return 0;
     if (mb_strlen($body) > WARROOM_MAX_BODY) $body = mb_substr($body, 0, WARROOM_MAX_BODY);
 
+    // A quote (5.9.0) must be a live message in THIS channel; anything else is
+    // dropped, not refused - the reply itself is what matters.
+    $quote = null;
+    if ($quoteOfId > 0) {
+        $q = warRoomMessageRow($conn, $quoteOfId);
+        if ($q !== null && (int) $q['channel_id'] === $channelId && $q['deleted_datetime'] === null) $quote = $quoteOfId;
+    }
+
+    // A thread reply (5.9.0) hangs off a live message in THIS channel. Replying to a
+    // reply joins its thread - one level, as Slack and Teams do. Anything else is
+    // posted as an ordinary message rather than refused.
+    $root = null;
+    if ($threadRootId > 0) {
+        $r = warRoomMessageRow($conn, $threadRootId);
+        if ($r !== null && !empty($r['thread_root_id'])) $r = warRoomMessageRow($conn, (int) $r['thread_root_id']);
+        if ($r !== null && (int) $r['channel_id'] === $channelId && $r['deleted_datetime'] === null) $root = (int) $r['id'];
+    }
+
     $stmt = $conn->prepare(
-        "INSERT INTO warroom_messages (channel_id, analyst_id, body, created_datetime)
-         VALUES (:cid, :aid, :body, UTC_TIMESTAMP())"
+        "INSERT INTO warroom_messages (channel_id, analyst_id, body, created_datetime"
+        . ($quote !== null ? ", quote_of_id" : "") . ($root !== null ? ", thread_root_id, also_in_channel" : "") . ")
+         VALUES (:cid, :aid, :body, UTC_TIMESTAMP()" . ($quote !== null ? ", :q" : "") . ($root !== null ? ", :root, :also" : "") . ")"
     );
     $stmt->bindValue(':cid', $channelId, PDO::PARAM_INT);
     $stmt->bindValue(':aid', $analystId, PDO::PARAM_INT);
     $stmt->bindValue(':body', $body);
+    if ($quote !== null) $stmt->bindValue(':q', $quote, PDO::PARAM_INT);
+    if ($root !== null) { $stmt->bindValue(':root', $root, PDO::PARAM_INT); $stmt->bindValue(':also', $alsoInChannel ? 1 : 0, PDO::PARAM_INT); }
     $stmt->execute();
 
     // ⚠️ Read the id BEFORE anything else touches the connection. MySQL resets
@@ -703,6 +1461,12 @@ function warRoomSend(PDO $conn, int $analystId, int $channelId, string $body): i
     // fine and the caller is told it failed. Caught by testing the endpoint
     // rather than by reading the code, which looked perfectly reasonable.
     $id = (int) $conn->lastInsertId();
+
+    // The first message's reply count changed, so everybody's poll re-sends it (5.9.0).
+    // TRAP: after the id is read - this UPDATE would otherwise turn it into 0.
+    if ($root !== null) {
+        $conn->prepare("UPDATE warroom_messages SET changed_datetime = UTC_TIMESTAMP() WHERE id = ?")->execute([$root]);
+    }
 
     warRoomStoreMentions($conn, $id, warRoomResolveMentions($conn, $channelId, $analystId, $body));
     warRoomPrune($conn);
@@ -964,7 +1728,7 @@ function warRoomMentionCounts(PDO $conn, int $analystId): array
  */
 function warRoomStoreAttachment(PDO $conn, int $messageId, array $file): array
 {
-    $stored = storeSaveUpload($conn, 'warroom', '', $file);
+    $stored = uploadStoreFile($file, WARROOM_ATTACH_DIR);
 
     $stmt = $conn->prepare(
         "INSERT INTO warroom_attachments (message_id, stored_name, original_name, size_bytes, created_datetime)
@@ -1009,7 +1773,8 @@ function warRoomAttachmentFor(PDO $conn, int $analystId, int $attachmentId): ?ar
     if ($row === false) return null;
     if (!warRoomCanAccessChannel($conn, $analystId, (int) $row['channel_id'])) return null;
 
-    return $row;   // the bytes: storeServe($conn, 'warroom', $row['stored_name'], ...)
+    $row['path'] = rtrim(WARROOM_ATTACH_DIR, '/\\') . DIRECTORY_SEPARATOR . $row['stored_name'];
+    return $row;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -1205,6 +1970,18 @@ function warRoomPresent(PDO $conn, int $excludeAnalystId, int $channelId): array
 function warRoomMarkRead(PDO $conn, int $analystId, int $channelId, int $messageId): void
 {
     if ($messageId <= 0) return;
+    // Seen by (5.9.0): note the moment the marker moves past new messages - only
+    // while an administrator has Seen by switched on.
+    if (warRoomSeenByEnabled($conn)) {
+        try {
+            $old = $conn->prepare("SELECT last_read_message_id FROM warroom_reads WHERE analyst_id = ? AND channel_id = ?");
+            $old->execute([$analystId, $channelId]);
+            if ($messageId > (int) $old->fetchColumn()) {
+                $conn->prepare("INSERT INTO warroom_read_marks (analyst_id, channel_id, up_to_message_id, read_datetime) VALUES (?, ?, ?, UTC_TIMESTAMP())")
+                     ->execute([$analystId, $channelId, $messageId]);
+            }
+        } catch (Throwable $e) { /* before Database Verification */ }
+    }
     $stmt = $conn->prepare(
         "INSERT INTO warroom_reads (analyst_id, channel_id, last_read_message_id, updated_datetime)
          VALUES (:a, :c, :m, UTC_TIMESTAMP())
@@ -1280,11 +2057,19 @@ function warRoomPrune(PDO $conn): void
 
         // Only unlink files whose row really did go. A file still referenced by a
         // surviving message (the LIMIT above may not have reached it yet) stays.
+        // Seen by's read marks go with the messages they describe (5.9.0).
+        try {
+            $marks = $conn->prepare("DELETE FROM warroom_read_marks WHERE read_datetime < DATE_SUB(UTC_TIMESTAMP(), INTERVAL :d DAY) LIMIT 5000");
+            $marks->bindValue(':d', $days, PDO::PARAM_INT);
+            $marks->execute();
+        } catch (Throwable $e) { /* before Database Verification */ }
+
         foreach ($files as $name) {
             $still = $conn->prepare("SELECT 1 FROM warroom_attachments WHERE stored_name = :s LIMIT 1");
             $still->execute([':s' => $name]);
             if ($still->fetchColumn()) continue;
-            storeDelete($conn, 'warroom', (string) $name);
+            $path = rtrim(WARROOM_ATTACH_DIR, '/\\') . DIRECTORY_SEPARATOR . $name;
+            if (is_file($path)) @unlink($path);
         }
     } catch (Throwable) {
         // Retention is housekeeping — never let it break posting a message.
@@ -1315,17 +2100,23 @@ function warRoomSweepOrphanFiles(PDO $conn): void
              ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)"
         )->execute([':v' => (string) $now]);
 
+        $dir = rtrim(WARROOM_ATTACH_DIR, '/\\');
+        if (!is_dir($dir)) return;
+
         $known = [];
         foreach ($conn->query("SELECT stored_name FROM warroom_attachments") as $r) {
             $known[$r['stored_name']] = true;
         }
 
-        // The store's own listing (a server folder or S3); its guard files are not files.
-        foreach (storeList($conn, 'warroom') as $name => $o) {
+        foreach ((array) scandir($dir) as $name) {
+            if ($name === '.' || $name === '..') continue;
+            // The directory's own guards are not uploads and must never be swept.
+            if ($name === '.htaccess' || $name === 'web.config') continue;
             if (isset($known[$name])) continue;
+            $path = $dir . DIRECTORY_SEPARATOR . $name;
             // Give an in-flight upload a minute's grace: the file lands before its
             // row is written, and deleting it in that window would lose it.
-            if (($now - (int) $o['mtime']) > 60) storeDelete($conn, 'warroom', (string) $name);
+            if (is_file($path) && ($now - (int) filemtime($path)) > 60) @unlink($path);
         }
     } catch (Throwable) {
         // Housekeeping. Never let it break posting a message.

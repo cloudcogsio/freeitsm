@@ -428,20 +428,15 @@ if (!$deleteOk) {
     $postOut[] = "";
 
     // Remove orphaned attachment files (best effort; never affects the DB result).
-    require_once __DIR__ . '/../../../includes/storage/stores.php';   // the tickets store: a server folder or S3
+    $attachBase = realpath(__DIR__ . '/../../..') . '/tickets/attachments/';
     if (empty($attachmentPaths)) {
         $postOut[] = "Attachment files: none to remove.";
     } else {
         $postOut[] = "Removing " . count($attachmentPaths) . " attachment file(s):";
         foreach ($attachmentPaths as $rel) {
-            try {
-                $there = storeSize($conn, 'tickets', (string)$rel) !== null;
-            } catch (Throwable $e) {
-                $postOut[] = "  FAILED   " . $rel . " (storage cannot be reached: " . $e->getMessage() . ")";
-                continue;
-            }
-            if ($there) {
-                $postOut[] = "  " . (storeDelete($conn, 'tickets', (string)$rel) ? "deleted  " : "FAILED   ") . $rel;
+            $full = $attachBase . $rel;
+            if (is_file($full)) {
+                $postOut[] = "  " . (@unlink($full) ? "deleted  " : "FAILED   ") . $rel;
             } else {
                 $postOut[] = "  missing  " . $rel . " (file already gone)";
             }

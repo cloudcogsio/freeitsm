@@ -12,6 +12,11 @@
 
 return [
     'portal' => 'Portal Samoobsługowy',
+    // GH #414: the organisation chart (self-service/org-chart.php).
+    'org_chart' => [
+        'title'        => 'Schemat organizacyjny',
+        'subtitle'     => 'Kto komu podlega. Wyszukaj imię i nazwisko, stanowisko lub dział albo rozwiń zespół strzałką.',
+    ],
     'equipment' => [
         'title' => 'Mój sprzęt',
         'subtitle' => 'Sprzęt przypisany do Ciebie. Jeśli coś się tu nie zgadza albo masz sprzęt, którego nie ma na liście, utwórz zgłoszenie, a dział IT się tym zajmie.',
@@ -50,6 +55,7 @@ return [
         'team_tickets' => 'Zgłoszenia zespołu',
         'help_centre' => 'Baza wiedzy',
         'equipment' => 'Mój sprzęt',
+        'org_chart'   => 'Organizacja',   // GH #414
         'training' => 'Szkolenia',
         'help' => 'Pomoc',
         'menu' => 'Menu',
@@ -175,6 +181,10 @@ return [
         'req_sent' => 'Wysłano',
         'req_cancelled' => 'Anulowano',
         'req_cancel' => 'Anuluj',
+        // Discussion #298: answers changed after it was sent.
+        'req_changed' => 'Odpowiedzi zmienione po wysłaniu ({n})',
+        'req_changed_line' => '{field}: {old} → {new}',
+        'req_changed_blank' => '(puste)',
         'req_cancel_title' => 'Anulować to zgłoszenie?',
         'req_cancel_text' => 'Twoje zgłoszenie dotyczące „{what}” zostanie anulowane. Osoba, która miała je zatwierdzić, nie zobaczy go już jako oczekującego.',
         'req_cancel_reason' => 'Dlaczego je anulujesz?',
@@ -448,6 +458,13 @@ return [
         'tr_li4' => 'Wynik zobaczysz od razu, wraz z informacją, które odpowiedzi były błędne i dlaczego. Jeśli nie zaliczysz testu, możesz spróbować ponownie.',
         'tr_p2' => 'Twój postęp jest zapisywany na bieżąco, dzięki czemu możesz przechodzić kurs w kilku podejściach, na dowolnym urządzeniu, i kontynuować od miejsca, w którym skończyłeś.',
         'tr_tip' => '<strong>Terminy i przypomnienia:</strong> kurs może mieć datę, do której należy go ukończyć. Masz na to cały ten dzień. Jeśli dział IT włączył przypomnienia, otrzymasz e-mail, gdy termin się zbliża, oraz kolejny, jeśli go przekroczysz — przypomnienia ustają, gdy tylko ukończysz kurs.',
+        // GH #414: the organisation chart, for people who have the tab
+        'org_title' => 'Schemat organizacyjny',
+        'org_p1' => 'Jeśli zespół IT go włączył, <strong>Organizacja</strong> w górnym menu pokazuje, kto komu podlega w Twojej firmie. Schemat otwiera się na Twoim miejscu, z rozwiniętą linią nad Tobą.',
+        'org_li1' => 'Kliknij strzałkę obok osoby, aby pokazać lub ukryć jej zespół. Liczby obok nazwiska to liczba osób bezpośrednio jej podległych oraz, po kropce, łączna liczba osób pod nią.',
+        'org_li2' => 'Wpisz w <strong>Szukaj osób</strong> imię i nazwisko, stanowisko lub dział, a następnie wybierz osobę, aby przejść do niej w schemacie.',
+        'org_li3' => '<strong>Schemat</strong> rysuje to samo jako pola i linie, zaczynając od Ciebie. Kliknij osobę, aby zobaczyć, kim jest, kliknij dwukrotnie, aby rysować od niej, i użyj <strong>Eksportuj</strong>, aby zapisać go jako obraz lub PDF.',
+        'org_tip' => '<strong>Coś się nie zgadza?</strong> Schemat powstaje na podstawie przełożonego zapisanego przy każdej osobie. Jeśli Twój jest błędny, utwórz zgłoszenie, a zespół IT to poprawi.',
         'team_title' => 'Zgłoszenia zespołu',
         'team_p1' => 'Możesz zobaczyć zgłoszenia utworzone przez osoby, którymi zarządzasz. Znajdziesz je w menu pod pozycją <strong>Zgłoszenia zespołu</strong>, oddzielnie od własnych w Moich zgłoszeniach.',
         'team_li_who' => '<strong>Kto jest w Twoim zespole</strong> ustalił Twój dział IT &mdash; na podstawie pola Przełożony w katalogu Twojej organizacji lub został wybrany za Ciebie. Zapytaj ich, jeśli kogoś brakuje albo ktoś nie powinien się tam znajdować.',

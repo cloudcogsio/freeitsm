@@ -29,8 +29,8 @@ $translationNamespaces = ['common', 'system-wiki'];
     <?php echo Tz::scriptTag(); ?>
     <script src="../assets/js/tz.js?v=5"></script>
     <script src="../assets/js/i18n.js?v=4"></script>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <style>
         body { --accent: var(--wiki-accent, #c62828); }
 
@@ -45,7 +45,7 @@ $translationNamespaces = ['common', 'system-wiki'];
             padding: 24px 20px;
         }
         .breadcrumb {
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             color: var(--text-dim, #888);
             margin-bottom: 16px;
         }
@@ -61,7 +61,7 @@ $translationNamespaces = ['common', 'system-wiki'];
             box-shadow: 0 1px 4px var(--shadow, rgba(0,0,0,0.06));
         }
         .file-title {
-            font-size: 22px;
+            font-size: var(--font-size-4xl, 24px);
             font-weight: 600;
             color: var(--text, #333);
             display: flex;
@@ -70,7 +70,7 @@ $translationNamespaces = ['common', 'system-wiki'];
             margin-bottom: 8px;
         }
         .file-path {
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             color: var(--text-dim, #888);
             margin-bottom: 12px;
             font-family: monospace;
@@ -81,7 +81,7 @@ $translationNamespaces = ['common', 'system-wiki'];
             flex-wrap: wrap;
         }
         .meta-item {
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             color: var(--text-muted, #666);
         }
         .meta-item strong { color: var(--text, #333); }
@@ -89,7 +89,7 @@ $translationNamespaces = ['common', 'system-wiki'];
             margin-top: 12px;
             padding-top: 12px;
             border-top: 1px solid var(--border-soft, #eee);
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             color: var(--text-muted, #555);
             line-height: 1.5;
         }
@@ -102,7 +102,7 @@ $translationNamespaces = ['common', 'system-wiki'];
         }
         .section-header {
             padding: 14px 20px;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             font-weight: 600;
             color: var(--text, #333);
             border-bottom: 1px solid var(--border-soft, #eee);
@@ -117,7 +117,7 @@ $translationNamespaces = ['common', 'system-wiki'];
             background: var(--surface-hover, #f0f0f0);
             padding: 1px 8px;
             border-radius: 10px;
-            font-size: 11px;
+            font-size: var(--font-size-xs, 11px);
             font-weight: 500;
             color: var(--text-dim, #888);
         }
@@ -127,7 +127,7 @@ $translationNamespaces = ['common', 'system-wiki'];
         .detail-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
         }
         .detail-table th {
             text-align: left;
@@ -135,7 +135,7 @@ $translationNamespaces = ['common', 'system-wiki'];
             background: #f9f9f9;
             color: var(--text-muted, #666);
             font-weight: 600;
-            font-size: 11px;
+            font-size: var(--font-size-xs, 11px);
             text-transform: uppercase;
             letter-spacing: 0.3px;
         }
@@ -151,7 +151,7 @@ $translationNamespaces = ['common', 'system-wiki'];
             display: inline-block;
             padding: 1px 6px;
             border-radius: 3px;
-            font-size: 10px;
+            font-size: var(--font-size-xs, 11px);
             font-weight: 600;
         }
         .type-badge.php { background: #e8eaf6; color: #3f51b5; }
@@ -160,7 +160,7 @@ $translationNamespaces = ['common', 'system-wiki'];
             display: inline-block;
             padding: 1px 6px;
             border-radius: 3px;
-            font-size: 10px;
+            font-size: var(--font-size-xs, 11px);
             font-weight: 600;
         }
         .dep-badge.require_once, .dep-badge.require { background: #e8f5e9; color: #2e7d32; }
@@ -173,7 +173,7 @@ $translationNamespaces = ['common', 'system-wiki'];
             display: inline-block;
             padding: 1px 6px;
             border-radius: 3px;
-            font-size: 10px;
+            font-size: var(--font-size-xs, 11px);
             font-weight: 600;
         }
         .ref-badge.SELECT { background: #e3f2fd; color: #1565c0; }
@@ -186,14 +186,14 @@ $translationNamespaces = ['common', 'system-wiki'];
             display: inline-block;
             padding: 1px 6px;
             border-radius: 3px;
-            font-size: 10px;
+            font-size: var(--font-size-xs, 11px);
             font-weight: 600;
         }
         .access-badge.read { background: #e3f2fd; color: #1565c0; }
         .access-badge.write { background: #fff3e0; color: #e65100; }
 
-        .line-ref { color: var(--text-faint, #aaa); font-family: monospace; font-size: 12px; }
-        .empty-section { padding: 16px 20px; color: var(--text-faint, #aaa); font-size: 13px; font-style: italic; }
+        .line-ref { color: var(--text-faint, #aaa); font-family: monospace; font-size: var(--font-size-sm, 12px); }
+        .empty-section { padding: 16px 20px; color: var(--text-faint, #aaa); font-size: var(--font-size-md, 13px); font-style: italic; }
 
         /* ---- Dark mode: colours whose light values don't match a token exactly ---- */
         [data-theme-mode="dark"] .wiki-detail { background: var(--app-bg, #f5f7fa); }
@@ -368,6 +368,6 @@ $translationNamespaces = ['common', 'system-wiki'];
             return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
     </script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

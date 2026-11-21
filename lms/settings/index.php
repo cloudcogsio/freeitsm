@@ -28,6 +28,11 @@ $lmsSetManage = analystHasCapability($lmsSetConn, (int)$_SESSION['analyst_id'], 
 $lmsSetTests  = analystHasCapability($lmsSetConn, (int)$_SESSION['analyst_id'], Cap::LMS_TESTS);
 if (!$lmsSetManage && !$lmsSetTests) requireCapability(Cap::LMS_MANAGE, $lmsSetConn);   // bounces
 $lmsFirstTab = $lmsSetManage ? 'ai' : 'tests';
+// The tab bar is drawn from the manifest like every other settings page (GH #399: that is
+// what gives it the Tabs / One page switch). The manifest's caps are the same two grants
+// checked above, so the bar and the $lmsSet* panel checks below cannot disagree.
+require_once __DIR__ . '/../../includes/settings_manifest.php';
+$lmsVisibleTabs = settingsVisibleTabs($lmsSetConn, (int)$_SESSION['analyst_id'], require __DIR__ . '/manifest.php');
 
 $current_page = 'settings';
 $path_prefix  = '../../';
@@ -40,8 +45,8 @@ $translationNamespaces = ['common', 'lms'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('lms', t('lms.nav.settings'))); ?></title>
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/inbox.css?v=97">
     <style>
         /* Pin the shared accent to the LMS blue so the tabs, buttons and focus
            rings read on-brand, as every other settings page does. */
@@ -103,15 +108,7 @@ $translationNamespaces = ['common', 'lms'];
     <div class="container">
         <h1><?php echo htmlspecialchars(t('lms.settings.heading')); ?></h1>
 
-        <div class="tabs">
-            <?php if ($lmsSetManage): ?>
-            <button class="tab active" data-tab="ai" onclick="lmsSettingsTab('ai')"><?php echo htmlspecialchars(t('lms.settings.tab_ai')); ?></button>
-            <button class="tab" data-tab="reminders" onclick="lmsSettingsTab('reminders')"><?php echo htmlspecialchars(t('lms.settings.tab_reminders')); ?></button>
-            <?php endif; ?>
-            <?php if ($lmsSetTests): ?>
-            <button class="tab<?php echo $lmsFirstTab === 'tests' ? ' active' : ''; ?>" data-tab="tests" onclick="lmsSettingsTab('tests')"><?php echo htmlspecialchars(t('lms.settings.tab_tests')); ?></button>
-            <?php endif; ?>
-        </div>
+        <?php renderSettingsTabBar($lmsVisibleTabs, $lmsFirstTab, 'lmsSettingsTab'); ?>
 
         <?php if ($lmsSetManage): ?>
         <div class="tab-content active" id="tab-ai">
@@ -175,7 +172,7 @@ $translationNamespaces = ['common', 'lms'];
                 <button class="btn btn-primary" onclick="lmsSaveReminders()"><?php echo htmlspecialchars(t('common.save')); ?></button>
                 <button class="btn btn-secondary" onclick="lmsTestReminder()"><?php echo htmlspecialchars(t('lms.settings.reminders_test')); ?></button>
                 <button class="btn btn-secondary" onclick="lmsRunReminders()"><?php echo htmlspecialchars(t('lms.settings.reminders_run')); ?></button>
-                <span id="remLastRun" style="color: var(--text-muted, #666); font-size: 13px;"></span>
+                <span id="remLastRun" style="color: var(--text-muted, #666); font-size: var(--font-size-md, 13px);"></span>
             </div>
         </div>
         <?php endif; ?>
@@ -355,7 +352,11 @@ $translationNamespaces = ['common', 'lms'];
     if (document.querySelector('.tab[data-tab="tests"]') && (location.hash === '#tests' || <?php echo json_encode($lmsFirstTab === 'tests'); ?>)) {
         lmsSettingsTab('tests');
     }
+    (function () {
+        const want = new URLSearchParams(location.search).get('tab');
+        if (want && document.getElementById('tab-' + want)) lmsSettingsTab(want);
+    })();
     </script>
-    <script src="<?php echo BASE_URL; ?>assets/js/mobile.js?v=83"></script>
+    <script src="<?php echo BASE_URL; ?>assets/js/mobile.js?v=87"></script>
 </body>
 </html>

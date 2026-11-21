@@ -66,13 +66,13 @@ if (isset($_SESSION['analyst_id'])) {
 
         .header h1 {
             color: #333;
-            font-size: 22px;
+            font-size: var(--font-size-4xl, 24px);
             margin-bottom: 8px;
         }
 
         .header p {
             color: #666;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             line-height: 1.5;
         }
 
@@ -85,7 +85,7 @@ if (isset($_SESSION['analyst_id'])) {
             margin-bottom: 6px;
             color: #333;
             font-weight: 500;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
         }
 
         .form-group input {
@@ -93,7 +93,7 @@ if (isset($_SESSION['analyst_id'])) {
             padding: 12px;
             border: 1px solid #ddd;
             border-radius: 5px;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             transition: border-color 0.3s;
         }
 
@@ -106,7 +106,7 @@ if (isset($_SESSION['analyst_id'])) {
             padding: 10px 14px;
             border-radius: 5px;
             margin-bottom: 16px;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             display: none;
             line-height: 1.5;
         }
@@ -132,7 +132,7 @@ if (isset($_SESSION['analyst_id'])) {
             color: white;
             border: none;
             border-radius: 5px;
-            font-size: 15px;
+            font-size: var(--font-size-xl, 16px);
             font-weight: 600;
             cursor: pointer;
             transition: transform 0.2s;
@@ -148,7 +148,7 @@ if (isset($_SESSION['analyst_id'])) {
             margin-top: 16px;
             color: #999;
             text-decoration: none;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
         }
 
         .back-link:hover { color: #666; }

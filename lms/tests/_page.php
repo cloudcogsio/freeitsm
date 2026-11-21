@@ -45,8 +45,8 @@ function ctHead(string $title): void
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('lms', t('lms.nav.tests'), $title)); ?></title>
-    <link rel="stylesheet" href="<?php echo $b; ?>assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="<?php echo $b; ?>assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="<?php echo $b; ?>assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="<?php echo $b; ?>assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="<?php echo $b; ?>assets/css/lms.css?v=11">
     <link rel="stylesheet" href="<?php echo $b; ?>assets/css/lms-tests.css?v=2">
     <?php /* mobile.css LAST, after every module sheet: its @media rules win ties on load order (wiki Mobile-Friendly-Techniques §9). */ ?>
@@ -62,7 +62,7 @@ function ctHead(string $title): void
 function ctFoot(): void
 { ?>
     <script src="<?php echo BASE_URL; ?>assets/js/lms-tests.js?v=2"></script>
-    <script src="<?php echo BASE_URL; ?>assets/js/mobile.js?v=83"></script>
+    <script src="<?php echo BASE_URL; ?>assets/js/mobile.js?v=87"></script>
 </body>
 </html>
 <?php }

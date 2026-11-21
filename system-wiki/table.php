@@ -29,8 +29,8 @@ $translationNamespaces = ['common', 'system-wiki'];
     <?php echo Tz::scriptTag(); ?>
     <script src="../assets/js/tz.js?v=5"></script>
     <script src="../assets/js/i18n.js?v=4"></script>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <style>
         body { --accent: var(--wiki-accent, #c62828); }
 
@@ -45,7 +45,7 @@ $translationNamespaces = ['common', 'system-wiki'];
             padding: 24px 20px;
         }
         .breadcrumb {
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             color: var(--text-dim, #888);
             margin-bottom: 16px;
         }
@@ -61,13 +61,13 @@ $translationNamespaces = ['common', 'system-wiki'];
             box-shadow: 0 1px 4px var(--shadow, rgba(0,0,0,0.06));
         }
         .table-name {
-            font-size: 22px;
+            font-size: var(--font-size-4xl, 24px);
             font-weight: 600;
             font-family: monospace;
             color: var(--text, #333);
             margin-bottom: 8px;
         }
-        .table-meta { font-size: 13px; color: var(--text-dim, #888); }
+        .table-meta { font-size: var(--font-size-md, 13px); color: var(--text-dim, #888); }
 
         .ref-group {
             background: var(--surface, #fff);
@@ -78,7 +78,7 @@ $translationNamespaces = ['common', 'system-wiki'];
         }
         .ref-group-header {
             padding: 12px 18px;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             font-weight: 600;
             color: var(--text, #333);
             border-bottom: 1px solid var(--border-soft, #eee);
@@ -90,7 +90,7 @@ $translationNamespaces = ['common', 'system-wiki'];
             display: inline-block;
             padding: 2px 8px;
             border-radius: 3px;
-            font-size: 11px;
+            font-size: var(--font-size-xs, 11px);
             font-weight: 600;
         }
         /* ref-badge colours are DATA (SQL-operation coded), left hardcoded */
@@ -104,7 +104,7 @@ $translationNamespaces = ['common', 'system-wiki'];
         .ref-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
         }
         .ref-table td {
             padding: 6px 18px;
@@ -114,8 +114,8 @@ $translationNamespaces = ['common', 'system-wiki'];
         .ref-table tr:last-child td { border-bottom: none; }
         .ref-table a { color: var(--wiki-accent, #c62828); text-decoration: none; }
         .ref-table a:hover { text-decoration: underline; }
-        .line-ref { color: var(--text-faint, #aaa); font-family: monospace; font-size: 12px; }
-        .no-data { text-align: center; padding: 40px; color: var(--text-faint, #aaa); font-size: 14px; }
+        .line-ref { color: var(--text-faint, #aaa); font-family: monospace; font-size: var(--font-size-sm, 12px); }
+        .no-data { text-align: center; padding: 40px; color: var(--text-faint, #aaa); font-size: var(--font-size-lg, 14px); }
 
         /* Dark-mode overrides for pale washes that would glow */
         [data-theme-mode="dark"] .wiki-detail { background: var(--app-bg, #f5f7fa); }
@@ -216,6 +216,6 @@ $translationNamespaces = ['common', 'system-wiki'];
             return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
     </script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

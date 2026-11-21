@@ -29,7 +29,7 @@ $multi = isMultiTenant(connectToDatabase());
 // id => number of paragraphs (help.<id>.p1 … pN). The company section only
 // appears where there is more than one company, like every other help page.
 $sections = [
-    'overview'   => 4,
+    'overview'   => 5,   // p5: saved views, the last one remembered (GH #408)
     'adding'     => 5,
     'subdomains' => 5,
     'internal'   => 9,   // GH #203 (slice 2: endpoints and their limits; slice 3: expected records, #243; split DNS, #249)
@@ -64,8 +64,8 @@ $para = fn(string $k) => preg_replace(['/\*\*([^*]+)\*\*/', '/`([^`]+)`/'], ['<s
     <?php echo Tz::scriptTag(); ?>
     <script src="../assets/js/tz.js?v=5"></script>
     <script src="../assets/js/i18n.js?v=4"></script>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/help.css?v=6">
     <style>
         /* The only thing a help page should need to say for itself: its colour. */
@@ -144,6 +144,6 @@ $para = fn(string $k) => preg_replace(['/\*\*([^*]+)\*\*/', '/`([^`]+)`/'], ['<s
             });
         });
     </script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

@@ -891,18 +891,6 @@ final class FilesRecycleService
     }
 
     /**
-     * Deletes the offline copy ("Make available offline") of bytes nothing uses any more.
-     * A leftover would be removed by the files_offline_sync job anyway.
-     */
-    private static function dropOfflineCopy(PDO $conn, string $key): void
-    {
-        if (!filesStorageKeyIsValid($key)) return;
-        require_once __DIR__ . '/../files/offline.php';
-        $copy = filesOfflinePath($conn, $key);
-        if ($copy !== null && is_file($copy) && !filesOfflineOverlapsStore($conn) && !@unlink($copy)) error_log("files: could not delete the offline copy of {$key}");
-    }
-
-    /**
      * Documents that link to these files (documents.kind = 'files', upstream GH #303) keep
      * their row, so the record still shows something was there, but point at nothing.
      */
@@ -912,6 +900,18 @@ final class FilesRecycleService
         if (!$items || !DocumentsService::filesLinkReady($conn)) return;
         $in = implode(',', array_fill(0, count($items), '?'));
         $conn->prepare("UPDATE documents SET files_item_id = NULL WHERE files_item_id IN ($in)")->execute($items);
+    }
+
+    /**
+     * Deletes the offline copy ("Make available offline") of bytes nothing uses any more.
+     * A leftover would be removed by the files_offline_sync job anyway.
+     */
+    private static function dropOfflineCopy(PDO $conn, string $key): void
+    {
+        if (!filesStorageKeyIsValid($key)) return;
+        require_once __DIR__ . '/../files/offline.php';
+        $copy = filesOfflinePath($conn, $key);
+        if ($copy !== null && is_file($copy) && !filesOfflineOverlapsStore($conn) && !@unlink($copy)) error_log("files: could not delete the offline copy of {$key}");
     }
 
     /**

@@ -59,7 +59,6 @@ function filesStorageReset(): void
 {
     FilesStorageCache::$settings = [];
     FilesStorageCache::$drivers = [];
-    if (function_exists('storeReset')) storeReset();   // the shared S3 connection is cached there
 }
 
 /**
@@ -73,11 +72,6 @@ function filesStorageConfig(PDO $conn): array
     if (filesSetting($conn, 'files_storage_driver', 'local') !== 's3') {
         return ['driver' => 'local', 'root' => filesStorageRoot($conn)];
     }
-    // The install's one S3 connection, kept on System -> Storage (#284) - which reads the
-    // files_s3_* settings below until it has been saved there.
-    require_once __DIR__ . '/../storage/stores.php';
-    $shared = storageS3Connection($conn);
-    if ($shared !== null) return $shared;
     return [
         'driver'        => 's3',
         'endpoint'      => filesSetting($conn, 'files_s3_endpoint'),
@@ -165,14 +159,9 @@ function filesStorageKeyIsValid(string $rel): bool
  * the store has answered - a store that cannot be reached still gets a proper
  * error status. Returns 0 when bytes were sent, otherwise the HTTP status to
  * send instead: 404 (a path we could not have written), 410 (the stored copy is
- * missing, or not the size recorded), 503 (the store cannot be reached).
+ * missing), 503 (the store cannot be reached).
  *
- * PR #318 review R1: the caller's headers promise size_bytes. A download from the start
- * asks the store for the real size first, and a file that is not that size (truncated,
- * or written over) answers 410 rather than a response shorter or longer than promised.
- * A range further in is not asked again (a viewer's many range requests).
- *
- * @param array $version  a files_versions row (storage_path and size_bytes are used)
+ * @param array $version  a files_versions row (storage_path is used)
  */
 function filesServeBytes(PDO $conn, array $version, int $start, int $end, callable $begin): int
 {
@@ -203,21 +192,7 @@ function filesServeBytes(PDO $conn, array $version, int $start, int $end, callab
                 }
             }
         }
-        if (!$served) {
-            // From the start, ask the store for the real size: truncated or written-over
-            // bytes answer 410 instead of a response shorter or longer than its
-            // Content-Length (PR #318 review R1). A range further in is not asked again.
-            // Not for an offline copy above - it is only used when its size matches.
-            if ($start === 0 && isset($version['size_bytes'])) {
-                $real = $store->size($key);
-                if ($real === null) throw new StorageNotFound('Stored file not found.');
-                if ($real !== (int)$version['size_bytes']) {
-                    error_log("files: stored bytes {$key} are {$real} bytes, recorded {$version['size_bytes']} - not sent");
-                    return 410;
-                }
-            }
-            $store->readRange($key, $start, $end, $sink);
-        }
+        if (!$served) $store->readRange($key, $start, $end, $sink);
         if (!$started) $begin();   // an empty range still needs its headers
         return 0;
     } catch (StorageNotFound $e) {

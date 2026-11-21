@@ -73,8 +73,8 @@ $sample = new DateTime('2026-08-05 14:30:00', new DateTimeZone(Tz::current()));
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('system', t('system.dateformat.title'))); ?></title>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <style>
         body {
             /* System's DARK accent is a LIGHT colour, so --on-accent must be pinned
@@ -99,8 +99,8 @@ $sample = new DateTime('2026-08-05 14:30:00', new DateTimeZone(Tz::current()));
             margin-bottom: 24px;
         }
 
-        .settings-card h3 { font-size: 15px; font-weight: 600; color: var(--text, #333); margin: 0 0 4px 0; }
-        .settings-card .card-desc { font-size: 13px; color: var(--text-dim, #888); margin: 0 0 18px 0; line-height: 1.5; }
+        .settings-card h3 { font-size: var(--font-size-xl, 16px); font-weight: 600; color: var(--text, #333); margin: 0 0 4px 0; }
+        .settings-card .card-desc { font-size: var(--font-size-md, 13px); color: var(--text-dim, #888); margin: 0 0 18px 0; line-height: 1.5; }
 
         /* The example IS the label - a rendered '25.08.2026' explains the choice
            better than any name we could give it, so the name is the small print. */
@@ -121,7 +121,7 @@ $sample = new DateTime('2026-08-05 14:30:00', new DateTimeZone(Tz::current()));
         .fmt-option.is-selected { border-color: var(--sys-accent, #546e7a); background: var(--surface-2, #f7f8fa); }
 
         .fmt-example {
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             color: var(--text, #333);
             font-variant-numeric: tabular-nums;
         }
@@ -137,11 +137,11 @@ $sample = new DateTime('2026-08-05 14:30:00', new DateTimeZone(Tz::current()));
             background: var(--surface-2, #f7f8fa);
             border: 1px solid var(--border, #ddd);
         }
-        .df-preview-label { font-size: 12px; color: var(--text-dim, #888); }
-        .df-preview-value { font-size: 20px; font-weight: 600; color: var(--text, #333); font-variant-numeric: tabular-nums; }
+        .df-preview-label { font-size: var(--font-size-sm, 12px); color: var(--text-dim, #888); }
+        .df-preview-value { font-size: var(--font-size-3xl, 20px); font-weight: 600; color: var(--text, #333); font-variant-numeric: tabular-nums; }
 
         .info-note {
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--text-muted, #666);
             line-height: 1.6;
             margin-top: 14px;
@@ -310,6 +310,6 @@ $sample = new DateTime('2026-08-05 14:30:00', new DateTimeZone(Tz::current()));
         btn.disabled = false;
     });
     </script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

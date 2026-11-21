@@ -40,23 +40,15 @@ try {
     $row = null;
 }
 
-// One response for "no such file", "not yours" and "gone from storage". Telling the
+// One response for "no such file", "not yours" and "gone from disk". Telling the
 // three apart would let somebody map which attachment ids exist in channels they
-// cannot read. Storage that cannot be reached is a 503: the file may well be there.
-$refuse = function (int $code = 404): void {
-    http_response_code($code);
+// cannot read.
+if ($row === null || !is_file($row['path'])) {
+    http_response_code(404);
     header('Content-Type: text/plain');
-    echo $code === 503 ? 'Storage cannot be reached right now. Try again in a few minutes.' : 'Not found';
+    echo 'Not found';
     exit;
-};
-if ($row === null) $refuse();
-try {
-    $size = storeSize($conn, 'warroom', (string) $row['stored_name']);
-} catch (StorageUnavailable $e) {
-    $refuse(503);
 }
-if ($size === null) $refuse();
 
-$code = storeServe($conn, 'warroom', (string) $row['stored_name'], 0, max(0, $size - 1),
-    fn() => attachmentSendHeaders((string) $row['original_name'], $size));
-if ($code !== 0) $refuse($code === 503 ? 503 : 404);
+attachmentSendHeaders((string) $row['original_name'], (int) filesize($row['path']));
+readfile($row['path']);

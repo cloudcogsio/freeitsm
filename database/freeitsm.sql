@@ -399,6 +399,15 @@ CREATE TABLE IF NOT EXISTS `notifications` (
     `title`             VARCHAR(255) NULL,        -- the ticket subject at the time
     `body`              VARCHAR(500) NULL,        -- 'Sam Cover replied'
     `actor_name`        VARCHAR(100) NULL,        -- who caused it, NULL for system events
+    -- GH #365 (5.8.0): what really made the change, so a wrong name can be traced.
+    -- Before this the bell kept only actor_name - the signed-in person's - even when a
+    -- workflow running inside their request did it. See includes/notification_actor.php.
+    `actor_kind`        VARCHAR(16) NULL,         -- analyst / portal_user / workflow / system / api
+    `actor_analyst_id`  INT NULL,                 -- the analyst, when a person (or their API key) did it
+    `source`            VARCHAR(16) NULL,         -- screen / portal / api / workflow / mail_import / scheduled
+    `workflow_id`       INT NULL,                 -- which workflow, when one did it
+    `api_key_id`        INT NULL,                 -- which API key, when it came through the REST API
+    `reason`            VARCHAR(24) NULL,         -- why THIS person was told: team_member, watcher, ticket_owner... (the bell's "Why you")
     `event_count`       INT NOT NULL DEFAULT 1,   -- >1 once coalesced
     `created_datetime`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_datetime`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -4130,6 +4139,30 @@ CREATE TABLE IF NOT EXISTS `asset_type_layout` (
 -- is two rows, and each source only ever opens or closes its own. asset_id is the
 -- side that reported it (the asset a REST report was about, or the one a person was
 -- on); the page shows a connection from both ends. disconnected_at NULL = connected.
+-- GH #404: what each asset type is expected to have filled in eventually. Flags, never
+-- refuses (includes/services/asset_completeness.php). field_key is a built-in key
+-- ('purchase_date', 'supplier_id', ...) or 'custom:<asset_fields.id>'. No row: nothing expected.
+CREATE TABLE IF NOT EXISTS `asset_type_expected_fields` (
+    `id`                INT NOT NULL AUTO_INCREMENT,
+    `asset_type_id`     INT NOT NULL,
+    `field_key`         VARCHAR(40) NOT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_asset_type_expected` (`asset_type_id`, `field_key`),
+    CONSTRAINT `fk_ate_type` FOREIGN KEY (`asset_type_id`) REFERENCES `asset_types` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- GH #404: an expected field marked Not applicable for one asset - an explicit, reversible
+-- exception, never a placeholder written into the field.
+CREATE TABLE IF NOT EXISTS `asset_field_not_applicable` (
+    `id`                INT NOT NULL AUTO_INCREMENT,
+    `asset_id`          INT NOT NULL,
+    `field_key`         VARCHAR(40) NOT NULL,
+    `set_by_analyst_id` INT NULL,
+    `set_datetime`      DATETIME NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_asset_field_na` (`asset_id`, `field_key`),
+    CONSTRAINT `fk_afna_asset` FOREIGN KEY (`asset_id`) REFERENCES `assets` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 CREATE TABLE IF NOT EXISTS `asset_connections` (
     `id`                  INT NOT NULL AUTO_INCREMENT,
     `asset_id`            INT NOT NULL,
@@ -5545,6 +5578,12 @@ CREATE TABLE IF NOT EXISTS `morningChecks_Checks` (
     `CreatedDate`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `ModifiedDate`      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `is_demo`           TINYINT(1) NOT NULL DEFAULT 0,   -- set by the demo data importer (#1297)
+    -- GH #383: when the check falls due. ScheduleType NULL = every day (every check made
+    -- before schedules). Read only by includes/morning_check_schedule.php.
+    `ScheduleType`      VARCHAR(12) NULL,     -- weekdays | weekly | monthly
+    `ScheduleDays`      VARCHAR(20) NULL,     -- weekly: ISO days, "1,4" = Mon and Thu
+    `ScheduleMonthWhen` VARCHAR(16) NULL,     -- monthly: day | first_weekday | last_weekday | last_day
+    `ScheduleMonthDay`  TINYINT NULL,         -- monthly 'day': 1-31 (31 = last day of a short month)
     PRIMARY KEY (`CheckID`),
     KEY `ix_mcc_group` (`GroupID`),
     KEY `ix_mcc_analyst` (`AssignedAnalystID`),
@@ -8966,9 +9005,38 @@ CREATE TABLE IF NOT EXISTS `warroom_messages` (
     `edited_datetime`  DATETIME NULL,
     `deleted_datetime` DATETIME NULL,
     `deleted_by`       INT NULL,
+    -- The message this one quotes (5.9.0). A reference, not pasted text: the page
+    -- draws the quote. Deliberately NO foreign key: when retention removes the
+    -- original, the id stays, so the reply can say "no longer available" instead of
+    -- silently losing the box that gave it its context.
+    `quote_of_id`      INT NULL,
+    -- When something about the message changed that is not its text - a reaction
+    -- (5.9.0). The poll re-sends anything changed in the last 30 seconds, because
+    -- the message's id is below the reader's since_id watermark.
+    `changed_datetime` DATETIME NULL,
+    -- The language the message is written in (5.9.0), detected once by the AI when
+    -- it is first translated - so a message is never sent anywhere for a reader who
+    -- already speaks its language. NULL = not detected yet.
+    `lang`             VARCHAR(16) NULL,
+    -- Threads (5.9.0): the message a reply hangs off (always a top-level message),
+    -- and whether the reply was also sent to the conversation. Deliberately NO
+    -- foreign key: retention may remove the first message and the replies stay.
+    `thread_root_id`   INT NULL,
+    `also_in_channel`  TINYINT(1) NOT NULL DEFAULT 0,
+    -- Forwarded messages (5.9.0): the original (a reference - no FK, the original may
+    -- go), and who wrote it, where and when, kept as they were when forwarded,
+    -- because the people reading the forward may not be able to read the original.
+    `forwarded_from_id` INT NULL,
+    `fwd_author`       VARCHAR(150) NULL,
+    `fwd_channel`      VARCHAR(150) NULL,
+    `fwd_created`      DATETIME NULL,
     PRIMARY KEY (`id`),
     -- (channel_id, id): every read is "this channel, newer than id N".
     KEY `ix_warroom_messages_channel` (`channel_id`, `id`),
+    -- The poll's "changed in the last 30 seconds" in this channel.
+    KEY `ix_warroom_messages_changed` (`channel_id`, `changed_datetime`),
+    KEY `ix_warroom_messages_quote` (`quote_of_id`),
+    KEY `ix_warroom_messages_thread` (`thread_root_id`, `id`),
     -- Retention deletes by age across every channel at once.
     KEY `ix_warroom_messages_created` (`created_datetime`),
     -- Warbot's reply points at the message it answers, which is also how a
@@ -9022,6 +9090,83 @@ CREATE TABLE IF NOT EXISTS `warroom_mentions` (
     KEY `ix_warroom_mentions_analyst` (`analyst_id`, `id`),
     CONSTRAINT `fk_warroom_mentions_message` FOREIGN KEY (`message_id`) REFERENCES `warroom_messages` (`id`) ON DELETE CASCADE,
     CONSTRAINT `fk_warroom_mentions_analyst` FOREIGN KEY (`analyst_id`) REFERENCES `analysts` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Emoji reactions to a message (5.9.0): one row per person per emoji.
+--
+-- TRAP: `emoji` is utf8mb4_bin, NOT the table's unicode_ci. unicode_ci gives many
+-- emoji the same weight, so the unique key would refuse 😂 on a message that already
+-- has 😀 from the same person - and GROUP BY would merge different emoji.
+CREATE TABLE IF NOT EXISTS `warroom_reactions` (
+    `id`               INT NOT NULL AUTO_INCREMENT,
+    `message_id`       INT NOT NULL,
+    `analyst_id`       INT NOT NULL,
+    `emoji`            VARCHAR(32) COLLATE utf8mb4_bin NOT NULL,
+    `created_datetime` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_warroom_reaction` (`message_id`, `analyst_id`, `emoji`),
+    KEY `ix_warroom_reactions_analyst` (`analyst_id`),
+    CONSTRAINT `fk_warroom_reactions_message` FOREIGN KEY (`message_id`) REFERENCES `warroom_messages` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_warroom_reactions_analyst` FOREIGN KEY (`analyst_id`) REFERENCES `analysts` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Translations of war room messages (5.9.0), one per message per language - not per
+-- person, so a message is translated at most once into each language however many
+-- people read it. The original in warroom_messages is always the record.
+CREATE TABLE IF NOT EXISTS `warroom_translations` (
+    `id`               INT NOT NULL AUTO_INCREMENT,
+    `message_id`       INT NOT NULL,
+    `lang`             VARCHAR(16) NOT NULL,
+    `body`             TEXT NOT NULL,
+    `created_datetime` DATETIME NOT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_warroom_translation` (`message_id`, `lang`),
+    CONSTRAINT `fk_warroom_translations_message` FOREIGN KEY (`message_id`) REFERENCES `warroom_messages` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Seen by (5.9.0): one row each time an analyst's read marker in a channel moves
+-- forward, so "read at" is real - the time their marker first passed a message.
+-- Recorded only while War room -> Settings -> Seen by is on.
+CREATE TABLE IF NOT EXISTS `warroom_read_marks` (
+    `id`               INT NOT NULL AUTO_INCREMENT,
+    `analyst_id`       INT NOT NULL,
+    `channel_id`       INT NOT NULL,
+    `up_to_message_id` INT NOT NULL,
+    `read_datetime`    DATETIME NOT NULL,
+    PRIMARY KEY (`id`),
+    KEY `ix_warroom_read_marks_channel` (`channel_id`, `up_to_message_id`),
+    KEY `ix_warroom_read_marks_analyst` (`analyst_id`),
+    CONSTRAINT `fk_warroom_read_marks_analyst` FOREIGN KEY (`analyst_id`) REFERENCES `analysts` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_warroom_read_marks_channel` FOREIGN KEY (`channel_id`) REFERENCES `warroom_channels` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Pinned messages (5.9.0): pinned for everyone in the conversation. Anyone who can
+-- post may pin or unpin; who pinned it is shown. One pin per message.
+CREATE TABLE IF NOT EXISTS `warroom_pins` (
+    `id`               INT NOT NULL AUTO_INCREMENT,
+    `channel_id`       INT NOT NULL,
+    `message_id`       INT NOT NULL,
+    `pinned_by`        INT NULL,
+    `pinned_datetime`  DATETIME NOT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_warroom_pin` (`message_id`),
+    KEY `ix_warroom_pins_channel` (`channel_id`, `id`),
+    CONSTRAINT `fk_warroom_pins_channel` FOREIGN KEY (`channel_id`) REFERENCES `warroom_channels` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_warroom_pins_message` FOREIGN KEY (`message_id`) REFERENCES `warroom_messages` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_warroom_pins_by` FOREIGN KEY (`pinned_by`) REFERENCES `analysts` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Saved messages (5.9.0): a personal bookmark. Nobody else sees it.
+CREATE TABLE IF NOT EXISTS `warroom_saved` (
+    `id`               INT NOT NULL AUTO_INCREMENT,
+    `analyst_id`       INT NOT NULL,
+    `message_id`       INT NOT NULL,
+    `saved_datetime`   DATETIME NOT NULL,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_warroom_saved` (`analyst_id`, `message_id`),
+    KEY `ix_warroom_saved_message` (`message_id`),
+    CONSTRAINT `fk_warroom_saved_analyst` FOREIGN KEY (`analyst_id`) REFERENCES `analysts` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_warroom_saved_message` FOREIGN KEY (`message_id`) REFERENCES `warroom_messages` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- How far each analyst has read in each channel, so the list can show what is new.
@@ -11019,7 +11164,7 @@ CREATE TABLE IF NOT EXISTS `files_uploads` (
 CREATE TABLE IF NOT EXISTS `storage_migration_items` (
     `id`                    BIGINT NOT NULL AUTO_INCREMENT,
     `store`                 VARCHAR(20) NOT NULL,                   -- files
-    `object_key`            VARCHAR(500) COLLATE utf8mb4_bin NOT NULL, -- long (#284); binary: "Report.pdf" and "report.pdf" are two files
+    `object_key`            VARCHAR(255) NOT NULL,
     `size_bytes`            BIGINT NOT NULL,
     `sha256`                CHAR(64) NULL,
     `state`                 VARCHAR(10) NOT NULL DEFAULT 'pending', -- pending | verified | failed | removed | skipped
@@ -11058,19 +11203,6 @@ CREATE TABLE IF NOT EXISTS `files_offline` (
     `marked_datetime`       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_files_offline_target` (`target_type`, `target_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- The SHA-256 of objects in a store kept in S3 (#284), by size and modified time, so a
--- backup does not download an unchanged file again just to learn its checksum.
--- A cache: losing it costs one full read. See includes/backup/runner.php.
-CREATE TABLE IF NOT EXISTS `storage_object_hashes` (
-    `store`                 VARCHAR(20) NOT NULL,
-    `object_key`            VARCHAR(500) COLLATE utf8mb4_bin NOT NULL, -- binary, as in storage_migration_items
-    `size_bytes`            BIGINT NOT NULL,
-    `mtime`                 BIGINT NOT NULL,
-    `sha256`                CHAR(64) NOT NULL,
-    `updated_datetime`      DATETIME NULL,
-    PRIMARY KEY (`store`, `object_key`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Backups (System -> Backups): one row per backup run, and the last on-demand
@@ -11406,6 +11538,247 @@ CREATE TABLE IF NOT EXISTS `report_downloads` (
     KEY `idx_report_downloads_expires` (`expires_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+
+-- ==========================================================
+-- Consumables (Assets -> Consumables, 5.8.0): the things a service desk COUNTS
+-- rather than tracks one by one - toner, paper, mice, RAM. Design and decisions:
+-- wiki Consumables-Design. includes/services/consumables.php is the only writer.
+--
+-- 🔑 STOCK IS A LEDGER. consumable_movements is append-only: a movement is never
+-- updated or deleted, a mistake is undone by a reversing movement. consumable_stock
+-- is the running total, changed only in the same transaction as the movement that
+-- explains it; ConsumablesService::verify() checks the two still agree.
+--
+-- 🔑 A STORE ON EVERY ROW. One store per company to start (Ed, 2026-11-21), made
+-- on first use - but stock and movements always name the store, so more stores per
+-- company later is screens and a transfer, not a data migration.
+-- ==========================================================
+
+CREATE TABLE IF NOT EXISTS `consumable_types` (
+    `id`               INT NOT NULL AUTO_INCREMENT,
+    `name`             VARCHAR(100) NOT NULL,
+    `description`      VARCHAR(255) NULL,
+    `is_active`        TINYINT(1) NOT NULL DEFAULT 1,
+    `display_order`    INT NOT NULL DEFAULT 0,
+    `created_datetime` DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+    `is_demo`          TINYINT(1) NOT NULL DEFAULT 0,   -- set by the demo data importer (5.8.0)
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `consumable_stores` (
+    `id`               INT NOT NULL AUTO_INCREMENT,
+    `tenant_id`        INT NULL,          -- the company; NULL = the Default company's
+    `name`             VARCHAR(150) NOT NULL,
+    `location_id`      INT NULL,          -- later: a store per site (asset_locations)
+    `is_active`        TINYINT(1) NOT NULL DEFAULT 1,
+    `created_datetime` DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `idx_consumable_stores_tenant` (`tenant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `consumable_items` (
+    `id`                    INT NOT NULL AUTO_INCREMENT,
+    `tenant_id`             INT NULL,     -- the company it belongs to; NULL = the Default company's
+    `type_id`               INT NULL,
+    `name`                  VARCHAR(200) NOT NULL,
+    `part_number`           VARCHAR(100) NULL,
+    `unit`                  VARCHAR(30) NULL,          -- each, box, ream...
+    `supplier_id`           INT NULL,
+    `unit_cost`             DECIMAL(12,2) NULL,        -- the latest receipt's price, unless set by hand
+    `notes`                 TEXT NULL,
+    `is_active`             TINYINT(1) NOT NULL DEFAULT 1,
+    `created_by_analyst_id` INT NULL,
+    `created_datetime`      DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_datetime`      DATETIME NULL,
+    `is_demo`          TINYINT(1) NOT NULL DEFAULT 0,   -- set by the demo data importer (5.8.0)
+    PRIMARY KEY (`id`),
+    KEY `idx_consumable_items_tenant` (`tenant_id`),
+    KEY `idx_consumable_items_type` (`type_id`),
+    CONSTRAINT `fk_consumable_items_type` FOREIGN KEY (`type_id`) REFERENCES `consumable_types` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- On hand per item per store, with the levels that say when to reorder.
+CREATE TABLE IF NOT EXISTS `consumable_stock` (
+    `id`                    INT NOT NULL AUTO_INCREMENT,
+    `item_id`               INT NOT NULL,
+    `store_id`              INT NOT NULL,
+    `on_hand`               INT NOT NULL DEFAULT 0,
+    `min_level`             INT NULL,     -- the least there should ever be
+    `reorder_point`         INT NULL,     -- at or below this: low, reorder
+    `low_notified_datetime` DATETIME NULL, -- the bell went for this dip; cleared when stock recovers
+    `updated_datetime`      DATETIME NULL,
+    `is_demo`          TINYINT(1) NOT NULL DEFAULT 0,   -- set by the demo data importer (5.8.0)
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_consumable_stock` (`item_id`, `store_id`),
+    KEY `idx_consumable_stock_store` (`store_id`),
+    CONSTRAINT `fk_consumable_stock_item` FOREIGN KEY (`item_id`) REFERENCES `consumable_items` (`id`),
+    CONSTRAINT `fk_consumable_stock_store` FOREIGN KEY (`store_id`) REFERENCES `consumable_stores` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Stock takes, and per item what was expected, what was there and what that was worth.
+CREATE TABLE IF NOT EXISTS `consumable_counts` (
+    `id`                     INT NOT NULL AUTO_INCREMENT,
+    `store_id`               INT NOT NULL,
+    `status`                 VARCHAR(12) NOT NULL DEFAULT 'open',   -- open | finished | cancelled
+    `note`                   VARCHAR(500) NULL,
+    `started_by_analyst_id`  INT NULL,
+    `started_datetime`       DATETIME NULL,
+    `finished_by_analyst_id` INT NULL,
+    `finished_datetime`      DATETIME NULL,
+    `is_demo`          TINYINT(1) NOT NULL DEFAULT 0,   -- set by the demo data importer (5.8.0)
+    PRIMARY KEY (`id`),
+    KEY `idx_consumable_counts_store` (`store_id`, `status`),
+    CONSTRAINT `fk_consumable_counts_store` FOREIGN KEY (`store_id`) REFERENCES `consumable_stores` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `consumable_count_lines` (
+    `id`                    INT NOT NULL AUTO_INCREMENT,
+    `count_id`              INT NOT NULL,
+    `item_id`               INT NOT NULL,
+    `expected`              INT NOT NULL,          -- on hand when it was counted
+    `counted`               INT NOT NULL,
+    `difference`            INT NOT NULL,          -- counted - expected
+    `unit_cost`             DECIMAL(12,2) NULL,
+    `value_difference`      DECIMAL(14,2) NULL,    -- difference x unit_cost, fixed when counted
+    `counted_by_analyst_id` INT NULL,
+    `counted_datetime`      DATETIME NULL,
+    `movement_id`           INT NULL,              -- the Counted movement that posted it, once finished
+    `is_demo`          TINYINT(1) NOT NULL DEFAULT 0,   -- set by the demo data importer (5.8.0)
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_consumable_count_line` (`count_id`, `item_id`),
+    KEY `idx_consumable_count_lines_item` (`item_id`),
+    CONSTRAINT `fk_consumable_count_lines_count` FOREIGN KEY (`count_id`) REFERENCES `consumable_counts` (`id`),
+    CONSTRAINT `fk_consumable_count_lines_item` FOREIGN KEY (`item_id`) REFERENCES `consumable_items` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- A delivery (Ed, 2026-11-21): one order - its supplier, order number (optional), invoice and
+-- documents - with a line per item. Every receipt belongs to one; each line is a receive
+-- movement carrying delivery_id. Documents attach to it through the shared panel
+-- (documentEntityRegistry 'consumable_delivery').
+CREATE TABLE IF NOT EXISTS `consumable_deliveries` (
+    `id`                    INT NOT NULL AUTO_INCREMENT,
+    `store_id`              INT NOT NULL,
+    `tenant_id`             INT NULL,          -- the store's company, for the documents' company scope
+    `supplier_id`           INT NULL,
+    `order_ref`             VARCHAR(100) NULL, -- the purchase order number; optional (Ed)
+    `invoice_ref`           VARCHAR(100) NULL,
+    `invoice_date`          DATE NULL,
+    `received_date`         DATE NOT NULL,
+    `note`                  VARCHAR(500) NULL,
+    `created_by_analyst_id` INT NULL,
+    `created_datetime`      DATETIME NOT NULL, -- UTC
+    `is_demo`          TINYINT(1) NOT NULL DEFAULT 0,   -- set by the demo data importer (5.8.0)
+    PRIMARY KEY (`id`),
+    KEY `idx_consumable_deliveries_store` (`store_id`, `received_date`),
+    KEY `idx_consumable_deliveries_tenant` (`tenant_id`),
+    KEY `idx_consumable_deliveries_order` (`order_ref`),
+    CONSTRAINT `fk_consumable_deliveries_store` FOREIGN KEY (`store_id`) REFERENCES `consumable_stores` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- The ledger. APPEND-ONLY - see the note at the top of this block.
+CREATE TABLE IF NOT EXISTS `consumable_movements` (
+    `id`                INT NOT NULL AUTO_INCREMENT,
+    `item_id`           INT NOT NULL,
+    `store_id`          INT NOT NULL,
+    `kind`              VARCHAR(12) NOT NULL,    -- receive | issue | return | adjust | count | reverse
+    `quantity`          INT NOT NULL,            -- signed: + into the store, - out of it
+    `balance_after`     INT NOT NULL,            -- on hand straight after it
+    `unit_cost`         DECIMAL(12,2) NULL,      -- valued at this, for ever
+    `ticket_id`         INT NULL,
+    `recipient_user_id` INT NULL,                -- issued to / returned by
+    `supplier_id`       INT NULL,
+    `invoice_ref`       VARCHAR(100) NULL,
+    `invoice_date`      DATE NULL,
+    `reason`            VARCHAR(500) NULL,
+    `reverses_id`       INT NULL,                -- the movement this one undoes
+    `count_id`          INT NULL,                -- the stock take that posted it
+    `delivery_id`       INT NULL,                -- the delivery a receipt (or its undo) belongs to
+    `analyst_id`        INT NULL,                -- who; NULL = FreeITSM itself
+    `source`            VARCHAR(20) NOT NULL DEFAULT 'app',   -- app | ticket | api
+    `created_datetime`  DATETIME NOT NULL,       -- UTC
+    `is_demo`          TINYINT(1) NOT NULL DEFAULT 0,   -- set by the demo data importer (5.8.0)
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_consumable_movements_reverses` (`reverses_id`),   -- undone once, never twice
+    KEY `idx_consumable_movements_item` (`item_id`, `store_id`, `id`),
+    KEY `idx_consumable_movements_ticket` (`ticket_id`),
+    KEY `idx_consumable_movements_recipient` (`recipient_user_id`),
+    KEY `idx_consumable_movements_when` (`created_datetime`),
+    KEY `idx_consumable_movements_delivery` (`delivery_id`),
+    CONSTRAINT `fk_consumable_movements_item` FOREIGN KEY (`item_id`) REFERENCES `consumable_items` (`id`),
+    CONSTRAINT `fk_consumable_movements_store` FOREIGN KEY (`store_id`) REFERENCES `consumable_stores` (`id`),
+    CONSTRAINT `fk_consumable_movements_reverses` FOREIGN KEY (`reverses_id`) REFERENCES `consumable_movements` (`id`),
+    CONSTRAINT `fk_consumable_movements_delivery` FOREIGN KEY (`delivery_id`) REFERENCES `consumable_deliveries` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Every change to an item, a type, a level or a stock take, field by field.
+CREATE TABLE IF NOT EXISTS `consumable_audit` (
+    `id`               INT NOT NULL AUTO_INCREMENT,
+    `item_id`          INT NULL,
+    `type_id`          INT NULL,
+    `count_id`         INT NULL,
+    `delivery_id`      INT NULL,
+    `analyst_id`       INT NULL,
+    `field_name`       VARCHAR(100) NOT NULL,
+    `old_value`        VARCHAR(1000) NULL,
+    `new_value`        VARCHAR(1000) NULL,
+    `source`           VARCHAR(20) NOT NULL DEFAULT 'app',
+    `created_datetime` DATETIME NOT NULL,        -- UTC
+    `is_demo`          TINYINT(1) NOT NULL DEFAULT 0,   -- set by the demo data importer (5.8.0)
+    PRIMARY KEY (`id`),
+    KEY `idx_consumable_audit_item` (`item_id`, `id`),
+    KEY `idx_consumable_audit_type` (`type_id`),
+    KEY `idx_consumable_audit_count` (`count_id`),
+    KEY `idx_consumable_audit_delivery` (`delivery_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Custom fields on consumable items: the shared TypedFields engine through
+-- RecordFieldsService, as companies and people have them. A field belongs to every
+-- type (consumable_type_id NULL) or one type - "properties based on the item type".
+CREATE TABLE IF NOT EXISTS `consumable_fields` (
+    `id`                 INT NOT NULL AUTO_INCREMENT,
+    `field_key`          VARCHAR(100) NOT NULL,
+    `label`              VARCHAR(150) NOT NULL,
+    `field_type`         VARCHAR(20) NOT NULL,
+    `config`             LONGTEXT NULL,
+    `help_text`          VARCHAR(500) NULL,
+    `is_required`        TINYINT(1) NOT NULL DEFAULT 0,
+    `display_order`      INT NOT NULL DEFAULT 0,
+    `consumable_type_id` INT NULL,               -- NULL = every type
+    `is_deleted`         TINYINT(1) NOT NULL DEFAULT 0,
+    `created_datetime`   DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
+    `is_demo`          TINYINT(1) NOT NULL DEFAULT 0,   -- set by the demo data importer (5.8.0)
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_consumable_fields_type_key` (`consumable_type_id`, `field_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `consumable_field_options` (
+    `id`            INT NOT NULL AUTO_INCREMENT,
+    `field_id`      INT NOT NULL,
+    `option_value`  VARCHAR(255) NOT NULL,
+    `display_order` INT NOT NULL DEFAULT 0,
+    `is_demo`          TINYINT(1) NOT NULL DEFAULT 0,   -- set by the demo data importer (5.8.0)
+    PRIMARY KEY (`id`),
+    KEY `ix_consumable_field_options_field` (`field_id`),
+    CONSTRAINT `fk_consumable_field_options_field` FOREIGN KEY (`field_id`) REFERENCES `consumable_fields` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `consumable_field_values` (
+    `id`            INT NOT NULL AUTO_INCREMENT,
+    `item_id`       INT NOT NULL,
+    `field_id`      INT NOT NULL,
+    `seq`           INT NOT NULL DEFAULT 0,
+    `value_text`    TEXT NULL,
+    `value_number`  DECIMAL(20,4) NULL,
+    `value_date`    DATETIME NULL,
+    `value_boolean` TINYINT(1) NULL,
+    `value_ref_id`  INT NULL,
+    `is_demo`          TINYINT(1) NOT NULL DEFAULT 0,   -- set by the demo data importer (5.8.0)
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_consumable_field_value` (`item_id`, `field_id`, `seq`),
+    KEY `ix_cfv_field_text` (`field_id`, `value_text`(64)),
+    CONSTRAINT `fk_cfv_item` FOREIGN KEY (`item_id`) REFERENCES `consumable_items` (`id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_cfv_field` FOREIGN KEY (`field_id`) REFERENCES `consumable_fields` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ----------------------------------------------------------
 -- Seed: Default admin account

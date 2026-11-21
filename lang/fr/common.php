@@ -85,6 +85,16 @@ return [
         'field_phone' => 'téléphone',
         'field_mobile' => 'mobile',
     ],
+    // GH #399: a settings page as tabs or as one page.
+    'settings_view' => [
+        'view' => 'Affichage',
+        'tabs' => 'Onglets',
+        'page' => 'Une page',
+        'search' => 'Rechercher dans les paramètres',
+        'none' => 'Aucun paramètre ne correspond',
+        'index' => 'Sections des paramètres',
+        'elsewhere' => 'Sur une autre page',
+    ],
     'left_panel' => [
         'tab' => 'Panneau gauche',
         'visibility' => 'Visibilité',
@@ -565,6 +575,59 @@ return [
         'loading' => 'Chargement…',
         'load_failed' => 'Impossible de charger les notifications.',
         'someone' => 'Quelqu\'un',
+        // GH #365: named after "by" when no person did it.
+        'actor_workflow' => 'le workflow « {name} »',
+        'actor_system' => 'FreeITSM',
+        'actor_email' => 'e-mail',
+        // The bell's (i) panel - "why is this here?" (5.8.0).
+        'explain' => [
+            'info' => 'Pourquoi est-ce ici ?',
+            'title' => 'Pourquoi c\'est ici',
+            'loading' => 'Chargement...',
+            'failed' => 'Impossible de charger l\'explication.',
+            'by' => 'Fait par',
+            'how' => 'Comment',
+            'when' => 'Quand',
+            'why' => 'Pourquoi vous',
+            'history' => 'Historique du ticket',
+            'workflows' => 'Workflows à ce moment',
+            'auto' => 'automatique',
+            'via_api' => 'via l\'API REST',
+            'by_system' => 'Système (automatique)',
+            'by_former' => 'un ancien analyste',
+            'hist_by' => 'par {who}',
+            'hist_note' => 'une note',
+            'hist_email' => 'un e-mail',
+            'agrees' => 'L\'historique du ticket concorde.',
+            'differs' => 'D\'après l\'historique du ticket, {who} a fait ce changement.',
+            'grouped' => '{n} mises à jour ont été regroupées dans cette ligne ; ceci explique la plus récente.',
+            'old_row' => 'Écrite avant la 5.8.0 : seul un nom a été conservé, pas ce qui a fait le changement.',
+            'source' => [
+                'screen' => 'Modifié à l\'écran',
+                'portal' => 'Dans le portail libre-service',
+                'api' => 'Via l\'API REST',
+                'workflow' => 'Par un workflow',
+                'mail_import' => 'À l\'arrivée de nouveaux e-mails',
+                'scheduled' => 'Par une tâche planifiée',
+            ],
+            'reason' => [
+                'new_owner' => 'Il vous a été attribué',
+                'ticket_owner' => 'Vous êtes responsable de ce ticket',
+                'team_member' => 'Vous êtes dans l\'équipe à laquelle il a été confié',
+                'watcher' => 'Vous suivez ce ticket',
+                'task_owner' => 'Vous êtes responsable de cette tâche',
+                'task_involved' => 'Vous participez à cette tâche',
+                'project' => 'Projets vous désigne pour cela',
+                'domain_owner' => 'Ce domaine vous appartient',
+                'owner' => 'C\'est le vôtre',
+                'unknown' => 'Non enregistré',
+            ],
+            'hist_notes' => [
+                'no_access' => 'Vous ne pouvez plus voir ce ticket.',
+                'not_found' => 'Aucune ligne correspondante dans l\'historique du ticket.',
+                'none' => 'Ce type de notification n\'a pas de ligne dans l\'historique du ticket.',
+            ],
+        ],
         'just_now' => 'à l\'instant',
         'minutes' => 'il y a {n} min',
         'hours' => 'il y a {n} h',
@@ -626,8 +689,8 @@ return [
             'help' => [
                 'unanswered' => 'L\'assistant d\'aide n\'a pas pu répondre à une question',
             ],
-            'storage' => [
-                'changed' => 'L\'emplacement des fichiers stockés a changé',
+            'consumable' => [
+                'low_stock' => 'Stock bas - il est temps de recommander',
             ],
             'hyperv' => [
                 'collector' => 'Un collecteur Hyper-V demande votre attention',
@@ -688,8 +751,8 @@ return [
             'help' => [
                 'unanswered' => 'L\'assistant d\'aide ne peut pas répondre à une question posée (administrateurs)',
             ],
-            'storage' => [
-                'changed' => 'L\'emplacement des fichiers stockés change, ou un déplacement entre emplacements de stockage commence ou se termine (administrateurs)',
+            'consumable' => [
+                'low_stock' => 'Un consommable atteint son seuil de réapprovisionnement (les personnes prévenues se choisissent dans Actifs -> Paramètres -> Consommables)',
             ],
             'hyperv' => [
                 'collector' => 'Un collecteur Hyper-V cesse de remonter des rapports, ou le stockage d\'un cluster est illisible (personnes qui gèrent les connexions Hyper-V)',

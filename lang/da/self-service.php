@@ -12,6 +12,11 @@
 
 return [
     'portal' => 'Selvbetjeningsportal',
+    // GH #414: the organisation chart (self-service/org-chart.php).
+    'org_chart' => [
+        'title'        => 'Organisationsdiagram',
+        'subtitle'     => 'Hvem refererer til hvem. Søg efter et navn, en stillingsbetegnelse eller en afdeling, eller åbn et team med pilen.',
+    ],
     'equipment' => [
         'title' => 'Mit udstyr',
         'subtitle' => 'Det udstyr, der er tildelt dig. Hvis noget her er forkert, eller du har udstyr, som ikke står på listen, så opret en sag, og IT-teamet ordner det.',
@@ -50,6 +55,7 @@ return [
         'team_tickets' => 'Teamets sager',
         'help_centre' => 'Viden',
         'equipment' => 'Mit udstyr',
+        'org_chart'   => 'Organisation',   // GH #414
         'training' => 'Undervisning',
         'help' => 'Hjælp',
         'menu' => 'Menu',
@@ -175,6 +181,10 @@ return [
         'req_sent' => 'Sendt',
         'req_cancelled' => 'Annulleret',
         'req_cancel' => 'Annullér',
+        // Discussion #298: answers changed after it was sent.
+        'req_changed' => 'Svar ændret, efter du sendte den ({n})',
+        'req_changed_line' => '{field}: {old} → {new}',
+        'req_changed_blank' => '(tom)',
         'req_cancel_title' => 'Annullér denne anmodning?',
         'req_cancel_text' => 'Din anmodning om "{what}" bliver annulleret. Den, der skulle godkende den, ser den ikke længere som afventende.',
         'req_cancel_reason' => 'Hvorfor annullerer du den?',
@@ -448,6 +458,13 @@ return [
         'tr_li4' => 'Du får resultatet at se med det samme, sammen med hvilke svar der var forkerte, og hvorfor. Hvis du ikke bestod, kan du prøve igen.',
         'tr_p2' => 'Dine fremskridt gemmes undervejs, så du kan tage et kursus ad flere omgange, på en hvilken som helst enhed, og fortsætte, hvor du slap.',
         'tr_tip' => '<strong>Frister og påmindelser:</strong> et kursus kan have en dato, det skal være gennemført inden. Du har hele den dag til rådighed. Har dit IT-team slået påmindelser til, får du en e-mail, når datoen nærmer sig, og igen, hvis den overskrides — de stopper, så snart du gennemfører kurset.',
+        // GH #414: the organisation chart, for people who have the tab
+        'org_title' => 'Organisationsdiagram',
+        'org_p1' => 'Hvis dit IT-team har slået det til, viser <strong>Organisation</strong> i topmenuen, hvem der refererer til hvem i din virksomhed. Det åbner på din egen plads med linjen over dig foldet ud.',
+        'org_li1' => 'Klik på pilen ud for en person for at vise eller skjule deres team. Tallene ud for et navn er, hvor mange der refererer direkte til dem, og efter prikken, hvor mange der er under dem i alt.',
+        'org_li2' => 'Skriv i <strong>Søg efter personer</strong> for at finde nogen ud fra navn, stillingsbetegnelse eller afdeling, og vælg dem derefter for at hoppe til dem i diagrammet.',
+        'org_li3' => '<strong>Diagram</strong> tegner det samme som bokse og linjer, med udgangspunkt i dig. Klik på en person for at se, hvem de er, dobbeltklik for at tegne fra dem, og brug <strong>Eksportér</strong> til at gemme det som billede eller PDF.',
+        'org_tip' => '<strong>Er noget forkert?</strong> Diagrammet bygger på den leder, der er registreret for hver person. Hvis din er forkert, så opret en sag, så retter IT-teamet det.',
         'team_title' => 'Teamets sager',
         'team_p1' => 'Du kan se de sager, som de personer, du er leder for, har oprettet. De står under <strong>Teamets sager</strong> i menuen, adskilt fra dine egne under Mine sager.',
         'team_li_who' => '<strong>Hvem der er på dit team</strong> er sat op af dit it-team &mdash; ud fra feltet Leder i din organisations katalog, eller valgt for dig. Spørg dem, hvis nogen mangler, eller ikke bør være der.',

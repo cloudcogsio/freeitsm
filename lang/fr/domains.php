@@ -1274,6 +1274,7 @@ return [
             'p2' => 'Ensuite, la surveillance continue : les informations du registre sont actualisées selon un calendrier, les contrôles s\'exécutent chaque jour, et tout changement important - les serveurs de noms, le registrar, un verrou retiré - est consigné et, si vous le souhaitez, envoyé immédiatement par e-mail.',
             'p3' => 'Les alertes d\'expiration de domaine et de certificat sont envoyées au propriétaire de chaque domaine (ou à une liste), sous la forme d\'un seul récapitulatif par personne plutôt que d\'un e-mail par domaine. Elles parviennent aussi à la cloche de notifications et aux workflows : un domaine sur le point d\'expirer peut ainsi créer un ticket, une tâche ou publier dans un canal de discussion.',
             'p4' => 'Un domaine est aussi relié au reste de FreeITSM : les éléments de la CMDB qui en dépendent, les tickets qui le concernent, ses procédures dans Connaissances, son contrat et les services d\'État des services qui s\'appuient sur lui - qui peuvent être signalés, ou faire l\'objet d\'un incident, lorsqu\'il expire. Voir **Connexions** et **État des services** ci-dessous.',
+            'p5' => '**Enregistrer la vue** dans la barre d\'outils de l\'inventaire conserve sous un nom les colonnes, le tri et les filtres que vous avez définis, et **Vues** ouvre la bibliothèque. L\'inventaire retient la dernière vue choisie et s\'ouvre avec elle la fois suivante, dans n\'importe quel navigateur - jusqu\'à ce que vous en choisissiez une autre ou utilisiez **Réinitialiser** ; il s\'ouvre alors de nouveau avec votre vue par défaut.',
         ],
         'adding' => [
             'nav' => 'Ajouter des domaines',
@@ -1440,5 +1441,11 @@ return [
             'p3' => 'Les codes d\'autorisation ne sont jamais renvoyés par l\'API.',
             'p4' => 'Les connexions (éléments de la CMDB, tickets, procédures, services d\'État des services) ne sont pas encore dans l\'API REST - elles se créent et se lisent sur les écrans.',
         ],
+    ],
+    // Watchtower links that open the list already filtered (discussion #388)
+    'watch_filter' => [
+        'expiring' => 'Expire dans les {days} prochains jours',
+        'ssl' => 'Certificat expiré ou expirant dans les {days} prochains jours',
+        'remove' => 'Retirer ce filtre',
     ],
 ];

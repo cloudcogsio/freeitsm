@@ -48,6 +48,33 @@ try {
 
     if ($action === 'edit') {
         $ok = warRoomEditMessage($conn, $analystId, $messageId, (string) ($input['body'] ?? ''));
+    } elseif ($action === 'react') {
+        // 5.9.0: add or take away an emoji reaction.
+        $ok = warRoomReact($conn, $analystId, $messageId, (string) ($input['emoji'] ?? ''), !empty($input['on']));
+    } elseif ($action === 'forward') {
+        // 5.9.0: to a channel, or to a person (their direct message is opened if need be).
+        $to = (int) ($input['to_channel'] ?? 0);
+        if ($to <= 0 && !empty($input['to_analyst'])) {
+            try { $to = warRoomOpenDm($conn, $analystId, (int) $input['to_analyst']); } catch (Throwable $e) { $to = 0; }
+        }
+        $newId = $to > 0 ? warRoomForward($conn, $analystId, $messageId, $to, mb_substr((string) ($input['comment'] ?? ''), 0, WARROOM_MAX_BODY)) : 0;
+        if ($newId > 0) { echo json_encode(['success' => true, 'id' => $newId, 'channel_id' => $to]); exit; }
+        $ok = false;
+    } elseif ($action === 'pin' || $action === 'unpin') {
+        // 5.9.0: pinned for everyone in the conversation.
+        $res = warRoomPin($conn, $analystId, $messageId, $action === 'pin');
+        if ($res === 'full') {
+            http_response_code(409);
+            echo json_encode(['success' => false, 'error' => 'pins_full', 'max' => WARROOM_MAX_PINS]);
+            exit;
+        }
+        $ok = $res === 'ok';
+    } elseif ($action === 'save' || $action === 'unsave') {
+        // 5.9.0: the analyst's own bookmark.
+        $ok = warRoomSave($conn, $analystId, $messageId, $action === 'save');
+    } elseif ($action === 'unread') {
+        // 5.9.0: move the analyst's read marker back to just before this message.
+        $ok = warRoomMarkUnread($conn, $analystId, $messageId);
     } elseif ($action === 'delete') {
         $mayManage = analystHasCapability($conn, $analystId, Cap::WAR_ROOM_MANAGE);
         $ok = warRoomDeleteMessage($conn, $analystId, $messageId, $mayManage);

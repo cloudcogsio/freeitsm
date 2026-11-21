@@ -44,6 +44,11 @@ return [
         'work' => 'Arbejde: {date}',
         'unassigned' => 'Ikke tildelt',
     ],
+    // A list opened from a Watchtower count (discussion #388).
+    'link_filter' => [
+        'open' => 'Åbne ændringer, som talt på Watchtower',
+        'remove' => 'Fjern filter',
+    ],
     'detail' => [
         'back' => 'Tilbage',
         'share' => 'Del',
@@ -332,6 +337,7 @@ return [
         'created' => 'Oprettet: {datetime}',
         'created_by' => 'Oprettet: {datetime} af {name}',
         'last_modified' => 'Sidst ændret: {datetime}',
+        'generated' => 'Oprettet {datetime}',   // the branded header (Ed, 2026-11-20)
     ],
     'approvals' => [
         'filter' => 'Filtrér',
@@ -366,6 +372,14 @@ return [
         'assigned_to' => 'Tildelt',
         'open_change' => 'Åbn ændring',
     ],
+    // Preferences → Change list labels (Ed, 2026-11-20).
+    'list_labels' => [
+        'heading' => 'Etiketter i ændringslisten',
+        'colour' => 'Farvet',
+        'plain' => 'Ren tekst',
+        'note' => 'Hvordan Risiko, Prioritet, Type og Status vises i ændringslisten: farvet med en prik eller som ren tekst.',
+    ],
+
     'table' => [
         'col_ref' => 'Ref',
         'col_title' => 'Titel',
@@ -868,6 +882,14 @@ return [
         'tip_attachments' => 'Vedhæftede filer',
         'tip_attachments_desc' => 'Upload skærmbilleder, konfigurationssikkerhedskopier eller godkendelsesmails sammen med ændringen. Tilføjelse eller fjernelse af en fil registreres, med et fingeraftryk af filen.',
         'tip_audit' => 'Revisionsspor',
+        'tip_company'   => 'Flytte til en anden virksomhed',
+        'tip_company_desc' => 'Registreret under den forkerte virksomhed? Højreklik på ændringen, og vælg Flyt til virksomhed (eller brug POST /changes/{id}/move-to-company i API\'et). De opgaver, der er knyttet til ændringen, flytter med (det kræver også skriveadgang til Opgaver). Tilknyttede sager gør ikke: de skal allerede være i den nye virksomhed, så fjern tilknytningen til dem, der ikke er. Flytningen registreres i aktivitetstidslinjen.',
         'tip_audit_desc' => 'Hver feltændring spores i aktivitetstidslinjen, og hver version af den lange tekst bevares i sin helhed - åbn den via "Vis" eller et afsnits link Versioner.',
+        'tip_labels' => 'Kolonner med overskrifter',
+        'tip_labels_desc' => 'Ændringslisten viser Risiko, Prioritet, Type og Status i kolonner med overskrifter (på en telefon med en lille etiket foran hver værdi). Vælg selv farvede værdier med en prik eller ren tekst under Indstillinger → Etiketter i ændringslisten.',
+        'tip_pdf' => 'En ændring som PDF',
+        'tip_pdf_desc' => 'Del → Eksportér som PDF giver et dokument med din organisations logo (når et er angivet under Branding) og navn øverst og derefter detaljerne, planerne, risikomatricen, godkendelserne, den efterfølgende gennemgang, tilknyttede sager, navnene på vedhæftede filer og aktiviteten. Det tegnes altid i det lyse tema, uanset hvilket tema du bruger.',
+        'tip_views' => 'Gemte tabelvisninger',
+        'tip_views_desc' => 'I tabellen gemmer Gem visning kolonnerne, sorteringen og filtrene under et navn, og Visninger åbner biblioteket. Tabellen husker den visning, du sidst valgte, og åbner med den næste gang, i enhver browser - indtil du vælger en anden eller bruger Nulstil, hvorefter den igen åbner med din standardvisning.',
     ],
 ];

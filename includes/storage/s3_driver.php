@@ -43,8 +43,6 @@ final class S3Driver implements StorageDriver, StorageLister
             'access_key_id' => trim((string)($cfg['access_key_id'] ?? '')),
             'secret'        => (string)($cfg['secret'] ?? ''),
             'path_style'    => !empty($cfg['path_style']),
-            // Server-side encryption (storage series S2): 'AES256', or '' for the provider's default.
-            'sse'           => ($cfg['sse'] ?? '') === 'AES256' ? 'AES256' : '',
         ];
         $this->base = s3NormalisePrefix((string)($cfg['prefix'] ?? '')) . trim($store, '/') . '/';
         $this->threshold = max(5 * self::MIB, $multipartThreshold);
@@ -52,13 +50,8 @@ final class S3Driver implements StorageDriver, StorageLister
 
     private function objectKey(string $key): string
     {
-        // Checked by segment: ".." INSIDE a name ("report..final.pdf", an older attachment) is a
-        // name; as a whole segment (or ".", or an empty one) it is refused.
-        if ($key === '' || str_contains($key, '\\') || $key[0] === '/' || str_contains($key, "\0")) {
+        if ($key === '' || str_contains($key, '..') || str_contains($key, '\\') || $key[0] === '/' || str_contains($key, "\0")) {
             throw new InvalidArgumentException('Bad storage key.');
-        }
-        foreach (explode('/', $key) as $seg) {
-            if ($seg === '' || $seg === '.' || $seg === '..') throw new InvalidArgumentException('Bad storage key.');
         }
         return $this->base . $key;
     }
@@ -78,19 +71,9 @@ final class S3Driver implements StorageDriver, StorageLister
         if ($size > $this->threshold) {
             $this->putMultipart($ok, $localPath, (int)$size);
         } else {
-            $this->call('PUT', $ok, [], $this->objectHeaders(), ['file' => $localPath, 'offset' => 0, 'length' => (int)$size]);
+            $this->call('PUT', $ok, [], [], ['file' => $localPath, 'offset' => 0, 'length' => (int)$size]);
         }
         if ($move) @unlink($localPath);
-    }
-
-    /**
-     * Headers every request that CREATES an object carries (PutObject, CreateMultipartUpload;
-     * not the parts): server-side encryption when the connection asks for it. Signed with the
-     * rest of the request.
-     */
-    private function objectHeaders(): array
-    {
-        return $this->cfg['sse'] === 'AES256' ? ['x-amz-server-side-encryption' => 'AES256'] : [];
     }
 
     public function readRange(string $key, int $start, int $end, callable $sink): void
@@ -186,7 +169,7 @@ final class S3Driver implements StorageDriver, StorageLister
         $partSize = max(min(16 * self::MIB, $this->threshold), (int)ceil($size / 9000));
         $partSize = (int)(ceil($partSize / self::MIB) * self::MIB);
 
-        $r = $this->call('POST', $objectKey, ['uploads' => ''], $this->objectHeaders(), ['body' => '']);
+        $r = $this->call('POST', $objectKey, ['uploads' => ''], [], ['body' => '']);
         if (!preg_match('#<UploadId>([^<]+)</UploadId>#', $r['body'], $m)) {
             throw new StorageUnavailable('The storage did not start the upload.');
         }

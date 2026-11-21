@@ -283,7 +283,13 @@ try {
 
     // Save attachments to disk and create database records
     if (!empty($inputAttachments)) {
-        require_once __DIR__ . '/../../includes/storage/stores.php';   // the tickets store: a server folder or S3
+        $attachDir = realpath(__DIR__ . '/../../tickets/attachments');
+        $subdir = floor($emailId / 1000);
+        $emailDir = $attachDir . '/' . $subdir . '/' . $emailId;
+
+        if (!is_dir($emailDir)) {
+            mkdir($emailDir, 0755, true);
+        }
 
         $attachStmt = $conn->prepare(
             "INSERT INTO email_attachments (email_id, filename, content_type, file_path, file_size, is_inline, created_datetime)
@@ -302,7 +308,7 @@ try {
 
         foreach ($inputAttachments as $att) {
             $fileData = base64_decode($att['content'] ?? '');
-            $stored = storeSaveBytes($conn, 'tickets', storeTicketDir((int)$emailId), $fileData, (string)($att['name'] ?? 'file'), $policy, attachmentAllowedTypes($conn));
+            $stored = uploadStoreBytes($fileData, (string)($att['name'] ?? 'file'), $emailDir, $policy, attachmentAllowedTypes($conn));
 
             if (!$stored['stored']) {
                 $rejected[] = ['name' => $stored['original_name'], 'reason' => $stored['reason']];
@@ -313,7 +319,7 @@ try {
             }
             $storedAny = true;
 
-            $relPath = $stored['key'];
+            $relPath = $subdir . '/' . $emailId . '/' . $stored['stored_name'];
             $attachStmt->execute([$emailId, $stored['original_name'], $stored['mime'], $relPath, $stored['size']]);
         }
 

@@ -50,8 +50,8 @@ $row = function (string $label, string $desc, string $control) {
     <script src="../../assets/js/i18n.js?v=4"></script>
     <?php echo Money::scriptTag(); ?>
     <script src="../../assets/js/money.js?v=1"></script>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../../assets/css/projects.css?v=52">
     <link rel="stylesheet" href="../../assets/css/mobile.css?v=196">
 </head>
@@ -275,6 +275,6 @@ $row = function (string $label, string $desc, string $control) {
     <script src="../../assets/js/projects.js?v=12"></script>
     <script src="../../assets/js/projects-settings.js?v=19"></script>
     <script src="../../assets/js/ai-settings.js?v=4"></script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

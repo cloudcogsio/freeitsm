@@ -35,8 +35,8 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('watchtower')); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <?php echo Tz::scriptTag(); ?>
     <script src="../assets/js/tz.js?v=5"></script>
@@ -60,12 +60,12 @@ try {
             margin-bottom: 20px;
         }
         .wt-title {
-            font-size: 20px;
+            font-size: var(--font-size-3xl, 20px);
             font-weight: 600;
             color: var(--text, #1e293b);
         }
         .wt-refresh-info {
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--text-faint, #94a3b8);
             display: flex;
             align-items: center;
@@ -86,7 +86,7 @@ try {
             border: none;
             border-right: 1px solid var(--border, #cbd5e1);
             padding: 5px 12px;
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--text-muted, #64748b);
             cursor: pointer;
             white-space: nowrap;
@@ -103,7 +103,7 @@ try {
         .wt-card.wt-everyone .wt-card-name::after {
             content: attr(data-everyone-label);
             margin-left: 8px;
-            font-size: 10px;
+            font-size: var(--font-size-xs, 11px);
             font-weight: 500;
             text-transform: uppercase;
             letter-spacing: .04em;
@@ -115,7 +115,7 @@ try {
             border: 1px solid var(--border, #cbd5e1);
             border-radius: 6px;
             padding: 4px 10px;
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--text-muted, #64748b);
             cursor: pointer;
             display: flex;
@@ -166,8 +166,13 @@ try {
             flex-shrink: 0;
         }
         .wt-card-icon svg { width: 18px; height: 18px; stroke: #fff; stroke-width: 2; fill: none; }
+        .wt-card-icon-link { cursor: pointer; }
+        /* #388: a count is a link - no underline, the card's own colours, a hover cue. */
+        a.wt-metric-link, .wt-metric-link { text-decoration: none; color: inherit; cursor: pointer; border-radius: 6px; }
+        .wt-metric-link:hover, .wt-metric-link:focus-visible { background: var(--surface-hover, #f3f4f6); outline: none; }
+        .wt-card-icon-link:hover { filter: brightness(1.1); }
         .wt-card-name {
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             font-weight: 600;
             color: var(--text, #334155);
         }
@@ -196,7 +201,7 @@ try {
             justify-content: center;
             min-height: 80px;
             color: var(--text-faint, #94a3b8);
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
         }
         .wt-card-loading .wt-spinner {
             width: 20px;
@@ -221,12 +226,12 @@ try {
             min-width: 52px;
         }
         .wt-metric-value {
-            font-size: 22px;
+            font-size: var(--font-size-4xl, 24px);
             font-weight: 700;
             line-height: 1.1;
         }
         .wt-metric-label {
-            font-size: 11px;
+            font-size: var(--font-size-xs, 11px);
             color: var(--text-faint, #94a3b8);
             text-transform: uppercase;
             letter-spacing: 0.3px;
@@ -249,7 +254,7 @@ try {
             gap: 8px;
             padding: 6px 10px;
             border-radius: 6px;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             line-height: 1.45;
             color: var(--text, #334155);
         }
@@ -278,7 +283,7 @@ try {
         .wt-attention-bold { font-weight: 600; }
         /* Which priorities a combined count actually covered — quieter than the
            number itself, but present, so the line can never claim the wrong set. */
-        .wt-attention-note { color: var(--text-dim, #94a3b8); font-size: 12px; }
+        .wt-attention-note { color: var(--text-dim, #94a3b8); font-size: var(--font-size-sm, 12px); }
 
         /* ── Event list ─────────────────────────────────────────────────────── */
         .wt-event-list {
@@ -294,7 +299,7 @@ try {
             padding: 5px 10px;
             background: #f8fafc;
             border-radius: 6px;
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--text-muted, #475569);
         }
         .wt-event-time {
@@ -320,7 +325,7 @@ try {
             padding: 5px 10px;
             background: #f8fafc;
             border-radius: 6px;
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--text-muted, #475569);
             overflow: hidden;
             text-overflow: ellipsis;
@@ -334,11 +339,11 @@ try {
             justify-content: space-between;
             padding: 5px 10px;
             border-radius: 6px;
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             margin-top: 4px;
         }
         .wt-service-item .wt-impact-badge {
-            font-size: 11px;
+            font-size: var(--font-size-xs, 11px);
             font-weight: 600;
             padding: 2px 8px;
             border-radius: 10px;
@@ -358,7 +363,7 @@ try {
             padding: 8px 12px;
             background: #f0fdf4;
             border-radius: 6px;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             color: #166534;
             font-weight: 500;
         }
@@ -373,19 +378,19 @@ try {
             align-items: baseline;
             justify-content: space-between;
             gap: 8px;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             font-weight: 500;
             color: var(--text, #334155);
         }
         .wt-wf-count {
             flex-shrink: 0;
-            font-size: 11px;
+            font-size: var(--font-size-xs, 11px);
             font-weight: 600;
             color: var(--danger-text, #b91c1c);
         }
         .wt-wf-err {
             margin-top: 2px;
-            font-size: 11.5px;
+            font-size: var(--font-size-sm, 12px);
             line-height: 1.45;
             color: var(--text-muted, #64748b);
             word-break: break-word;
@@ -474,7 +479,7 @@ try {
                 </div>
                 <div class="wt-status-dot <?php echo $wtJobs['unhealthy'][0]['severity'] >= 4 ? 'red' : 'amber'; ?>"></div>
             </div>
-            <div class="wt-card-body" style="font-size:13px;">
+            <div class="wt-card-body" style="font-size:var(--font-size-md, 13px);">
                 <div><?php echo htmlspecialchars(t('reporting.jobs.card_body', ['n' => count($wtJobs['unhealthy'])])); ?></div>
                 <ul style="margin:6px 0 8px; padding-left:18px;">
                     <?php foreach ($wtJobs['unhealthy'] as $j): ?>
@@ -748,8 +753,30 @@ try {
     // The colour passed in is DATA (green = done, amber = warning, red = fail) and
     // is used as given. The DEFAULT is chrome — plain text — so it must follow the
     // theme, or a neutral metric would be dark slate on a dark card.
-    function metric(value, label, color) {
-        return `<div class="wt-metric"><div class="wt-metric-value" style="color:${color || 'var(--text, #334155)'}">${value}</div><div class="wt-metric-label">${label}</div></div>`;
+    /* A count on a card. With href it is a link (discussion #388): a ticket status count opens
+       the ticket list on that status. Without one, linkCardMetrics() points it at the card's
+       own module, so every number on the board goes somewhere. */
+    function metric(value, label, color, href) {
+        const inner = `<div class="wt-metric-value" style="color:${color || 'var(--text, #334155)'}">${value}</div><div class="wt-metric-label">${label}</div>`;
+        return href ? `<a class="wt-metric wt-metric-link" href="${escapeHtml(href)}">${inner}</a>` : `<div class="wt-metric">${inner}</div>`;
+    }
+    /** Watchtower's Mine / My team, carried to the Projects list so it shows what the card counted (#388). */
+    function wtScopeQuery() { return (typeof wtScope !== 'undefined' && (wtScope === 'mine' || wtScope === 'team')) ? '&scope=' + wtScope : ''; }
+    /** Every count not already a link goes where its card's name goes (#388). */
+    function linkCardMetrics() {
+        document.querySelectorAll('.wt-card').forEach(card => {
+            const a = card.querySelector('.wt-card-name a');
+            if (!a) return;
+            card.querySelectorAll('div.wt-metric:not(.wt-metric-link)').forEach(m => {
+                m.classList.add('wt-metric-link');
+                m.setAttribute('role', 'link');
+                m.tabIndex = 0;
+                m.title = a.textContent.trim();
+                const go = () => { window.location.href = a.href; };
+                m.addEventListener('click', go);
+                m.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+            });
+        });
     }
 
     function renderMorningChecks(d) {
@@ -814,12 +841,13 @@ try {
         }
 
         let html = '<div class="wt-metrics">';
-        html += metric(totalOpen, window.t('watchtower.tickets.metric_open'), 'var(--text, #334155)');
+        html += metric(totalOpen, window.t('watchtower.tickets.metric_open'), 'var(--text, #334155)', '../tickets/');
         // One per open status, under its own name and colour, in the order they are
         // arranged in Tickets → Settings. Names come from the database, so they are
         // already in the reader's language and cannot drift out of date.
         byStatus.forEach(s => {
-            html += metric(s.count, escapeHtml(s.name), s.count > 0 ? (safeColour(s.colour) || 'var(--text, #334155)') : '#94a3b8');
+            html += metric(s.count, escapeHtml(s.name), s.count > 0 ? (safeColour(s.colour) || 'var(--text, #334155)') : '#94a3b8',
+                           '../tickets/?status_id=' + Number(s.id));   // #388: All Tickets on this status
         });
         html += '</div>';
 
@@ -863,9 +891,9 @@ try {
         // saying the same thing twice and never answered "how many are at
         // Submitted?". Those three keep their place underneath.
         let html = '<div class="wt-metrics">';
-        html += metric(ch.total_open || 0, window.t('watchtower.changes.metric_open'), 'var(--text, #334155)');
+        html += metric(ch.total_open || 0, window.t('watchtower.changes.metric_open'), 'var(--text, #334155)', '../change-management/?statuses=open');
         (ch.by_status || []).forEach(s => {
-            html += metric(s.count, escapeHtml(s.name), s.count > 0 ? (safeColour(s.colour) || 'var(--text, #334155)') : '#94a3b8');
+            html += metric(s.count, escapeHtml(s.name), s.count > 0 ? (safeColour(s.colour) || 'var(--text, #334155)') : '#94a3b8', '../change-management/?status_id=' + Number(s.id));
         });
         html += '</div>';
 
@@ -973,9 +1001,9 @@ try {
         }
 
         let html = '<div class="wt-metrics">';
-        html += metric(ct.expiring_30d, window.t('watchtower.contracts.metric_30d'), ct.expiring_30d > 0 ? '#ef4444' : '#94a3b8');
-        html += metric(ct.expiring_90d, window.t('watchtower.contracts.metric_90d'), ct.expiring_90d > 0 ? '#f59e0b' : '#94a3b8');
-        html += metric(ct.notice_periods_30d, window.t('watchtower.contracts.metric_notices'), ct.notice_periods_30d > 0 ? '#f59e0b' : '#94a3b8');
+        html += metric(ct.expiring_30d, window.t('watchtower.contracts.metric_30d'), ct.expiring_30d > 0 ? '#ef4444' : '#94a3b8', '../contracts/?expiring=30');
+        html += metric(ct.expiring_90d, window.t('watchtower.contracts.metric_90d'), ct.expiring_90d > 0 ? '#f59e0b' : '#94a3b8', '../contracts/?expiring=90');
+        html += metric(ct.notice_periods_30d, window.t('watchtower.contracts.metric_notices'), ct.notice_periods_30d > 0 ? '#f59e0b' : '#94a3b8', '../contracts/?notice=30');
         html += '</div>';
 
         html += '<div class="wt-attention">';
@@ -1016,9 +1044,9 @@ try {
         }
 
         let html = '<div class="wt-metrics">';
-        html += metric(sw.expiring_30d, window.t('watchtower.software.metric_30d'), sw.expiring_30d > 0 ? '#ef4444' : '#94a3b8');
-        html += metric(sw.expiring_90d, window.t('watchtower.software.metric_90d'), sw.expiring_90d > 0 ? '#f59e0b' : '#94a3b8');
-        html += metric(sw.notice_periods_30d, window.t('watchtower.software.metric_notices'), sw.notice_periods_30d > 0 ? '#f59e0b' : '#94a3b8');
+        html += metric(sw.expiring_30d, window.t('watchtower.software.metric_30d'), sw.expiring_30d > 0 ? '#ef4444' : '#94a3b8', '../software/licences/?expiring=30');
+        html += metric(sw.expiring_90d, window.t('watchtower.software.metric_90d'), sw.expiring_90d > 0 ? '#f59e0b' : '#94a3b8', '../software/licences/?expiring=90');
+        html += metric(sw.notice_periods_30d, window.t('watchtower.software.metric_notices'), sw.notice_periods_30d > 0 ? '#f59e0b' : '#94a3b8', '../software/licences/?notice=30');
         html += '</div>';
 
         html += '<div class="wt-attention">';
@@ -1062,9 +1090,9 @@ try {
         // payload without the flags shows everything, as it always did.
         const showExp = dm.show_expiry !== false, showCert = dm.show_cert !== false;
         let html = '<div class="wt-metrics">';
-        if (showExp)  html += metric(dm.expiring_30d, T('metric_30d'), dm.expiring_30d > 0 ? '#ef4444' : '#94a3b8');
-        if (showExp)  html += metric(dm.expiring_90d, T('metric_90d'), dm.expiring_90d > 0 ? '#f59e0b' : '#94a3b8');
-        if (showCert) html += metric(dm.ssl_expiring, T('metric_ssl'), dm.ssl_expiring > 0 ? '#f59e0b' : '#94a3b8');
+        if (showExp)  html += metric(dm.expiring_30d, T('metric_30d'), dm.expiring_30d > 0 ? '#ef4444' : '#94a3b8', '../domains/?expiring=30');
+        if (showExp)  html += metric(dm.expiring_90d, T('metric_90d'), dm.expiring_90d > 0 ? '#f59e0b' : '#94a3b8', '../domains/?expiring=90');
+        if (showCert) html += metric(dm.ssl_expiring, T('metric_ssl'), dm.ssl_expiring > 0 ? '#f59e0b' : '#94a3b8', '../domains/?ssl=due');
         html += '</div><div class="wt-attention">';
         if (atRisk > 0)          html += attentionItem('red', T('services_at_risk', { count: atRisk }));
         if (dm.expired > 0)      html += attentionItem('red', T('expired', { count: dm.expired }));
@@ -1092,9 +1120,9 @@ try {
         const week = pj.stages_week + (pj.milestones_week || 0), missed = pj.milestones_missed || 0;
         setDot('wtPjDot', pj.red > 0 ? 'red' : ((pj.amber + pj.breaches + week + missed) > 0 ? 'amber' : 'green'));
         let html = '<div class="wt-metrics">';
-        html += metric(pj.red, T('metric_red'), pj.red > 0 ? '#ef4444' : '#94a3b8');
-        html += metric(pj.amber, T('metric_amber'), pj.amber > 0 ? '#f59e0b' : '#94a3b8');
-        html += metric(week, T('metric_week'), week > 0 ? '#f59e0b' : '#94a3b8');
+        html += metric(pj.red, T('metric_red'), pj.red > 0 ? '#ef4444' : '#94a3b8', '../projects/?health=red' + wtScopeQuery());
+        html += metric(pj.amber, T('metric_amber'), pj.amber > 0 ? '#f59e0b' : '#94a3b8', '../projects/?health=amber' + wtScopeQuery());
+        html += metric(pj.projects_week || 0, T('metric_week'), (pj.projects_week || 0) > 0 ? '#f59e0b' : '#94a3b8', '../projects/?stages=week' + wtScopeQuery());
         html += '</div><div class="wt-attention">';
         (pj.off_track || []).forEach(p => {
             const link = '<a href="../projects/view.php?id=' + encodeURIComponent(p.id) + '" class="wt-attention-bold" style="color:inherit;">' + escapeHtml(p.name) + '</a>';
@@ -1127,7 +1155,7 @@ try {
         html += '</div>';
 
         if (kb.recent_articles && kb.recent_articles.length > 0) {
-            html += '<div style="font-size:11px;color:var(--text-faint, #94a3b8);margin-top:8px;text-transform:uppercase;letter-spacing:0.3px;">' + window.t('watchtower.knowledge.published_week') + '</div>';
+            html += '<div style="font-size:var(--font-size-xs, 11px);color:var(--text-faint, #94a3b8);margin-top:8px;text-transform:uppercase;letter-spacing:0.3px;">' + window.t('watchtower.knowledge.published_week') + '</div>';
             html += '<div class="wt-article-list">';
             kb.recent_articles.forEach(function(art) {
                 html += `<div class="wt-article">${art.title}</div>`;
@@ -1160,12 +1188,16 @@ try {
 
         let html = '<div class="wt-metrics">';
         html += metric(as.total, window.t('watchtower.assets.metric_total'), 'var(--text, #334155)');
-        html += metric(as.not_seen_7d, window.t('watchtower.assets.metric_offline'), as.not_seen_7d > 0 ? '#f59e0b' : '#94a3b8');
+        html += metric(as.not_seen_7d, window.t('watchtower.assets.metric_offline'), as.not_seen_7d > 0 ? '#f59e0b' : '#94a3b8', '../asset-management/table.php?stale=7');
         if (as.warranty_show) {
-            html += metric(as.warranty_soon, window.t('watchtower.assets.metric_warranty'), as.warranty_soon > 0 ? '#d13438' : '#94a3b8');
+            html += metric(as.warranty_soon, window.t('watchtower.assets.metric_warranty'), as.warranty_soon > 0 ? '#d13438' : '#94a3b8', '../asset-management/table.php?due=warranty');
         }
         if (as.lease_show) {
-            html += metric(as.lease_soon, window.t('watchtower.assets.metric_lease'), as.lease_soon > 0 ? '#d13438' : '#94a3b8');
+            html += metric(as.lease_soon, window.t('watchtower.assets.metric_lease'), as.lease_soon > 0 ? '#d13438' : '#94a3b8', '../asset-management/table.php?due=lease');
+        }
+        // Consumables (5.8.0): low or out of stock - opens exactly that list.
+        if (as.consumables_show) {
+            html += metric(as.consumables_low, window.t('watchtower.assets.metric_consumables'), as.consumables_low > 0 ? '#f59e0b' : '#94a3b8', '../asset-management/consumables/?status=low');
         }
         html += '</div>';
 
@@ -1275,9 +1307,9 @@ try {
         // which left anything in another open status (Blocked ships as standard)
         // off the card. Now one per open status, in its own name and colour.
         let html = '<div class="wt-metrics">';
-        html += metric(t.total_open || 0, window.t('watchtower.tasks.metric_open'), 'var(--text, #334155)');
+        html += metric(t.total_open || 0, window.t('watchtower.tasks.metric_open'), 'var(--text, #334155)', '../tasks/?statuses=open');
         (t.by_status || []).forEach(s => {
-            html += metric(s.count, escapeHtml(s.name), s.count > 0 ? (safeColour(s.colour) || 'var(--text, #334155)') : '#94a3b8');
+            html += metric(s.count, escapeHtml(s.name), s.count > 0 ? (safeColour(s.colour) || 'var(--text, #334155)') : '#94a3b8', '../tasks/?status_id=' + Number(s.id));
         });
         html += '</div>';
 
@@ -1380,6 +1412,7 @@ try {
                 renderTasks(d);
                 renderProjects(d);
                 renderWorkflows(d);
+                linkCardMetrics();   // #388: every count goes somewhere
 
                 // 🔴 LAST. applyCardVisibility() and renderWorkflows() both set
                 // display themselves, so running this any earlier would have its
@@ -1402,9 +1435,23 @@ try {
     // Initial load
     loadDashboard();
 
-    // Auto-refresh every 5 minutes
-    refreshTimer = setInterval(loadDashboard, 5 * 60 * 1000);
+    // Auto-refresh - every 5 minutes unless the person chose otherwise (discussion #388:
+    // a wall screen wants it sooner). Preferences → General → Watchtower refreshes every.
+    // The session stays signed in however long the screen is left: every refresh is a
+    // request, and includes/session_keepalive.php (GH #107) keeps the session's clock fresh.
+    refreshTimer = setInterval(loadDashboard, <?php echo (int)wtRefreshMinutes(connectToDatabase(), (int)$_SESSION['analyst_id']); ?> * 60 * 1000);
+
+    // The card's icon goes where its name goes (#388). The name is the real link - the one
+    // a keyboard or a screen reader reaches - so the icon is a pointer shortcut, not a second link.
+    document.querySelectorAll('.wt-card-icon').forEach(icon => {
+        const a = icon.parentElement && icon.parentElement.querySelector('.wt-card-name a');
+        if (!a) return;
+        icon.classList.add('wt-card-icon-link');
+        icon.setAttribute('aria-hidden', 'true');
+        icon.title = a.textContent.trim();
+        icon.addEventListener('click', () => { window.location.href = a.href; });
+    });
     </script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

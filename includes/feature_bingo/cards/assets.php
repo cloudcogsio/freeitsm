@@ -39,6 +39,42 @@ return [
         'check'    => ['rows', 'asset_type_layout'],
     ],
     [
+        'id'       => 'assets.expected_information',   // GH #404
+        'module'   => 'assets',
+        'tier'     => 'extra',
+        'category' => 'governance',
+        'title'    => 'Know what is still to fill in',
+        'what'     => 'Each asset type says which fields its assets should have eventually - purchase date, supplier, cost centre - and Missing information lists every asset still lacking one, with the field named.',
+        'why'      => 'Assets are recorded with what is known on day one and finished later. Without a list, the purchase details nobody added are only found when an audit or a warranty claim needs them. Nothing is refused, so capture never slows down.',
+        'done'     => 'At least one asset type expects a field.',
+        'link'     => 'asset-management/settings/?tab=asset-types',
+        'check'    => ['rows', 'asset_type_expected_fields'],
+    ],
+    [
+        'id'       => 'assets.consumables',   // 5.8.0, wiki Consumables
+        'module'   => 'assets',
+        'tier'     => 'extra',
+        'category' => 'organisation',
+        'title'    => 'Keep count of consumables',
+        'what'     => 'Assets -> Consumables tracks the things you count rather than track one by one - toner, paper, mice - with stock levels, issuing against tickets, low-stock alerts, a reorder form and stock takes that record what went missing and what it was worth.',
+        'why'      => 'Stock that lives in a spreadsheet runs out without warning, and nobody can say where it went. Every movement here is recorded, the stock never goes below zero, and a stock take turns "we seem to lose toner" into a figure and a cost.',
+        'done'     => 'Something has been received into consumables stock.',
+        'link'     => 'asset-management/consumables/',
+        'check'    => ['rows', 'consumable_movements', "kind = 'receive'"],
+    ],
+    [
+        'id'       => 'assets.consumables_stocktake',   // 5.8.0
+        'module'   => 'assets',
+        'tier'     => 'extra',
+        'category' => 'governance',
+        'title'    => 'Do a stock take',
+        'what'     => 'Count what is actually on the shelves. Each line records what the books expected, what was there, and the difference and its value; finishing puts the stock right, and Differences charts what went missing over time.',
+        'why'      => 'Stock that is never counted drifts from the records. The differences report shows which items go missing and what that costs, so the conversation is about facts.',
+        'done'     => 'A stock take has been finished.',
+        'link'     => 'asset-management/consumables/stocktake.php',
+        'check'    => ['rows', 'consumable_counts', "status = 'finished'"],
+    ],
+    [
         'id'       => 'assets.type_icons',
         'module'   => 'assets',
         'tier'     => 'extra',

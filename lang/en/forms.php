@@ -179,6 +179,20 @@ return [
         'move_reason'      => 'Reason',
         'moved_toast'      => 'Request moved',
         'event_moved'      => 'Moved by {name}: {detail} - {reason}',
+        // Discussion #298: an approver changes the answers, every change recorded.
+        'edit' => 'Edit',
+        'edit_hint' => 'Change any answer before you decide. Every change is recorded with your name - the requester sees what changed, and so does the ticket.',
+        'edit_reason' => 'Reason for the change (optional)',
+        'edit_save' => 'Save',
+        'edit_cancel' => 'Cancel',
+        'edit_locked' => 'cannot be changed here',
+        'edit_none' => 'Nothing was changed.',
+        'edit_saved' => 'Answers updated',
+        'edit_failed' => 'The answers could not be saved.',
+        'changed_event' => '{name} changed {field}: {old} → {new}',
+        'changed_heading' => 'Changed during approval',
+        'changed_line' => '{field}: {old} → {new} (changed by {name})',
+        'changed_blank' => '(blank)',
         'event_override'   => 'Overridden by {name} ({decision}): {reason}',
         'waiting_vote'     => 'Waiting for your vote',
         'override_hint'    => 'You are not voting on this one: as an administrator, Approve or Reject here overrides the team, and the note is the required reason.',
@@ -335,6 +349,7 @@ return [
         'lookup_src_cmdb' => 'CMDB objects',
         'lookup_src_asset' => 'Assets',
         'lookup_src_location' => 'Locations',   // GH #311
+        'lookup_src_consumable' => 'Consumable items',   // 5.8.0
         'lookup_pick' => 'Choose…',
         'lookup_source' => 'Search which records',
         'options_dropdown'  => 'Dropdown options',
@@ -935,6 +950,8 @@ return [
         'actions_chain_body'    => 'A later action can use what an earlier one produced. Raise a ticket first, then send an email whose text includes <code>{{last.ticket_id}}</code>, and the person gets their ticket number in the confirmation. To reach a particular step rather than the one immediately before, use its number &mdash; <code>{{steps.1.ticket_number}}</code> is the first action on the list.',
         'actions_gate_title'    => 'Forms that need approval',
         'actions_gate_body'     => 'If a form requires approval, the first section renames itself <strong>When submitted (before approval)</strong>, because that is exactly when it runs. Putting <em>Raise a ticket</em> there means the ticket goes ahead without the sign-off you asked for, so the screen warns you &mdash; put it under <strong>When approved</strong> instead. And if approval is switched on but nothing is set up, approving still raises a ticket the usual way; the screen says so, rather than leaving an empty section to look like nothing happens.',
+        'actions_edit_title' => 'Changing the answers before you decide',
+        'actions_edit_body' => 'Whoever approves a request can put its answers right before deciding - the username a new starter will get, a start date that has moved. <strong>Edit</strong> on a waiting request in <strong>Approvals</strong> lists every question, including ones left empty; change what you need, add a reason if it helps, and <strong>Save</strong>. The same rules apply as when the form was filled in, and lookups and tables cannot be changed here. Nothing changes quietly: each change shows on the request with who made it, the old and new answer, when and why. The requester sees what changed (without your reason), and the ticket raised on approval uses the corrected answers and lists them under <strong>Changed during approval</strong>. Only someone who can decide the request - its approver, a member of its approving team or an administrator - can edit it, never the person who made it, and only while it is waiting.',
         'actions_tip'    => 'Every run is recorded. Open <strong>Workflows &rarr; Executions</strong> to see exactly what a form did, step by step, including anything that failed &mdash; a form&rsquo;s actions are logged there alongside everything else.',
 
         'hero_title' => 'Forms guide',

@@ -44,7 +44,7 @@ $sections = [
     'offline'     => 5,
     'audit'       => 3,
     'ownership'   => 3,
-    'settings'    => 6,
+    'settings'    => 5,
     'phone'       => 2,
 ];
 $h = fn(string $k, array $p = []) => htmlspecialchars(t('files.help.' . $k, $p));
@@ -62,8 +62,8 @@ $para = fn(string $k) => preg_replace(['/\*\*([^*]+)\*\*/', '/`([^`]+)`/'], ['<s
     <?php echo Tz::scriptTag(); ?>
     <script src="../assets/js/tz.js?v=5"></script>
     <script src="../assets/js/i18n.js?v=4"></script>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/help.css?v=6">
     <style>
         /* The only thing a help page should need to say for itself: its colour. */
@@ -151,6 +151,6 @@ $para = fn(string $k) => preg_replace(['/\*\*([^*]+)\*\*/', '/`([^`]+)`/'], ['<s
         if (location.hash) goTo(location.hash.slice(1), 'auto');
         window.addEventListener('hashchange', () => goTo(location.hash.slice(1), 'smooth'));
     </script>
-    <?php if (!$embed): ?><script src="../assets/js/mobile.js?v=83"></script><?php endif; ?>
+    <?php if (!$embed): ?><script src="../assets/js/mobile.js?v=87"></script><?php endif; ?>
 </body>
 </html>

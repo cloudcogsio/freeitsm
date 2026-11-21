@@ -23,8 +23,8 @@ $translationNamespaces = ['common', 'reporting'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('reporting', t('reporting.nav.tickets_title'))); ?></title>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <?php echo Tz::scriptTag(); ?>
     <script src="../../assets/js/tz.js?v=5"></script>
@@ -53,13 +53,13 @@ $translationNamespaces = ['common', 'reporting'];
 
         .coming-soon-card h2 {
             margin: 0 0 10px 0;
-            font-size: 22px;
+            font-size: var(--font-size-4xl, 24px);
             color: var(--text, #333);
         }
 
         .coming-soon-card p {
             margin: 0;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             color: var(--text-dim, #888);
             max-width: 360px;
             line-height: 1.6;
@@ -83,6 +83,6 @@ $translationNamespaces = ['common', 'reporting'];
             <p><?php echo htmlspecialchars(t('reporting.tickets.coming_soon')); ?></p>
         </div>
     </div>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

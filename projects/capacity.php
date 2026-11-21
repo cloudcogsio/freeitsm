@@ -30,8 +30,8 @@ $translationNamespaces = ['common', 'projects'];
     <?php echo Tz::scriptTag(); ?>
     <script src="../assets/js/tz.js?v=5"></script>
     <script src="../assets/js/i18n.js?v=4"></script>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/projects.css?v=52">
     <link rel="stylesheet" href="../assets/css/mobile.css?v=196">
 </head>
@@ -56,6 +56,6 @@ $translationNamespaces = ['common', 'projects'];
 
     <script src="../assets/js/projects.js?v=12"></script>
     <script src="../assets/js/projects-capacity.js?v=4"></script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

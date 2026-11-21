@@ -117,11 +117,14 @@ try {
 
     $conn->commit();
 
-    // Best-effort removal of the now-orphaned attachment files (the tickets store: a
-    // server folder or S3). Failures here never undo the delete — the rows are already gone.
-    require_once __DIR__ . '/../../includes/storage/stores.php';
+    // Best-effort removal of the now-orphaned attachment files. Failures here
+    // never undo the delete — the rows are already gone.
+    $attachBase = dirname(dirname(__DIR__)) . '/tickets/attachments/';
     foreach ($attachmentPaths as $rel) {
-        storeDelete($conn, 'tickets', (string)$rel);
+        $full = $attachBase . $rel;
+        if (is_file($full)) {
+            @unlink($full);
+        }
     }
 
     echo json_encode(['success' => true, 'message' => 'Ticket permanently deleted']);

@@ -144,10 +144,8 @@ final class FilesAttach
         try {
             // The offline copy first, if there is one (works while S3 is unreachable).
             filesReadToLocal($conn, (string)$ver['storage_path'], (int)$ver['size_bytes'], $tmp);
-            // Into the documents store (#284): its server folder, or S3.
-            require_once __DIR__ . '/../storage/stores.php';
-            $s = storeSaveBytes($conn, 'documents', '', (string)file_get_contents($tmp), $it['name'],
-                                ATTACHMENT_POLICY_DROP, attachmentAllowedTypes($conn));
+            $s = uploadStoreBytes((string)file_get_contents($tmp), $it['name'], dirname(__DIR__, 2) . '/uploads/' . DOCUMENT_STORAGE_DIR,
+                                  ATTACHMENT_POLICY_DROP, attachmentAllowedTypes($conn));
         } catch (StorageUnavailable $e) {
             throw new ServiceError('validation', 'unavailable', filesStoreUnavailableMessage());
         } finally {
@@ -168,7 +166,7 @@ final class FilesAttach
             if ($own) $conn->commit();
         } catch (Throwable $e) {
             if ($own && $conn->inTransaction()) $conn->rollBack();
-            if (!empty($s['key'])) { try { storeDelete($conn, 'documents', (string)$s['key']); } catch (Throwable) {} }
+            if (!empty($s['path']) && is_file($s['path'])) @unlink($s['path']);
             throw $e;
         }
         filesAudit($conn, $analystId, 'download', $target + ['version_id' => (int)$ver['id']], ['attached_as' => 'copy', 'to' => "$parentType:$parentId", 'size' => (int)$ver['size_bytes']]);

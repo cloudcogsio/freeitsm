@@ -28,8 +28,8 @@ $translationNamespaces = ['common', 'change-management'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('changes', t('change-management.nav.calendar'))); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/calendar-grid.css?v=1">
     <link rel="stylesheet" href="../assets/css/itsm_calendar.css?v=11">
     <style>
@@ -75,7 +75,7 @@ $translationNamespaces = ['common', 'change-management'];
             right: 10px;
             background: none;
             border: none;
-            font-size: 18px;
+            font-size: var(--font-size-2xl, 18px);
             cursor: pointer;
             color: var(--text-faint, #999);
             line-height: 1;
@@ -88,7 +88,7 @@ $translationNamespaces = ['common', 'change-management'];
         }
         .change-type-badge, .change-status-badge {
             display: inline-block;
-            font-size: 10px;
+            font-size: var(--font-size-xs, 11px);
             font-weight: 600;
             padding: 2px 8px;
             border-radius: 10px;
@@ -110,7 +110,7 @@ $translationNamespaces = ['common', 'change-management'];
 
         .change-popup-title {
             margin: 0 0 10px;
-            font-size: 15px;
+            font-size: var(--font-size-xl, 16px);
             color: var(--text, #333);
             padding-right: 20px;
         }
@@ -124,7 +124,7 @@ $translationNamespaces = ['common', 'change-management'];
             justify-content: space-between;
             gap: 12px;
             padding: 4px 0;
-            font-size: 12px;
+            font-size: var(--font-size-sm, 12px);
             color: var(--text-muted, #555);
         }
         .change-popup-label {
@@ -201,6 +201,6 @@ $translationNamespaces = ['common', 'change-management'];
 
     <script>window.API_BASE = '../api/change-management/';</script>
     <script src="../assets/js/change-calendar.js?v=6"></script>
-    <script src="<?php echo BASE_URL; ?>assets/js/mobile.js?v=83"></script>
+    <script src="<?php echo BASE_URL; ?>assets/js/mobile.js?v=87"></script>
 </body>
 </html>

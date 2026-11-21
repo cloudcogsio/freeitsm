@@ -1065,7 +1065,9 @@ function messagingGenerateTicketNumber(PDO $conn, ?int $tenantId = null, ?int $t
  */
 function saveChannelMediaAttachment(PDO $conn, int $emailId, string $filename, string $contentType, string $data): array
 {
-    require_once dirname(__DIR__) . '/storage/stores.php';   // the tickets store: a server folder or S3
+    $attachmentsDir = dirname(dirname(__DIR__)) . '/tickets/attachments';
+    $subDir   = floor($emailId / 1000);
+    $emailDir = $attachmentsDir . '/' . $subDir . '/' . $emailId;
 
     // ⚠️ Media arrives from WhatsApp / web chat / Slack with a filename the SENDER
     // controls, and this wrote it into the web root after only replacing the
@@ -1073,13 +1075,13 @@ function saveChannelMediaAttachment(PDO $conn, int $emailId, string $filename, s
     // report listed three ingest paths for this; this is a fourth with the same
     // shape. uploadStoreBytes() checks the extension AND the bytes, and picks the
     // name on disk itself.
-    $stored = storeSaveBytes($conn, 'tickets', storeTicketDir($emailId), $data, $filename, attachmentRejectPolicy($conn), attachmentAllowedTypes($conn));
+    $stored = uploadStoreBytes($data, $filename, $emailDir, attachmentRejectPolicy($conn), attachmentAllowedTypes($conn));
 
     if (!$stored['stored']) {
         return ['stored' => false, 'reason' => $stored['reason']];   // caller notes it on the ticket
     }
 
-    $filePath = $stored['key'];
+    $filePath = $subDir . '/' . $emailId . '/' . $stored['stored_name'];
 
     // filename is the sender's, for display only. content_type is what we detected
     // from the bytes, not what the provider claimed.

@@ -127,7 +127,7 @@ const Roles = (() => {
         const wrap = document.getElementById('capGroups');
         const groups = Object.entries(CAPS);
         if (!groups.length) {
-            wrap.innerHTML = '<p style="color:#888;font-size:13px;">No capabilities are defined yet. As modules are wired into the permission system, their settings will appear here to grant.</p>';
+            wrap.innerHTML = '<p style="color:#888;font-size:var(--font-size-md, 13px);">No capabilities are defined yet. As modules are wired into the permission system, their settings will appear here to grant.</p>';
             return;
         }
         wrap.innerHTML = groups.map(([mod, group]) => `
@@ -138,7 +138,7 @@ const Roles = (() => {
                     ${!cap.everyday && !cap.umbrella && all[i - 1] && all[i - 1][1].everyday ? '<div class="rl-cap-subhead">Settings</div>' : ''}
                     <label class="rl-check${cap.umbrella ? ' rl-cap-umbrella' : ''}">
                         <input type="checkbox" class="cap-box" value="${esc(key)}" ${selected.includes(key) ? 'checked' : ''}>
-                        <span>${esc(cap.label)}${cap.sensitive ? ' <span class="rl-cap-sensitive" title="Reaches credentials, email or money — grant with care">sensitive</span>' : ''}${cap.outside_umbrella ? ' <span class="rl-cap-sensitive" title="Not included when the module\'s &quot;Manage everything&quot; is ticked: grant it on its own">granted on its own</span>' : ''}</span>
+                        <span>${esc(cap.label)}${cap.sensitive ? ' <span class="rl-cap-sensitive" title="Reaches credentials, email or money — grant with care">sensitive</span>' : ''}</span>
                     </label>
                 `).join('')}
             </div>
@@ -148,7 +148,7 @@ const Roles = (() => {
     /** Renders a tick list of analysts or teams, noting analysts who are already administrators. */
     function renderPicker(elId, items, selectedIds, showAdmin) {
         const el = document.getElementById(elId);
-        if (!items.length) { el.innerHTML = '<p style="color:#888;font-size:13px;margin:4px;">None available.</p>'; return; }
+        if (!items.length) { el.innerHTML = '<p style="color:#888;font-size:var(--font-size-md, 13px);margin:4px;">None available.</p>'; return; }
         el.innerHTML = items.map(it => `
             <label class="rl-check">
                 <input type="checkbox" class="pick-box" value="${it.id}" ${selectedIds.includes(it.id) ? 'checked' : ''}>

@@ -91,10 +91,11 @@ try {
     $conn->prepare("DELETE FROM tickets WHERE id IN ($place)")->execute($ids);
     $conn->commit();
 
-    // Best-effort file cleanup (the tickets store: a server folder or S3).
-    require_once __DIR__ . '/../../includes/storage/stores.php';
+    // Best-effort file cleanup.
+    $attachBase = dirname(dirname(__DIR__)) . '/tickets/attachments/';
     foreach ($attachmentPaths as $rel) {
-        storeDelete($conn, 'tickets', (string)$rel);
+        $full = $attachBase . $rel;
+        if (is_file($full)) @unlink($full);
     }
 
     echo json_encode(['success' => true, 'deleted' => count($ids)]);

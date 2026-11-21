@@ -41,8 +41,8 @@ requireModuleAccess('system');
     <title><?php echo htmlspecialchars(pageTitle('system', t('system.status_portal.heading'))); ?></title>
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <script src="../../assets/js/i18n.js?v=4"></script>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <style>
         /* System accent, pinned with --on-accent alongside: System's accent is a
            LIGHT colour, so without it buttons render white-on-light. */
@@ -60,7 +60,7 @@ requireModuleAccess('system');
 
         /* inbox.css's .btn-primary sets only background and colour, so on its own
            it renders a coloured rectangle with no padding or radius. */
-        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 6px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; transition: all .15s; }
+        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 6px; font-size: var(--font-size-md, 13px); font-weight: 600; border: none; cursor: pointer; transition: all .15s; }
         .btn-primary { background: var(--sys-accent, #546e7a); color: var(--sys-on-accent, #fff); }
         .btn-primary:hover:not(:disabled) { background: #455a64; }
         .btn:disabled { opacity: .55; cursor: progress; }
@@ -73,22 +73,22 @@ requireModuleAccess('system');
             margin-bottom: 18px;
         }
         .sp-panel h3 {
-            margin: 0 0 4px 0; font-size: 13px; text-transform: uppercase;
+            margin: 0 0 4px 0; font-size: var(--font-size-md, 13px); text-transform: uppercase;
             letter-spacing: .5px; color: var(--text-dim, #888);
         }
-        .sp-panel > p { margin: 0 0 16px; font-size: 13px; color: var(--text-muted, #666); line-height: 1.55; }
+        .sp-panel > p { margin: 0 0 16px; font-size: var(--font-size-md, 13px); color: var(--text-muted, #666); line-height: 1.55; }
 
         .sp-toggle { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 4px; }
         .sp-toggle input { margin-top: 3px; }
-        .sp-toggle-label { font-size: 14px; font-weight: 600; color: var(--text, #333); }
-        .sp-toggle-hint  { font-size: 12.5px; color: var(--text-muted, #666); line-height: 1.5; margin-top: 3px; }
+        .sp-toggle-label { font-size: var(--font-size-lg, 14px); font-weight: 600; color: var(--text, #333); }
+        .sp-toggle-hint  { font-size: var(--font-size-md, 13px); color: var(--text-muted, #666); line-height: 1.5; margin-top: 3px; }
 
         .sp-choices { margin-top: 18px; }
         .sp-choice { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border-soft, #f1f1f1); }
         .sp-choice input { margin-top: 3px; }
-        .sp-choice-name { font-size: 13.5px; font-weight: 600; color: var(--text, #333); }
-        .sp-choice-desc { font-size: 12.5px; color: var(--text-muted, #666); line-height: 1.5; }
-        .sp-days { margin-left: 6px; width: 64px; padding: 4px 6px; font: inherit; font-size: 13px;
+        .sp-choice-name { font-size: var(--font-size-lg, 14px); font-weight: 600; color: var(--text, #333); }
+        .sp-choice-desc { font-size: var(--font-size-md, 13px); color: var(--text-muted, #666); line-height: 1.5; }
+        .sp-days { margin-left: 6px; width: 64px; padding: 4px 6px; font: inherit; font-size: var(--font-size-md, 13px);
                    border: 1px solid var(--border, #ddd); border-radius: 4px;
                    background: var(--surface, #fff); color: var(--text, #333); }
         /* Everything below the master switch is meaningless while it is off, so
@@ -101,9 +101,9 @@ requireModuleAccess('system');
             border: 1px solid var(--warning-border, #f0d9a8);
             color: var(--warning-text, #92400e);
             border-radius: 8px; padding: 14px 16px; margin-bottom: 18px;
-            font-size: 13px; line-height: 1.55;
+            font-size: var(--font-size-md, 13px); line-height: 1.55;
         }
-        .sp-saved { font-size: 13px; color: var(--success-text, #166534); margin-left: 12px; }
+        .sp-saved { font-size: var(--font-size-md, 13px); color: var(--success-text, #166534); margin-left: 12px; }
     </style>
     <!-- Mobile layer LAST, after this page's own <style> (Techniques §9). -->
     <link rel="stylesheet" href="../../assets/css/mobile.css?v=196">
@@ -220,6 +220,6 @@ requireModuleAccess('system');
 
         load();
     </script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

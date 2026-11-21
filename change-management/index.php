@@ -23,9 +23,9 @@ $translationNamespaces = ['common', 'change-management'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('changes')); ?></title>
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/inbox.css?v=96">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/change-management.css?v=14">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/inbox.css?v=97">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/change-management.css?v=20">
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/mobile.css?v=196">
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <?php echo Tz::scriptTag(); ?>
@@ -37,7 +37,17 @@ $translationNamespaces = ['common', 'change-management'];
     <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/project-links.css?v=1">
 </head>
 <?php $cmLevel = analystModuleLevel(connectToDatabase(), (int)($_SESSION['analyst_id'] ?? 0), 'changes'); /* #180: 'full' or 'read' */ ?>
-<body data-analyst-id="<?php echo $_SESSION['analyst_id'] ?? ''; ?>"<?php echo $cmLevel === 'read' ? ' class="module-read-only"' : ''; ?>>
+<?php
+    // Preferences → Change list labels (Ed, 2026-11-20): coloured (default) or plain text.
+    $chgPlain = false;
+    try {
+        $__cp = connectToDatabase()->prepare("SELECT preference_value FROM user_preferences WHERE analyst_id = ? AND preference_key = 'change_list_labels' LIMIT 1");
+        $__cp->execute([(int)($_SESSION['analyst_id'] ?? 0)]);
+        $chgPlain = $__cp->fetchColumn() === 'plain';
+    } catch (Throwable $e) { $chgPlain = false; }
+    $__bodyClasses = trim(($cmLevel === 'read' ? 'module-read-only' : '') . ($chgPlain ? ' chg-plain-labels' : ''));
+?>
+<body data-analyst-id="<?php echo $_SESSION['analyst_id'] ?? ''; ?>"<?php echo $__bodyClasses !== '' ? ' class="' . $__bodyClasses . '"' : ''; ?>>
     <?php include __DIR__ . '/includes/header.php'; ?>
     <?php /* The action row (#185): New change was at the foot of the list's
              sidebar and missing from the Calendar and Table views. Read only
@@ -75,6 +85,9 @@ $translationNamespaces = ['common', 'change-management'];
                     <h2><?php echo htmlspecialchars(t('change-management.list.heading')); ?></h2>
                     <div class="change-count" id="changeCount"></div>
                 </div>
+                <?php /* Filled by change-management.js only when the list is opened from
+                         Watchtower's "open" count (?statuses=open, discussion #388). */ ?>
+                <div class="link-filter-bar" id="changeLinkFilter" hidden></div>
                 <div class="change-list" id="changeList">
                     <div class="loading"><div class="spinner"></div></div>
                 </div>
@@ -593,6 +606,19 @@ $translationNamespaces = ['common', 'change-management'];
         window.openCreateOnLoad = true;
         <?php endif; ?>
     </script>
+    <?php /* A link to one status, by its id (discussion #388): resolved here, so a URL never carries
+         a status NAME - names change, ids do not. An unknown or retired id opens the list as normal. */
+    $__linkStatus = null;
+    if (isset($_GET['status_id']) && ctype_digit((string)$_GET['status_id'])) {
+        try {
+            $__ls = connectToDatabase()->prepare("SELECT name FROM change_statuses WHERE id = ? AND is_active = 1");
+            $__ls->execute([(int)$_GET['status_id']]);
+            $__linkStatus = $__ls->fetchColumn() ?: null;
+        } catch (Throwable $e) { $__linkStatus = null; }
+    } ?>
+    <script>window.CHG_LINK_STATUS = <?php echo json_encode($__linkStatus, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;</script>
+    <?php require_once __DIR__ . '/../includes/branding.php'; require_once __DIR__ . '/../includes/system_name.php'; ?>
+    <script>window.CHG_BRAND = <?php echo json_encode(['logo' => brandingCustomLogoUrl(), 'name' => systemName()], JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;   /* the PDF's header (Ed, 2026-11-20) */</script>
     <script>window.CHG_SHOW_PROJECTS = <?php echo analystCanAccessModule(connectToDatabase(), (int)$_SESSION['analyst_id'], 'projects') ? 'true' : 'false'; ?>; window.CHG_BASE = <?php echo json_encode(BASE_URL); ?>;
         // "Choose approvers" (#180): comfort for the editor; ChangesService enforces it.
         // Read only (#180): the page leaves out what the server would refuse.
@@ -603,7 +629,7 @@ $translationNamespaces = ['common', 'change-management'];
     <script src="<?php echo BASE_URL; ?>assets/js/change-revisions.js?v=3"></script>
     <?php require_once __DIR__ . '/../includes/changes/risk_policy.php'; echo ChangeRiskPolicy::jsBootstrap(connectToDatabase()); ?>
     <script src="<?php echo BASE_URL; ?>assets/js/change-risk.js?v=1"></script>
-    <script src="<?php echo BASE_URL; ?>assets/js/change-management.js?v=41"></script>
+    <script src="<?php echo BASE_URL; ?>assets/js/change-management.js?v=50"></script>
     <script src="<?php echo BASE_URL; ?>assets/js/mobile.js?v=83"></script>
 </body>
 </html>

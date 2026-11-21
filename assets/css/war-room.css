@@ -27,7 +27,7 @@
 .wr-sidebar-heading,
 .wr-group {
     margin: 0 0 6px 4px;
-    font-size: 12px;
+    font-size: var(--font-size-sm, 12px);
     font-weight: 600;
     letter-spacing: 0.4px;
     text-transform: uppercase;
@@ -45,7 +45,7 @@
     background: var(--surface, #fff);
     color: var(--text, #333);
     font: inherit;
-    font-size: 12px;
+    font-size: var(--font-size-sm, 12px);
     cursor: pointer;
 }
 .wr-side-btn:hover { border-color: var(--accent, #ea580c); color: var(--accent, #ea580c); }
@@ -63,7 +63,7 @@
     background: none;
     color: var(--text, #333);
     font: inherit;
-    font-size: 14px;
+    font-size: var(--font-size-lg, 14px);
     text-align: left;
     cursor: pointer;
 }
@@ -77,7 +77,7 @@
     font-weight: 600;
 }
 
-.wr-lock { flex-shrink: 0; font-size: 16px; line-height: 1; opacity: 0.55; }
+.wr-lock { flex-shrink: 0; font-size: var(--font-size-xl, 16px); line-height: 1; opacity: 0.55; }
 .wr-unread {
     flex-shrink: 0;
     min-width: 20px;
@@ -85,7 +85,7 @@
     border-radius: 10px;
     background: var(--accent, #ea580c);
     color: var(--on-accent, #fff);
-    font-size: 11px;
+    font-size: var(--font-size-xs, 11px);
     font-weight: 700;
     text-align: center;
 }
@@ -111,8 +111,8 @@
     margin-bottom: 6px;
 }
 .wr-title-wrap { min-width: 0; }
-.wr-title { margin: 0; font-size: 18px; color: var(--text, #333); overflow-wrap: anywhere; }
-.wr-topic { margin-top: 2px; font-size: 12px; color: var(--text-muted, #666); overflow-wrap: anywhere; }
+.wr-title { margin: 0; font-size: var(--font-size-2xl, 18px); color: var(--text, #333); overflow-wrap: anywhere; }
+.wr-topic { margin-top: 2px; font-size: var(--font-size-sm, 12px); color: var(--text-muted, #666); overflow-wrap: anywhere; }
 
 .wr-tools { display: flex; gap: 6px; flex-shrink: 0; }
 .wr-tool {
@@ -122,14 +122,14 @@
     background: var(--surface, #fff);
     color: var(--text, #333);
     font: inherit;
-    font-size: 13px;
+    font-size: var(--font-size-md, 13px);
     cursor: pointer;
 }
 .wr-tool:hover { border-color: var(--accent, #ea580c); color: var(--accent, #ea580c); }
 
 .wr-intro {
     margin: 0 0 12px;
-    font-size: 13px;
+    font-size: var(--font-size-md, 13px);
     color: var(--text-muted, #666);
 }
 
@@ -149,20 +149,20 @@
     padding: 32px 12px;
     text-align: center;
     color: var(--text-dim, #999);
-    font-size: 14px;
+    font-size: var(--font-size-lg, 14px);
 }
 
 .wr-msg { padding: 7px 0; border-bottom: 1px solid var(--border-soft, #f2f2f2); }
 .wr-msg:last-child { border-bottom: none; }
 
 .wr-msg-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
-.wr-msg-author { font-size: 13px; font-weight: 600; color: var(--text, #333); }
-.wr-msg-time { font-size: 11px; color: var(--text-dim, #999); }
+.wr-msg-author { font-size: var(--font-size-md, 13px); font-weight: 600; color: var(--text, #333); }
+.wr-msg-time { font-size: var(--font-size-xs, 11px); color: var(--text-dim, #999); }
 
 /* Author text is arbitrary and messages can contain a pasted URL or a stack
    trace, so both have to be allowed to break rather than widen the column. */
 .wr-msg-body {
-    font-size: 14px;
+    font-size: var(--font-size-lg, 14px);
     line-height: 1.5;
     color: var(--text, #333);
     white-space: pre-wrap;      /* keep the line breaks people typed */
@@ -195,7 +195,7 @@
     border-radius: 10px;
     background: var(--danger-accent, #c62828);
     color: #fff;
-    font-size: 11px;
+    font-size: var(--font-size-xs, 11px);
     font-weight: 700;
     text-align: center;
 }
@@ -226,7 +226,7 @@
     background: none;
     color: var(--text, #333);
     font: inherit;
-    font-size: 14px;
+    font-size: var(--font-size-lg, 14px);
     text-align: left;
     cursor: pointer;
 }
@@ -253,7 +253,7 @@
     border-radius: 8px;
     background: var(--accent, #ea580c);
     color: var(--on-accent, #fff);
-    font-size: 10px;
+    font-size: var(--font-size-xs, 11px);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -265,7 +265,7 @@
 .wr-composer { position: relative; }
 
 .wr-msg { position: relative; }
-.wr-msg-flag { font-size: 11px; font-style: italic; color: var(--text-dim, #999); }
+.wr-msg-flag { font-size: var(--font-size-xs, 11px); font-style: italic; color: var(--text-dim, #999); }
 
 /* Actions appear on hover on a pointer device, and are always visible on touch —
    there is no hover on a phone, and a control you cannot reach is not a control. */
@@ -288,7 +288,7 @@
     background: var(--surface, #fff);
     color: var(--text-muted, #666);
     font: inherit;
-    font-size: 11px;
+    font-size: var(--font-size-xs, 11px);
     cursor: pointer;
 }
 .wr-msg-act:hover { border-color: var(--accent, #ea580c); color: var(--accent, #ea580c); }
@@ -322,19 +322,19 @@
     border-radius: 6px;
     background: var(--surface-hover, #fafafa);
     color: var(--text, #333);
-    font-size: 13px;
+    font-size: var(--font-size-md, 13px);
     text-decoration: none;
 }
 .wr-file:hover { border-color: var(--accent, #ea580c); }
 .wr-file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wr-file-size { flex-shrink: 0; font-size: 11px; color: var(--text-dim, #999); }
+.wr-file-size { flex-shrink: 0; font-size: var(--font-size-xs, 11px); color: var(--text-dim, #999); }
 
 /* ---- presence (in the sidebar, under the channels) ---- */
 .wr-presence {
     margin-top: 16px;
     padding: 10px 12px;
     border-top: 1px solid var(--border-soft, #f0f0f0);
-    font-size: 12px;
+    font-size: var(--font-size-sm, 12px);
     line-height: 1.5;
     color: var(--text-dim, #888);
     overflow-wrap: anywhere;        /* a long list of names must not widen the panel */
@@ -344,7 +344,7 @@
 
 .wr-presence-label {
     margin: 8px 0 2px;
-    font-size: 11px;
+    font-size: var(--font-size-xs, 11px);
     font-weight: 600;
     letter-spacing: 0.3px;
     text-transform: uppercase;
@@ -361,7 +361,7 @@
     margin-top: 14px;
     padding-top: 12px;
     border-top: 1px solid var(--border-soft, #f0f0f0);
-    font-size: 12px;
+    font-size: var(--font-size-sm, 12px);
     line-height: 1.4;
     color: var(--text-muted, #666);
     cursor: pointer;
@@ -369,7 +369,7 @@
 .wr-desktop-opt input { margin-top: 2px; flex-shrink: 0; }
 
 .wr-pref { margin-top: 12px; }
-.wr-pref-label { display: block; margin-bottom: 4px; font-size: 12px; color: var(--text-muted, #666); }
+.wr-pref-label { display: block; margin-bottom: 4px; font-size: var(--font-size-sm, 12px); color: var(--text-muted, #666); }
 .wr-pref select {
     width: 100%;
     padding: 6px 8px;
@@ -378,9 +378,9 @@
     background: var(--surface, #fff);
     color: var(--text, #333);
     font: inherit;
-    font-size: 12px;
+    font-size: var(--font-size-sm, 12px);
 }
-.wr-pref-hint { margin-top: 5px; font-size: 11px; line-height: 1.4; color: var(--text-dim, #999); }
+.wr-pref-hint { margin-top: 5px; font-size: var(--font-size-xs, 11px); line-height: 1.4; color: var(--text-dim, #999); }
 
 /* ---- composer ---- */
 /* `align-items: stretch` (the default) is what actually keeps the box and the
@@ -401,7 +401,7 @@
     background: var(--surface, #fff);
     color: var(--text, #333);
     font: inherit;
-    font-size: 14px;
+    font-size: var(--font-size-lg, 14px);
     line-height: 1.35;
     resize: vertical;               /* drag it taller for a long message */
     box-sizing: border-box;
@@ -426,7 +426,7 @@
     border-radius: 6px;
     background: var(--surface, #fff);
     color: var(--text-muted, #666);
-    font-size: 20px;
+    font-size: var(--font-size-3xl, 20px);
     line-height: 1;
     cursor: pointer;
 }
@@ -446,10 +446,10 @@
     border-radius: 12px;
     background: var(--surface-hover, #f0f0f0);
     color: var(--text, #333);
-    font-size: 12px;
+    font-size: var(--font-size-sm, 12px);
 }
 .wr-chip > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wr-chip-x { border: none; background: none; color: var(--text-muted, #666); font-size: 14px; line-height: 1; cursor: pointer; }
+.wr-chip-x { border: none; background: none; color: var(--text-muted, #666); font-size: var(--font-size-lg, 14px); line-height: 1; cursor: pointer; }
 
 .wr-archived-note {
     margin-top: 12px;
@@ -458,7 +458,7 @@
     border-radius: 6px;
     background: var(--surface-hover, #fafafa);
     color: var(--text-muted, #666);
-    font-size: 13px;
+    font-size: var(--font-size-md, 13px);
 }
 
 /* ---- side panel: search and the situation report ----
@@ -488,12 +488,12 @@
     padding: 14px 16px;
     border-bottom: 1px solid var(--border, #e0e0e0);
 }
-.wr-panel-head h3 { margin: 0; font-size: 15px; color: var(--text, #333); }
+.wr-panel-head h3 { margin: 0; font-size: var(--font-size-xl, 16px); color: var(--text, #333); }
 .wr-panel-close {
     border: none;
     background: none;
     color: var(--text-muted, #666);
-    font-size: 22px;
+    font-size: var(--font-size-4xl, 24px);
     line-height: 1;
     cursor: pointer;
 }
@@ -507,14 +507,14 @@
     background: var(--surface, #fff);
     color: var(--text, #333);
     font: inherit;
-    font-size: 14px;
+    font-size: var(--font-size-lg, 14px);
     box-sizing: border-box;
 }
-.wr-scope { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 13px; color: var(--text-muted, #666); }
-.wr-muted { color: var(--text-dim, #999); font-size: 13px; padding: 8px 0; }
-.wr-warn  { color: var(--danger-accent, #c62828); font-size: 13px; padding: 8px 0; line-height: 1.5; }
-.wr-hint  { margin: 4px 0 12px; font-size: 12px; color: var(--text-dim, #999); }
-.wr-field-label { display: block; margin: 12px 0 4px; font-size: 13px; font-weight: 500; color: var(--text, #333); }
+.wr-scope { display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: var(--font-size-md, 13px); color: var(--text-muted, #666); }
+.wr-muted { color: var(--text-dim, #999); font-size: var(--font-size-md, 13px); padding: 8px 0; }
+.wr-warn  { color: var(--danger-accent, #c62828); font-size: var(--font-size-md, 13px); padding: 8px 0; line-height: 1.5; }
+.wr-hint  { margin: 4px 0 12px; font-size: var(--font-size-sm, 12px); color: var(--text-dim, #999); }
+.wr-field-label { display: block; margin: 12px 0 4px; font-size: var(--font-size-md, 13px); font-weight: 500; color: var(--text, #333); }
 
 .wr-results { display: flex; flex-direction: column; gap: 6px; }
 .wr-result {
@@ -531,9 +531,9 @@
 }
 .wr-result:hover { border-color: var(--accent, #ea580c); }
 .wr-result-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 3px; }
-.wr-result-channel { font-size: 12px; font-weight: 600; color: var(--accent, #ea580c); }
-.wr-result-meta { font-size: 11px; color: var(--text-dim, #999); }
-.wr-result-snippet { font-size: 13px; line-height: 1.45; color: var(--text-muted, #555); overflow-wrap: anywhere; }
+.wr-result-channel { font-size: var(--font-size-sm, 12px); font-weight: 600; color: var(--accent, #ea580c); }
+.wr-result-meta { font-size: var(--font-size-xs, 11px); color: var(--text-dim, #999); }
+.wr-result-snippet { font-size: var(--font-size-md, 13px); line-height: 1.45; color: var(--text-muted, #555); overflow-wrap: anywhere; }
 
 .wr-sitrep-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 .wr-sitrep-form select {
@@ -543,7 +543,7 @@
     background: var(--surface, #fff);
     color: var(--text, #333);
     font: inherit;
-    font-size: 14px;
+    font-size: var(--font-size-lg, 14px);
 }
 .wr-sitrep-go { align-self: flex-start; }
 /* The report is model prose inserted as TEXT — pre-wrap is what keeps its
@@ -554,7 +554,7 @@
     border-radius: 6px;
     background: var(--surface-hover, #fafafa);
     color: var(--text, #333);
-    font-size: 13px;
+    font-size: var(--font-size-md, 13px);
     line-height: 1.6;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
@@ -565,7 +565,7 @@
     justify-content: space-between;
     gap: 10px;
     margin-top: 8px;
-    font-size: 11px;
+    font-size: var(--font-size-xs, 11px);
     color: var(--text-dim, #999);
 }
 
@@ -598,7 +598,7 @@
     padding: 14px 16px;
     border-bottom: 1px solid var(--border, #e0e0e0);
 }
-.wr-modal-head h3 { margin: 0; font-size: 16px; color: var(--text, #333); }
+.wr-modal-head h3 { margin: 0; font-size: var(--font-size-xl, 16px); color: var(--text, #333); }
 .wr-modal-body { flex: 1; min-height: 0; overflow-y: auto; padding: 16px; }
 .wr-modal-actions { display: flex; gap: 8px; margin-top: 18px; }
 
@@ -609,9 +609,320 @@
     gap: 8px;
     padding: 7px 8px;
     border-radius: 6px;
-    font-size: 14px;
+    font-size: var(--font-size-lg, 14px);
     color: var(--text, #333);
 }
 .wr-member:hover { background: var(--surface-hover, #f5f5f5); }
 .wr-member-btn { width: 100%; border: none; background: none; font: inherit; text-align: left; cursor: pointer; }
-.wr-here-dot { margin-left: auto; font-size: 11px; color: var(--success-accent, #2e7d32); }
+.wr-here-dot { margin-left: auto; font-size: var(--font-size-xs, 11px); color: var(--success-accent, #2e7d32); }
+
+/* ── Doing things with a message (5.9.0) - wiki War-Room-Message-Actions-Design ──
+   The menu, the emoji picker, reactions, quotes and the link highlight. Colours
+   are theme tokens only, so dark mode follows. Above the page, below the shared
+   file viewer's windows (float-window.css, z-index 5000). */
+
+.wr-msg-more { font-weight: 700; letter-spacing: 1px; }
+
+.wr-menu,
+.wr-picker {
+    position: fixed;
+    z-index: 4000;
+    background: var(--surface, #fff);
+    border: 1px solid var(--border, #e0e0e0);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px var(--shadow, rgba(0, 0, 0, 0.18));
+    color: var(--text, #333);
+}
+.wr-menu { min-width: 230px; padding: 6px; }
+.wr-menu-emoji {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    padding: 2px 2px 6px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--border-soft, #f2f2f2);
+}
+.wr-menu-emo {
+    width: 32px; height: 32px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: none;
+    font-size: var(--font-size-xl, 20px);
+    line-height: 1;
+    cursor: pointer;
+}
+.wr-menu-emo:hover,
+.wr-menu-emo:focus-visible { background: var(--surface-hover, #f5f5f5); outline: none; border-color: var(--accent, #ea580c); }
+.wr-menu-emo.is-mine { background: color-mix(in srgb, var(--accent, #ea580c) 14%, transparent); border-color: var(--accent, #ea580c); }
+.wr-menu-plus { font-size: var(--font-size-lg, 16px); color: var(--text-muted, #666); }
+.wr-menu-item {
+    display: block;
+    width: 100%;
+    padding: 7px 10px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    color: var(--text, #333);
+    font: inherit;
+    font-size: var(--font-size-md, 13px);
+    text-align: left;
+    cursor: pointer;
+}
+.wr-menu-item:hover,
+.wr-menu-item:focus-visible { background: var(--surface-hover, #f5f5f5); outline: none; }
+.wr-menu-sep { height: 1px; margin: 4px 2px; background: var(--border-soft, #f2f2f2); }
+
+/* The full picker: search, a tab per group, then the grid. */
+.wr-picker { width: 340px; max-width: calc(100vw - 16px); padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.wr-picker-search { width: 100%; box-sizing: border-box; }
+.wr-picker-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border-soft, #f2f2f2); padding-bottom: 4px; }
+.wr-picker-tab {
+    flex: 1;
+    height: 30px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    font-size: var(--font-size-lg, 16px);
+    cursor: pointer;
+}
+.wr-picker-tab:hover,
+.wr-picker-tab:focus-visible { background: var(--surface-hover, #f5f5f5); outline: none; }
+.wr-picker-grid { height: 280px; overflow-y: auto; position: relative; }
+.wr-picker-head {
+    position: sticky; top: 0;
+    padding: 4px 2px;
+    background: var(--surface, #fff);
+    font-size: var(--font-size-xs, 11px);
+    font-weight: 600;
+    color: var(--text-muted, #666);
+}
+.wr-picker-set { display: grid; grid-template-columns: repeat(8, 1fr); }
+.wr-picker-emo {
+    height: 36px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    font-size: var(--font-size-xl, 20px);
+    cursor: pointer;
+}
+.wr-picker-emo:hover,
+.wr-picker-emo:focus-visible { background: var(--surface-hover, #f5f5f5); outline: none; }
+
+/* Reactions under a message. Yours is outlined in the accent. */
+.wr-reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.wr-reaction {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 8px;
+    border: 1px solid var(--border, #e0e0e0);
+    border-radius: 12px;
+    background: var(--surface, #fff);
+    color: var(--text, #333);
+    font: inherit;
+    font-size: var(--font-size-sm, 12px);
+    cursor: pointer;
+}
+.wr-reaction:hover { border-color: var(--accent, #ea580c); }
+.wr-reaction.is-mine { background: color-mix(in srgb, var(--accent, #ea580c) 14%, transparent); border-color: var(--accent, #ea580c); }
+.wr-reaction:disabled { cursor: default; }
+.wr-reaction-emo { font-size: var(--font-size-md, 13px); }
+.wr-reaction-n { font-weight: 600; color: var(--text-muted, #666); }
+
+/* A quote: a reference to an earlier message, drawn as a box with a bar on the left. */
+.wr-quote {
+    display: block;
+    width: 100%;
+    max-width: 560px;
+    margin: 2px 0 4px;
+    padding: 4px 10px;
+    border: none;
+    border-left: 3px solid var(--accent, #ea580c);
+    border-radius: 0 6px 6px 0;
+    background: var(--surface-hover, #f5f5f5);
+    color: var(--text, #333);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.wr-quote:disabled { cursor: default; }
+.wr-quote-head { display: flex; gap: 8px; align-items: baseline; }
+.wr-quote-author { font-size: var(--font-size-sm, 12px); font-weight: 600; }
+.wr-quote-text {
+    display: block;
+    font-size: var(--font-size-sm, 12px);
+    color: var(--text-muted, #666);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* "Quoting Sarah: ..." above the box while writing a reply. */
+.wr-quoting {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 6px;
+    padding: 6px 10px;
+    border-left: 3px solid var(--accent, #ea580c);
+    border-radius: 0 6px 6px 0;
+    background: var(--surface-hover, #f5f5f5);
+    font-size: var(--font-size-sm, 12px);
+}
+.wr-quoting[hidden] { display: none; }
+.wr-quoting-label { font-weight: 600; white-space: nowrap; }
+.wr-quoting-text { flex: 1; min-width: 0; color: var(--text-muted, #666); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Arriving from a permanent link, or jumping to a quoted message. */
+@keyframes wr-flash { from { background: color-mix(in srgb, var(--accent, #ea580c) 22%, transparent); } to { background: transparent; } }
+.wr-msg-flash { animation: wr-flash 2.6s ease-out; }
+
+/* "Copied", "Link copied" - a short note at the bottom. */
+.wr-toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    z-index: 4100;
+    transform: translateX(-50%);
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: var(--text, #333);
+    color: var(--surface, #fff);
+    font-size: var(--font-size-md, 13px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+}
+.wr-toast.is-on { opacity: 1; }
+
+/* Pin, save, mark as unread (5.9.0, piece 2). */
+.wr-msg-mark { font-size: var(--font-size-xs, 11px); cursor: default; }
+.wr-pinbar {
+    display: block;
+    width: 100%;
+    margin: 0 0 6px;
+    padding: 5px 10px;
+    border: 1px solid var(--border, #e0e0e0);
+    border-radius: 6px;
+    background: var(--surface, #fff);
+    color: var(--text, #333);
+    font: inherit;
+    font-size: var(--font-size-sm, 12px);
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+.wr-pinbar:hover { border-color: var(--accent, #ea580c); }
+.wr-pinbar[hidden] { display: none; }
+.wr-list-item { display: flex; align-items: flex-start; gap: 6px; }
+.wr-list-open {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.wr-list-note { margin-top: 2px; font-size: var(--font-size-xs, 11px); }
+.wr-list-act { flex: none; }
+
+/* Translation (5.9.0): the translated text fades in rather than jumping, and a quiet
+   line under it says where it came from, with the original one click away. */
+@keyframes wr-tr-in { from { opacity: 0.25; } to { opacity: 1; } }
+.wr-msg-body.wr-tr-fade { animation: wr-tr-in 0.6s ease-out; }
+.wr-tr-note {
+    display: block;
+    margin-top: 2px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--text-dim, #999);
+    font: inherit;
+    font-size: var(--font-size-xs, 11px);
+    cursor: pointer;
+}
+.wr-tr-note:hover { color: var(--accent, #ea580c); text-decoration: underline; }
+
+/* Threads (5.9.0, piece 3): the reply count under a first message, the way into a
+   thread from a reply also sent to the conversation, and the thread panel. */
+.wr-thread-summary,
+.wr-thread-link {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 2px 8px;
+    border: 1px solid var(--border, #e0e0e0);
+    border-radius: 12px;
+    background: var(--surface, #fff);
+    color: var(--accent, #ea580c);
+    font: inherit;
+    font-size: var(--font-size-sm, 12px);
+    font-weight: 600;
+    cursor: pointer;
+}
+.wr-thread-summary:hover,
+.wr-thread-link:hover { border-color: var(--accent, #ea580c); }
+.wr-thread-link { font-weight: 400; color: var(--text-muted, #666); border-style: dashed; }
+.wr-thread-msgs { display: flex; flex-direction: column; }
+.wr-thread-root {
+    padding-bottom: 10px;
+    margin-bottom: 4px;
+    border-bottom: 2px solid var(--border, #e0e0e0);
+}
+.wr-thread-composer {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 0 2px;
+    margin-top: 8px;
+    border-top: 1px solid var(--border-soft, #f2f2f2);
+    background: var(--surface, #fff);
+}
+.wr-thread-composer textarea { width: 100%; box-sizing: border-box; resize: vertical; font-family: inherit; }
+.wr-thread-composer .btn { align-self: flex-end; }
+.wr-thread-also { display: flex; gap: 6px; align-items: center; font-size: var(--font-size-sm, 12px); color: var(--text-muted, #666); }
+
+/* Forward and Seen by (5.9.0, piece 4). */
+.wr-fwd {
+    display: block;
+    margin: 2px 0 2px;
+    font-size: var(--font-size-xs, 11px);
+    color: var(--text-muted, #666);
+    text-decoration: none;
+}
+.wr-fwd:hover { color: var(--accent, #ea580c); text-decoration: underline; }
+.wr-fwd-list {
+    max-height: 260px;
+    overflow-y: auto;
+    margin: 8px 0;
+    border: 1px solid var(--border, #e0e0e0);
+    border-radius: 6px;
+}
+.wr-fwd-group {
+    padding: 6px 10px 2px;
+    font-size: var(--font-size-xs, 11px);
+    font-weight: 600;
+    color: var(--text-muted, #666);
+}
+.wr-fwd-target {
+    display: block;
+    width: 100%;
+    padding: 6px 10px;
+    border: none;
+    background: none;
+    color: var(--text, #333);
+    font: inherit;
+    font-size: var(--font-size-md, 13px);
+    text-align: left;
+    cursor: pointer;
+}
+.wr-fwd-target:hover,
+.wr-fwd-target:focus-visible { background: var(--surface-hover, #f5f5f5); outline: none; }
+.wr-fwd-target.is-chosen { background: color-mix(in srgb, var(--accent, #ea580c) 14%, transparent); font-weight: 600; }
+.wr-fwd-note { width: 100%; box-sizing: border-box; resize: vertical; font-family: inherit; }
+.wr-seen-row { display: flex; justify-content: space-between; gap: 8px; padding: 5px 2px; border-bottom: 1px solid var(--border-soft, #f2f2f2); font-size: var(--font-size-md, 13px); }
+.wr-seen-gap { margin-top: 14px; }

@@ -37,8 +37,8 @@ $lT = fn(string $k) => t('system.locations.' . $k);
     <title><?php echo htmlspecialchars(pageTitle('system', $lT('title'))); ?></title>
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <script src="../../assets/js/i18n.js?v=4"></script>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../../assets/css/locations-tree.css?v=4">
     <style>
         body {
@@ -51,8 +51,8 @@ $lT = fn(string $k) => t('system.locations.' . $k);
            column, so the page scrolls rather than being cut off. */
         /* Layout: assets/css/system-page.css (.sys-page, .sys-page-head). Only the scroll box is local. */
         .lc-container { flex: 1; min-height: 0; overflow-y: auto; }
-        .lc-uses { margin: 0 0 18px; font-size: 13px; color: var(--text-muted, #555); line-height: 1.55; }
-        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; border: none; cursor: pointer; }
+        .lc-uses { margin: 0 0 18px; font-size: var(--font-size-md, 13px); color: var(--text-muted, #555); line-height: 1.55; }
+        .btn { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 6px; font-size: var(--font-size-md, 13px); font-weight: 600; border: none; cursor: pointer; }
         .btn-primary { background: var(--sys-accent, #546e7a); color: var(--sys-on-accent, #fff); }
         .btn-primary:hover { background: var(--sys-accent-hover, #455a64); }
         .btn-secondary { background: var(--surface-2, #eceff1); color: var(--text, #333); }
@@ -84,6 +84,6 @@ $lT = fn(string $k) => t('system.locations.' . $k);
         document.getElementById('lcAddBtn').addEventListener('click', function () { tree.add(); });
     })();
     </script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

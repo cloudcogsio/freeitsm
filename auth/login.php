@@ -621,7 +621,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             z-index: 5;
             padding: 10px 16px;
             text-align: center;
-            font-size: 13.5px;
+            font-size: var(--font-size-lg, 14px);
             line-height: 1.4;
         }
         .login-strip-banner { background: var(--login-banner-bg, #111827); color: var(--login-banner-fg, #fff); font-weight: 600; }
@@ -631,7 +631,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             bottom: 0;
             color: var(--login-footer-fg, #fff);
             text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-            font-size: 12.5px;
+            font-size: var(--font-size-md, 13px);
         }
         /* …and they must not sit on top of each other. */
         body:has(.login-strip-banner[data-at="bottom"]) .login-strip-footer { bottom: 42px; }
@@ -643,7 +643,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .login-tagline {
             margin: 0 0 4px;
             color: #555;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             text-align: center;
         }
         body[data-logo-pos="hidden"] .login-header img { display: none; }
@@ -706,7 +706,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 12px;
             border: 1px solid #ddd;
             border-radius: 5px;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             transition: border-color 0.3s;
         }
 
@@ -721,7 +721,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 12px;
             border-radius: 5px;
             margin-bottom: 20px;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             border-left: 4px solid #c33;
         }
 
@@ -732,7 +732,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             color: white;
             border: none;
             border-radius: 5px;
-            font-size: 16px;
+            font-size: var(--font-size-xl, 16px);
             font-weight: 600;
             cursor: pointer;
             transition: transform 0.2s;
@@ -752,7 +752,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-top: 16px;
             color: #999;
             text-decoration: none;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
         }
 
         .forgot-link:hover { color: #666; }
@@ -765,7 +765,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding-top: 16px;
             border-top: 1px solid #eee;
             text-align: center;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
         }
         .portal-link a {
             color: #667eea;
@@ -774,7 +774,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .portal-link a:hover { text-decoration: underline; }
         /* "Powered by FreeITSM" - very faint and small, the last line inside the
            card (Ed). currentColor + opacity, so it suits a dark card too. */
-        .powered-by { margin-top: 14px; text-align: center; font-size: 10.5px; letter-spacing: .3px; opacity: .38; }
+        .powered-by { margin-top: 14px; text-align: center; font-size: var(--font-size-xs, 11px); letter-spacing: .3px; opacity: .38; }
         .powered-by a { color: inherit; text-decoration: none; }
         .powered-by a:hover { text-decoration: underline; }
 
@@ -793,7 +793,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .mfa-subtitle {
             text-align: center;
             color: #666;
-            font-size: 14px;
+            font-size: var(--font-size-lg, 14px);
             margin-bottom: 24px;
             line-height: 1.5;
         }
@@ -803,7 +803,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 14px;
             border: 2px solid #ddd;
             border-radius: 5px;
-            font-size: 24px;
+            font-size: var(--font-size-4xl, 24px);
             text-align: center;
             letter-spacing: 8px;
             font-family: 'Consolas', 'Courier New', monospace;
@@ -821,7 +821,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-top: 16px;
             color: #999;
             text-decoration: none;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
         }
 
         .mfa-cancel:hover { color: #666; }
@@ -832,7 +832,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 10px 14px;
             border-radius: 5px;
             margin-bottom: 16px;
-            font-size: 13px;
+            font-size: var(--font-size-md, 13px);
             border-left: 4px solid #c33;
             display: none;
         }
@@ -863,7 +863,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         .modal-box h2 {
             color: #333;
-            font-size: 20px;
+            font-size: var(--font-size-3xl, 20px);
             text-align: center;
             margin-bottom: 24px;
         }
@@ -874,7 +874,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             right: 16px;
             background: none;
             border: none;
-            font-size: 24px;
+            font-size: var(--font-size-4xl, 24px);
             line-height: 1;
             color: #999;
             cursor: pointer;
@@ -1014,7 +1014,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $forceLocal = isset($_GET['local']);
             // Is local login permitted at all (for the reveal link / email-first fallback)?
             $localAllowed = $localOn || $forceLocal;
-            $divider = 'display:flex;align-items:center;gap:10px;margin:20px 0 14px;color:#9aa;font-size:12px;';
+            $divider = 'display:flex;align-items:center;gap:10px;margin:20px 0 14px;color:#9aa;font-size:var(--font-size-sm, 12px);';
             ?>
 
             <?php if ($ssoActive): ?>
@@ -1030,7 +1030,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div style="<?php echo $divider; ?>"><span style="flex:1;height:1px;background:#ddd;"></span><?php echo htmlspecialchars(tr('or', 'or')); ?><span style="flex:1;height:1px;background:#ddd;"></span></div>
                 <?php foreach ($ssoProviders as $p): ?>
                     <a href="<?php echo htmlspecialchars(BASE_URL . 'api/auth/oidc_login.php?provider=' . (int)$p['id']); ?>"
-                       style="display:block;text-align:center;padding:11px;margin-bottom:8px;border:1px solid #cfd8dc;border-radius:6px;color:#37474f;text-decoration:none;font-weight:600;font-size:14px;background:#fff;">
+                       style="display:block;text-align:center;padding:11px;margin-bottom:8px;border:1px solid #cfd8dc;border-radius:6px;color:#37474f;text-decoration:none;font-weight:600;font-size:var(--font-size-lg, 14px);background:#fff;">
                         <?php echo htmlspecialchars($p['display_name']); ?>
                     </a>
                 <?php endforeach; ?>

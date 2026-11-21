@@ -61,6 +61,7 @@ return [
         'intro' => 'Wer wem unterstellt ist, anhand der bei jeder Person erfassten vorgesetzten Person - per Verzeichnisabgleich oder von Hand in Tickets → Benutzer.',
         'search' => 'Person suchen',
         'search_ph' => 'Name, E-Mail, Position...',
+        'search_ph_names' => 'Name, Position, Abteilung...',   // the portal's search, which does not look in email (GH #414)
         'no_results' => 'Keine Treffer.',
         'view' => 'Ansicht',
         'view_tree' => 'Baum',
@@ -69,7 +70,9 @@ return [
         'loading' => 'Wird geladen...',
         'empty' => 'Bisher ist bei niemandem eine vorgesetzte Person erfasst, daher gibt es kein Diagramm. Vorgesetzte kommen aus dem Verzeichnisabgleich oder werden in Tickets → Benutzer festgelegt.',
         'not_found' => 'Diese Person ist nicht in dem Diagramm, das Sie sehen können.',
+        'on_own' => '{name} hat keinen Vorgesetzten und niemand berichtet an diese Person, daher wird sie allein angezeigt.',   // GH #414
         'leaver' => 'Ausgeschieden',
+        'you' => 'Sie',   // the reader, on the portal's chart (GH #414)
         'reports_n' => '{n} unterstellt',
         'reports_total' => '{n} unterstellt, {total} insgesamt darunter',
         'expand' => 'Anzeigen, wer {name} unterstellt ist',
@@ -328,7 +331,7 @@ return [
         'first_seen' => 'Erstmals gesehen',
         'left' => 'Ausgeschieden',
         'leaver' => 'Ausgeschieden',
-        'edit_in' => 'Bearbeiten in',
+        'open_in' => 'Öffnen in',   // GH #397: Edit is on the page; these only open
         'tickets_app' => 'Tickets',
         'assets_app' => 'Assets',
         'org' => 'Organisation',
@@ -519,8 +522,8 @@ return [
         'edit' => [
             'nav' => 'Jemanden ändern',
             'title' => 'Die Angaben einer Person ändern',
-            'intro' => 'Personen liest. Angaben werden dort gespeichert und geändert, wo sie schon immer waren.',
-            'p1' => '**Bearbeiten in → Tickets** oder **Assets** oben auf der Seite einer Person öffnet sie in Tickets → Benutzer oder Assets → Benutzer, wo Angaben, vorgesetzte Person und Anmeldung bearbeitet werden - von beiden aus derselbe Editor.',
+            'intro' => 'Die meisten Angaben lassen sich direkt hier ändern.',
+            'p1' => '**Bearbeiten** oben auf der Seite einer Person ändert Angaben, vorgesetzte Person und Anmeldung, ohne Personen zu verlassen - derselbe Editor wie in Tickets → Benutzer und Assets → Benutzer, für alle, die eines davon öffnen können. **Öffnen in → Tickets** oder **Assets** öffnet die Person stattdessen in diesem Modul.',
             'p2' => 'Eine Person, deren Angaben aus einem Verzeichnis oder Adressbuch stammen, wird wie bisher dort aktualisiert; ihre Seite hier zeigt einfach das Ergebnis.',
         ],
         'who' => [

@@ -85,6 +85,16 @@ return [
         'field_phone' => 'Telefon',
         'field_mobile' => 'Mobil',
     ],
+    // GH #399: a settings page as tabs or as one page.
+    'settings_view' => [
+        'view' => 'Ansicht',
+        'tabs' => 'Tabs',
+        'page' => 'Eine Seite',
+        'search' => 'Einstellungen durchsuchen',
+        'none' => 'Keine Einstellungen gefunden',
+        'index' => 'Einstellungsbereiche',
+        'elsewhere' => 'Auf einer anderen Seite',
+    ],
     'left_panel' => [
         'tab' => 'Linke Leiste',
         'visibility' => 'Sichtbarkeit',
@@ -565,6 +575,59 @@ return [
         'loading' => 'Wird geladen...',
         'load_failed' => 'Benachrichtigungen konnten nicht geladen werden.',
         'someone' => 'Jemand',
+        // GH #365: named after "by" when no person did it.
+        'actor_workflow' => 'Workflow „{name}“',
+        'actor_system' => 'FreeITSM',
+        'actor_email' => 'E-Mail',
+        // The bell's (i) panel - "why is this here?" (5.8.0).
+        'explain' => [
+            'info' => 'Warum ist das hier?',
+            'title' => 'Warum das hier ist',
+            'loading' => 'Wird geladen...',
+            'failed' => 'Die Erklärung konnte nicht geladen werden.',
+            'by' => 'Ausgeführt von',
+            'how' => 'Wie',
+            'when' => 'Wann',
+            'why' => 'Warum Sie',
+            'history' => 'Ticketverlauf',
+            'workflows' => 'Workflows zu der Zeit',
+            'auto' => 'automatisch',
+            'via_api' => 'über die REST-API',
+            'by_system' => 'System (automatisch)',
+            'by_former' => 'ein ehemaliger Analyst',
+            'hist_by' => 'von {who}',
+            'hist_note' => 'eine Notiz',
+            'hist_email' => 'eine E-Mail',
+            'agrees' => 'Der Ticketverlauf stimmt überein.',
+            'differs' => 'Laut Ticketverlauf hat {who} diese Änderung vorgenommen.',
+            'grouped' => '{n} Aktualisierungen wurden in dieser einen Zeile zusammengefasst; dies erklärt die neueste.',
+            'old_row' => 'Vor 5.8.0 geschrieben: Es wurde nur ein Name gespeichert, nicht, was die Änderung vorgenommen hat.',
+            'source' => [
+                'screen' => 'Auf dem Bildschirm geändert',
+                'portal' => 'Im Self-Service-Portal',
+                'api' => 'Über die REST-API',
+                'workflow' => 'Durch einen Workflow',
+                'mail_import' => 'Als neue E-Mails eingingen',
+                'scheduled' => 'Durch einen geplanten Job',
+            ],
+            'reason' => [
+                'new_owner' => 'Es wurde Ihnen zugewiesen',
+                'ticket_owner' => 'Sie sind für dieses Ticket zuständig',
+                'team_member' => 'Sie sind im Team, an das es übergeben wurde',
+                'watcher' => 'Sie beobachten dieses Ticket',
+                'task_owner' => 'Sie sind für diese Aufgabe zuständig',
+                'task_involved' => 'Sie sind an dieser Aufgabe beteiligt',
+                'project' => 'Projekte nennt Sie dafür',
+                'domain_owner' => 'Ihnen gehört diese Domain',
+                'owner' => 'Es gehört Ihnen',
+                'unknown' => 'Nicht erfasst',
+            ],
+            'hist_notes' => [
+                'no_access' => 'Sie können dieses Ticket nicht mehr sehen.',
+                'not_found' => 'Keine passende Zeile im Ticketverlauf.',
+                'none' => 'Diese Art von Benachrichtigung hat keine Zeile im Ticketverlauf.',
+            ],
+        ],
         'just_now' => 'gerade eben',
         'minutes' => 'vor {n} Min.',
         'hours' => 'vor {n} Std.',
@@ -626,8 +689,8 @@ return [
             'help' => [
                 'unanswered' => 'Der Hilfe-Assistent konnte eine Frage nicht beantworten',
             ],
-            'storage' => [
-                'changed' => 'Der Speicherort gespeicherter Dateien hat sich geändert',
+            'consumable' => [
+                'low_stock' => 'Bestand wird knapp - Zeit zum Nachbestellen',
             ],
             'hyperv' => [
                 'collector' => 'Ein Hyper-V-Collector braucht Ihre Aufmerksamkeit',
@@ -688,8 +751,8 @@ return [
             'help' => [
                 'unanswered' => 'Der Hilfe-Assistent kann eine gestellte Frage nicht beantworten (Administratoren)',
             ],
-            'storage' => [
-                'changed' => 'Der Speicherort gespeicherter Dateien ändert sich, oder ein Umzug zwischen Speicherorten beginnt oder endet (Administratoren)',
+            'consumable' => [
+                'low_stock' => 'Ein Verbrauchsmaterial erreicht seinen Meldebestand (wer benachrichtigt wird, legen Sie unter Assets -> Einstellungen -> Verbrauchsmaterial fest)',
             ],
             'hyperv' => [
                 'collector' => 'Ein Hyper-V-Collector meldet sich nicht mehr, oder der Speicher eines Clusters kann nicht gelesen werden (Personen, die Hyper-V-Verbindungen verwalten)',

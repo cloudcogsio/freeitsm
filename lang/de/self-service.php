@@ -12,6 +12,11 @@
 
 return [
     'portal' => 'Self-Service-Portal',
+    // GH #414: the organisation chart (self-service/org-chart.php).
+    'org_chart' => [
+        'title'        => 'Organigramm',
+        'subtitle'     => 'Wer an wen berichtet. Suchen Sie nach einem Namen, einer Position oder einer Abteilung, oder öffnen Sie ein Team mit dem Pfeil.',
+    ],
     'equipment' => [
         'title' => 'Meine Geräte',
         'subtitle' => 'Die Ihnen zugewiesenen Geräte. Wenn hier etwas nicht stimmt oder Sie Geräte haben, die nicht aufgeführt sind, erstellen Sie ein Ticket und der Service Desk kümmert sich darum.',
@@ -50,6 +55,7 @@ return [
         'team_tickets' => 'Team-Tickets',
         'help_centre' => 'Wissensdatenbank',
         'equipment' => 'Meine Geräte',
+        'org_chart'   => 'Organisation',   // GH #414
         'training' => 'Schulung',
         'help' => 'Hilfe',
         'menu' => 'Menü',
@@ -175,6 +181,10 @@ return [
         'req_sent' => 'Gesendet',
         'req_cancelled' => 'Abgebrochen',
         'req_cancel' => 'Abbrechen',
+        // Discussion #298: answers changed after it was sent.
+        'req_changed' => 'Nach dem Absenden geänderte Antworten ({n})',
+        'req_changed_line' => '{field}: {old} → {new}',
+        'req_changed_blank' => '(leer)',
         'req_cancel_title' => 'Diese Anfrage abbrechen?',
         'req_cancel_text' => 'Ihre Anfrage für „{what}“ wird abgebrochen. Wer sie genehmigen sollte, sieht sie dann nicht mehr als ausstehend.',
         'req_cancel_reason' => 'Warum brechen Sie sie ab?',
@@ -448,6 +458,13 @@ return [
         'tr_li4' => 'Das Ergebnis wird Ihnen sofort angezeigt, zusammen mit den falschen Antworten und warum sie falsch waren. Haben Sie nicht bestanden, können Sie es erneut versuchen.',
         'tr_p2' => 'Ihr Fortschritt wird laufend gespeichert, sodass Sie einen Kurs in mehreren Sitzungen und auf jedem Gerät bearbeiten können und dort weitermachen, wo Sie aufgehört haben.',
         'tr_tip' => '<strong>Fristen und Erinnerungen:</strong> Ein Kurs kann ein Datum haben, bis zu dem er erledigt sein sollte. Ihnen steht der ganze Tag zur Verfügung. Hat Ihr IT-Team Erinnerungen eingeschaltet, erhalten Sie eine E-Mail, wenn sich das Datum nähert, und noch einmal, wenn es verstrichen ist — das endet, sobald Sie den Kurs abschließen.',
+        // GH #414: the organisation chart, for people who have the tab
+        'org_title' => 'Organigramm',
+        'org_p1' => 'Wenn Ihr IT-Team es eingeschaltet hat, zeigt <strong>Organisation</strong> in der oberen Navigation, wer in Ihrem Unternehmen an wen berichtet. Es öffnet sich an Ihrer eigenen Stelle, mit der Linie über Ihnen aufgeklappt.',
+        'org_li1' => 'Klicken Sie auf den Pfeil neben einer Person, um ihr Team ein- oder auszublenden. Die Zahlen neben einem Namen geben an, wie viele direkt an sie berichten und, nach dem Punkt, wie viele insgesamt unter ihr sind.',
+        'org_li2' => 'Geben Sie in <strong>Personen suchen</strong> einen Namen, eine Position oder eine Abteilung ein und wählen Sie die Person aus, um im Organigramm zu ihr zu springen.',
+        'org_li3' => '<strong>Diagramm</strong> zeichnet dasselbe als Kästchen und Linien, ausgehend von Ihnen. Klicken Sie auf eine Person, um zu sehen, wer sie ist, doppelklicken Sie, um von ihr aus zu zeichnen, und speichern Sie es mit <strong>Exportieren</strong> als Bild oder PDF.',
+        'org_tip' => '<strong>Stimmt etwas nicht?</strong> Das Organigramm entsteht aus dem Vorgesetzten, der bei jeder Person hinterlegt ist. Ist Ihrer falsch, erstellen Sie ein Ticket, und das IT-Team korrigiert es.',
         'team_title' => 'Team-Tickets',
         'team_p1' => 'Sie können die Tickets der Personen sehen, die Sie verantworten. Sie finden sie im Menü unter <strong>Team-Tickets</strong>, getrennt von Ihren eigenen unter Meine Tickets.',
         'team_li_who' => '<strong>Wer zu Ihrem Team gehört</strong>, hat Ihr IT-Team festgelegt &mdash; über das Feld „Vorgesetzte Person“ im Verzeichnis Ihrer Organisation oder durch eine Auswahl für Sie. Fragen Sie dort nach, wenn jemand fehlt oder nicht dazugehört.',

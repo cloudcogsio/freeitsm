@@ -8,9 +8,6 @@
  *   POST {tab: storage, driver, storage_root, max_upload_mb, s3: {...}}
  *   POST {tab: storage_test, s3: {...}}        write/read/delete a test file
  *   POST {tab: storage_migration, action: retry_failed|remove_old}
- *   GET  ?tab=recycle   Cap::FILES_RECYCLE  how long deleted things stay in the
- *        recycle bin, and how much is in it now
- *   POST {tab: recycle, days}                  0 = keep for ever
  *   GET  ?tab=versions  Cap::FILES_VERSIONS  the same-name choices offered, the highlighted
  *        one, and how many versions are kept (GH #303)
  *   POST {tab: versions, choices: [...], default, keep}
@@ -32,7 +29,6 @@
  */
 require_once __DIR__ . '/../../includes/files/api_bootstrap.php';
 require_once __DIR__ . '/../../includes/services/files_storage.php';
-require_once __DIR__ . '/../../includes/services/files_recycle.php';
 require_once __DIR__ . '/../../includes/services/files_versions.php';
 require_once __DIR__ . '/../../includes/services/files_attach.php';
 require_once __DIR__ . '/../../includes/services/files_recycle.php';
@@ -44,11 +40,14 @@ filesApiRun(function () use ($conn, $analystId) {
 
     if (in_array($tab, ['storage', 'storage_test', 'storage_migration'], true)) {
         requireCapabilityJson(Cap::FILES_STORAGE, $conn);
-        if ($tab === 'storage' && $isGet) filesApiOk(FilesStorageService::describe($conn, $analystId));
+        if ($tab === 'storage' && $isGet) filesApiOk(FilesStorageService::describe($conn));
         if ($isGet) filesApiFail('Unknown settings tab.');
         try {
             if ($tab === 'storage_test') {
-                filesApiOk(FilesStorageService::testAudited($conn, $analystId, (array)($in['s3'] ?? [])));
+                $s = (array)($in['s3'] ?? []);
+                $stored = settingGetDecrypted($conn, 'files_s3_secret');
+                if (FilesStorageService::secretUnchanged((string)($s['secret'] ?? ''), $stored)) $s['secret'] = $stored;
+                filesApiOk(FilesStorageService::test($s));
             }
             if ($tab === 'storage_migration') {
                 FilesStorageService::migrationAction($conn, $analystId, (string)($in['action'] ?? ''));
@@ -59,18 +58,6 @@ filesApiRun(function () use ($conn, $analystId) {
         } catch (InvalidArgumentException $e) {
             filesApiFail($e->getMessage());
         }
-    }
-
-    if ($tab === 'recycle') {
-        requireCapabilityJson(Cap::FILES_RECYCLE, $conn);
-        // ?days=N also counts what saving N would let the next run delete (the page asks first).
-        if ($isGet) filesApiOk(FilesRecycleService::describe($conn, isset($_GET['days']) ? max(0, (int)$_GET['days']) : null));
-        try {
-            FilesRecycleService::saveRetention($conn, $analystId, (int)($in['days'] ?? -1));
-        } catch (InvalidArgumentException $e) {
-            filesApiFail($e->getMessage());
-        }
-        filesApiOk(FilesRecycleService::describe($conn));
     }
 
     if ($tab === 'versions') {

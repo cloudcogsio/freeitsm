@@ -40,8 +40,8 @@ foreach (getMaintenanceTools() as $tool) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('system', t('system.maintenance.heading'))); ?></title>
-    <link rel="stylesheet" href="<?php echo $path_prefix; ?>assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="<?php echo $path_prefix; ?>assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="<?php echo $path_prefix; ?>assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="<?php echo $path_prefix; ?>assets/css/inbox.css?v=97">
     <style>
         body {
             /* System's dark accent is a LIGHT colour, so --on-accent is pinned too
@@ -55,12 +55,12 @@ foreach (getMaintenanceTools() as $tool) {
         /* Page layout, title and subtitle: assets/css/system-page.css (.sys-page on .landing-content). */
 
         .maint-search { position: relative; max-width: 420px; margin: 0 0 30px; }
-        .maint-search input { width: 100%; padding: 11px 14px 11px 40px; border: 1px solid var(--border, #d6dde3); border-radius: 8px; font-size: 14px; background: var(--surface, #fff); color: var(--text, #333); box-sizing: border-box; transition: border-color 0.15s, box-shadow 0.15s; }
+        .maint-search input { width: 100%; padding: 11px 14px 11px 40px; border: 1px solid var(--border, #d6dde3); border-radius: 8px; font-size: var(--font-size-lg, 14px); background: var(--surface, #fff); color: var(--text, #333); box-sizing: border-box; transition: border-color 0.15s, box-shadow 0.15s; }
         .maint-search input::placeholder { color: var(--text-faint, #999); }
         .maint-search input:focus { outline: none; border-color: var(--sys-accent, #546e7a); box-shadow: 0 0 0 3px rgba(84,110,122,0.12); }
         .maint-search svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--text-faint, #9aa7b0); pointer-events: none; }
 
-        .maint-no-results { display: none; text-align: center; color: var(--text-dim, #888); font-size: 14px; margin-top: 8px; }
+        .maint-no-results { display: none; text-align: center; color: var(--text-dim, #888); font-size: var(--font-size-lg, 14px); margin-top: 8px; }
 
         .maint-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
         .maint-card { background: var(--surface, #fff); border-radius: 10px; padding: 20px 18px; box-shadow: 0 2px 12px var(--shadow, rgba(0,0,0,0.08)); text-decoration: none; color: inherit; transition: transform 0.15s, box-shadow 0.15s; border: 2px solid transparent; display: flex; flex-direction: column; }
@@ -68,11 +68,11 @@ foreach (getMaintenanceTools() as $tool) {
         .maint-card.is-hidden { display: none; }
         .maint-card-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
         .maint-card-top svg { width: 26px; height: 26px; color: var(--sys-accent, #546e7a); flex-shrink: 0; }
-        .maint-card h3 { margin: 0 0 5px; font-size: 15.5px; color: var(--text, #333); }
-        .maint-card p { margin: 0; font-size: 12.5px; color: var(--text-dim, #888); line-height: 1.45; }
+        .maint-card h3 { margin: 0 0 5px; font-size: var(--font-size-xl, 16px); color: var(--text, #333); }
+        .maint-card p { margin: 0; font-size: var(--font-size-md, 13px); color: var(--text-dim, #888); line-height: 1.45; }
 
         /* The count: amber when there is something to look at, quiet when not. */
-        .maint-count { margin-left: auto; font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 10px; white-space: nowrap; }
+        .maint-count { margin-left: auto; font-size: var(--font-size-sm, 12px); font-weight: 600; padding: 3px 9px; border-radius: 10px; white-space: nowrap; }
         .maint-count.has-items { background: #fff4e5; color: #9a5b00; }
         .maint-count.is-clear  { background: var(--surface-3, #f2f4f5); color: var(--text-dim, #888); font-weight: 500; }
 
@@ -168,6 +168,6 @@ foreach (getMaintenanceTools() as $tool) {
         });
     })();
     </script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

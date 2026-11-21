@@ -61,6 +61,7 @@ return [
         'intro' => 'Hvem der rapporterer til hvem, ud fra den leder, der er registreret ved hver person - via katalogsynkronisering eller manuelt i Sager → Brugere.',
         'search' => 'Find en person',
         'search_ph' => 'Navn, e-mail, jobtitel...',
+        'search_ph_names' => 'Navn, jobtitel, afdeling...',   // the portal's search, which does not look in email (GH #414)
         'no_results' => 'Ingen matcher.',
         'view' => 'Vis',
         'view_tree' => 'Træ',
@@ -69,7 +70,9 @@ return [
         'loading' => 'Indlæser...',
         'empty' => 'Ingen har endnu en registreret leder, så der er intet diagram at tegne. Ledere kommer fra katalogsynkronisering eller angives i Sager → Brugere.',
         'not_found' => 'Den person er ikke i det diagram, du kan se.',
+        'on_own' => '{name} har ingen leder, og ingen refererer til dem, så de vises alene.',   // GH #414
         'leaver' => 'Fratrådt',
+        'you' => 'Dig',   // the reader, on the portal's chart (GH #414)
         'reports_n' => '{n} rapporterer til vedkommende',
         'reports_total' => '{n} rapporterer til vedkommende, {total} i alt under vedkommende',
         'expand' => 'Vis, hvem der rapporterer til {name}',
@@ -328,7 +331,7 @@ return [
         'first_seen' => 'Først set',
         'left' => 'Fratrådt',
         'leaver' => 'Fratrådt',
-        'edit_in' => 'Redigér i',
+        'open_in' => 'Åbn i',   // GH #397: Edit is on the page; these only open
         'tickets_app' => 'Sager',
         'assets_app' => 'Aktiver',
         'org' => 'Organisation',
@@ -519,8 +522,8 @@ return [
         'edit' => [
             'nav' => 'Ændring af en person',
             'title' => 'Ændring af en persons oplysninger',
-            'intro' => 'Personer læser. Oplysninger opbevares og ændres, hvor de altid har været.',
-            'p1' => '**Redigér i → Sager** eller **Aktiver** øverst på en persons side åbner dem i Sager → Brugere eller Aktiver → Brugere, hvor deres oplysninger, leder og login redigeres - den samme editor fra begge.',
+            'intro' => 'De fleste oplysninger kan ændres lige her.',
+            'p1' => '**Redigér** øverst på en persons side ændrer deres oplysninger, leder og login uden at forlade Personer - den samme editor som Sager → Brugere og Aktiver → Brugere, og den vises for alle, der kan åbne en af dem. **Åbn i → Sager** eller **Aktiver** åbner i stedet personen i det modul.',
             'p2' => 'En person, hvis oplysninger kommer fra et katalog eller en adressebog, opdateres dér, som før; deres side her viser blot resultatet.',
         ],
         'who' => [

@@ -53,8 +53,8 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('process-mapper')); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <link rel="stylesheet" href="../assets/css/process-mapper.css?v=13">
     <link rel="stylesheet" href="../assets/css/hover-preview.css?v=1">
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
@@ -206,7 +206,7 @@ try {
                     </div>
                 </div>
                 <hr style="margin: 16px 0; border: none; border-top: 1px solid #e0e0e0;">
-                <h4 style="margin-bottom: 12px; font-size: 13px; color: #666;"><?php echo htmlspecialchars(t('process-mapper.detail.connectors')); ?></h4>
+                <h4 style="margin-bottom: 12px; font-size: var(--font-size-md, 13px); color: #666;"><?php echo htmlspecialchars(t('process-mapper.detail.connectors')); ?></h4>
                 <div id="detailConnectors"></div>
             </div>
             <!-- Lane detail body (shown when a lane is selected) -->
@@ -234,7 +234,7 @@ try {
                     <label class="form-label"><?php echo htmlspecialchars(t('process-mapper.detail.order')); ?></label>
                     <input type="number" class="form-input" id="detailLaneOrder" min="0" onchange="PM.updateLaneFromDetail()">
                 </div>
-                <p style="font-size: 12px; color: #888; line-height: 1.5; margin-top: 8px;">
+                <p style="font-size: var(--font-size-sm, 12px); color: #888; line-height: 1.5; margin-top: 8px;">
                     <?php echo htmlspecialchars(t('process-mapper.detail.lane_hint')); ?>
                 </p>
             </div>
@@ -510,6 +510,6 @@ try {
     <script src="../assets/js/pdf-writer.js?v=2"></script>   <!-- the shared PDF writer: PDFKit + bundled fonts (GH #254) -->
     <script src="../assets/js/hover-preview.js?v=1"></script>
     <script src="../assets/js/process-mapper.js?v=21"></script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

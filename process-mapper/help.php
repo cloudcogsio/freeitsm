@@ -29,8 +29,8 @@ $translationNamespaces = ['common', 'process-mapper'];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('process-mapper', t('process-mapper.nav.help'))); ?></title>
-    <link rel="stylesheet" href="../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <?php echo Tz::scriptTag(); ?>
     <script src="../assets/js/tz.js?v=5"></script>
@@ -235,7 +235,7 @@ $translationNamespaces = ['common', 'process-mapper'];
                         </div>
                     </div>
 
-                    <h4 style="margin: 22px 0 8px; font-size: 15px; color: var(--text, #333);"><?php echo htmlspecialchars(t('process-mapper.help.step_types_custom_heading')); ?></h4>
+                    <h4 style="margin: 22px 0 8px; font-size: var(--font-size-xl, 16px); color: var(--text, #333);"><?php echo htmlspecialchars(t('process-mapper.help.step_types_custom_heading')); ?></h4>
                     <p><?php echo t('process-mapper.help.step_types_custom_body'); ?></p>
 
                     <p class="help-note"><?php echo t('process-mapper.help.step_types_tip'); ?></p>
@@ -249,7 +249,7 @@ $translationNamespaces = ['common', 'process-mapper'];
                     </div>
                     <p><?php echo t('process-mapper.help.connectors_intro'); ?></p>
 
-                    <h4 style="margin: 22px 0 8px; font-size: 15px; color: var(--text, #333);"><?php echo htmlspecialchars(t('process-mapper.help.connectors_drawing_heading')); ?></h4>
+                    <h4 style="margin: 22px 0 8px; font-size: var(--font-size-xl, 16px); color: var(--text, #333);"><?php echo htmlspecialchars(t('process-mapper.help.connectors_drawing_heading')); ?></h4>
                     <div class="help-steps">
                         <div class="help-step">
                             <div class="help-step-num">1</div>
@@ -277,7 +277,7 @@ $translationNamespaces = ['common', 'process-mapper'];
                         </div>
                     </div>
 
-                    <h4 style="margin: 26px 0 8px; font-size: 15px; color: var(--text, #333);"><?php echo htmlspecialchars(t('process-mapper.help.connectors_menu_heading')); ?></h4>
+                    <h4 style="margin: 26px 0 8px; font-size: var(--font-size-xl, 16px); color: var(--text, #333);"><?php echo htmlspecialchars(t('process-mapper.help.connectors_menu_heading')); ?></h4>
                     <p><?php echo t('process-mapper.help.connectors_menu_intro'); ?></p>
                     <div class="help-cards cols-3">
                         <div class="help-card">
@@ -492,6 +492,6 @@ $translationNamespaces = ['common', 'process-mapper'];
             });
         });
     </script>
-    <script src="../assets/js/mobile.js?v=83"></script>
+    <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

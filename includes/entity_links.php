@@ -115,15 +115,13 @@ function entityLink(string $type, int $id): ?string {
         case 'virt_connection':
             return 'asset-management/servers/';
 
+        // A consumable item (5.8.0) - the low-stock bell opens it.
+        case 'consumable':
+            return 'asset-management/consumables/?item=' . $id;
+
         // The help assistant's unanswered questions - one list, whatever the id.
         case 'help_unanswered':
             return 'system/help-assistant/#unanswered';
-
-        // Storage changes (storage series N1) - one page each, whatever the id.
-        case 'storage':
-            return 'system/storage/';
-        case 'files_storage':
-            return 'files/settings/?tab=storage';
     }
 
     return null;
@@ -139,7 +137,6 @@ function entityLinkTypes(): array {
     return [
         'ticket', 'task', 'problem', 'change',
         'asset', 'cmdb_object', 'knowledge_article', 'contract', 'domain', 'project',
-        'person', 'company', 'supplier', 'supplier_contact', 'jml_case', 'help_unanswered', 'virt_connection',
-        'storage', 'files_storage',
+        'person', 'company', 'supplier', 'supplier_contact', 'jml_case', 'help_unanswered', 'virt_connection', 'consumable',
     ];
 }

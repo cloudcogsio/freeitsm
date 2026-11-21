@@ -174,7 +174,7 @@ return [
     'projects' => [
         'metric_red' => 'Vom Kurs abgewichen',
         'metric_amber' => 'Gefährdet',
-        'metric_week' => 'Termine diese Woche',
+        'metric_week'    => 'Projekte mit Terminen diese Woche',
         'off_track' => '{name} weicht vom Kurs ab',
         'more_off_track' => '<span class="wt-attention-bold">{count}</span> weitere(s) Projekt(e) vom Kurs abgewichen',
         'breaches' => '<span class="wt-attention-bold">{count}</span> Projekt(e) jenseits einer Toleranz',
@@ -193,6 +193,7 @@ return [
         'metric_total' => 'Gesamt',
         'metric_offline' => 'Offline',
         'metric_lease' => 'Leasing',
+        'metric_consumables' => 'Niedriger Bestand',   // Consumables (5.8.0)
         'metric_warranty' => 'Garantie',
         'warranty' => '<span class="wt-attention-bold">{count}</span> Asset(s) mit abgelaufener oder innerhalb von {days} Tagen ablaufender Garantie',
         'lease' => '<span class="wt-attention-bold">{count}</span> Asset(s), deren Leasing beendet ist oder innerhalb von {days} Tagen endet',
@@ -237,7 +238,7 @@ return [
         's1_feat3_title' => 'Automatische Aktualisierung',
         's1_feat3_desc' => 'Das Dashboard aktualisiert sich automatisch alle 5 Minuten, sodass die Informationen ohne manuelles Zutun aktuell bleiben. Lassen Sie Watchtower geöffnet, und es hält sich im Hintergrund selbst auf dem neuesten Stand.',
         's1_feat4_title' => 'Direkter Zugriff',
-        's1_feat4_desc' => 'Springen Sie direkt von der Karte in jedes Modul. Jeder Modulname ist ein anklickbarer Link, der Sie direkt in den relevanten Bereich führt, sodass Sie Probleme angehen können, ohne die richtige Seite suchen zu müssen.',
+        's1_feat4_desc' => 'Jede Zahl auf einer Karte ist ein Link, ebenso das Symbol jeder Karte. Klicken Sie auf eine Zahl, und das Modul öffnet sich bereits gefiltert auf genau das, was diese Zahl gezählt hat - ein Ticketstatus öffnet die Ticketliste mit diesem Status, Verträge, die in 30 Tagen enden, öffnen genau diese Verträge - mit einem Chip oder einem hervorgehobenen Ordner, der erklärt, warum die Liste kürzer ist. Entfernen Sie ihn, und Sie sind wieder in der normalen Liste.',
         's2_title' => 'Das Dashboard-Layout',
         's2_p1' => 'Das Watchtower-Dashboard verwendet ein responsives 3-Spalten-Raster aus Modulkarten. Auf kleineren Bildschirmen passt sich das Raster auf 2 Spalten oder eine einzelne Spalte an, sodass es auf jedem Gerät funktioniert. Über dem Raster befindet sich die Titelleiste mit einer Schaltfläche zum Aktualisieren und einem Zeitstempel „Aktualisiert“, der anzeigt, wann die Daten zuletzt abgerufen wurden.',
         's2_p2' => 'Jede Karte im Raster folgt einer einheitlichen Struktur, damit Sie sie schnell überfliegen können:',
@@ -334,5 +335,9 @@ return [
         'impersonal_show' => 'Weiter anzeigen',
         'impersonal_hide' => 'Ausblenden',
         'impersonal_note' => 'Servicestatus, Workflows, Geräte, der gemeinsame Kalender, Verträge, Wissen, Software-Lizenzen und Domänen gehören dem Team und nicht einer Person, daher lassen sie sich nicht auf Sie einschränken. Sie zu behalten ist die sicherere Antwort: Ein beeinträchtigter Service sollte als Letztes verschwinden, nur weil Sie zu einer persönlichen Ansicht gewechselt haben.',
+        // Discussion #388
+        'refresh_heading' => 'Watchtower aktualisiert alle',
+        'refresh_minutes' => '{n} Min.',
+        'refresh_note' => 'Kürzer passt zu einem Bildschirm an der Wand: Ein nur dafür angemeldeter Benutzer bleibt angemeldet, und das Dashboard aktualisiert sich selbst.',
     ],
 ];

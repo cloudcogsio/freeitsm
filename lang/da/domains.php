@@ -1274,6 +1274,7 @@ return [
             'p2' => 'Herefter holder den løbende øje: registry-oplysningerne opdateres efter en tidsplan, tjekkene kører dagligt, og alt vigtigt, der ændrer sig - navneserverne, registratoren, en lås der fjernes - bliver registreret og, hvis du vil, sendt på e-mail med det samme.',
             'p3' => 'Udløbs- og certifikatadvarsler går til hvert domænes ejer (eller en liste) som én digest pr. person i stedet for én e-mail pr. domæne. De når også notifikationsklokken og arbejdsgange, så et domæne, der er ved at udløbe, kan oprette en sag, en opgave eller skrive i en chatkanal.',
             'p4' => 'Et domæne hænger også sammen med resten af FreeITSM: de CMDB-elementer, der afhænger af det, sagerne om det, dets driftsvejledninger i Viden, dets kontrakt og de Servicestatus-tjenester, der kører på det - som kan markeres eller få oprettet en hændelse, når domænet udløber. Se **Forbindelser** og **Servicestatus** nedenfor.',
+            'p5' => '**Gem visning** i registrets værktøjslinje gemmer de kolonner, den sortering og de filtre, du har valgt, under et navn, og **Visninger** åbner biblioteket. Registret husker den visning, du sidst valgte, og åbner med den næste gang, i enhver browser - indtil du vælger en anden eller bruger **Nulstil**, hvorefter det igen åbner med din standardvisning.',
         ],
         'adding' => [
             'nav' => 'Tilføj domæner',
@@ -1440,5 +1441,11 @@ return [
             'p3' => 'Godkendelseskoder returneres aldrig af API\'et.',
             'p4' => 'Forbindelser (CMDB-elementer, sager, driftsvejledninger, Servicestatus-tjenester) er endnu ikke i REST API\'et - de oprettes og læses på skærmene.',
         ],
+    ],
+    // Watchtower links that open the list already filtered (discussion #388)
+    'watch_filter' => [
+        'expiring' => 'Udløber inden for {days} dage',
+        'ssl' => 'Certifikat udløbet eller udløber inden for {days} dage',
+        'remove' => 'Fjern dette filter',
     ],
 ];

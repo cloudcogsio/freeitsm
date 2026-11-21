@@ -61,6 +61,7 @@ return [
         'intro' => 'Kto komu podlega, na podstawie przełożonego zapisanego przy każdej osobie - przez synchronizację katalogu lub ręcznie w Zgłoszenia → Użytkownicy.',
         'search' => 'Znajdź kogoś',
         'search_ph' => 'Imię i nazwisko, e-mail, stanowisko...',
+        'search_ph_names' => 'Imię i nazwisko, stanowisko, dział...',   // the portal's search, which does not look in email (GH #414)
         'no_results' => 'Nikt nie pasuje.',
         'view' => 'Widok',
         'view_tree' => 'Drzewo',
@@ -69,7 +70,9 @@ return [
         'loading' => 'Ładowanie...',
         'empty' => 'Nikt nie ma jeszcze zapisanego przełożonego, więc nie ma schematu do narysowania. Przełożeni pochodzą z synchronizacji katalogu lub są ustawiani w Zgłoszenia → Użytkownicy.',
         'not_found' => 'Tej osoby nie ma na schemacie, który możesz zobaczyć.',
+        'on_own' => '{name} nie ma przełożonego ani podwładnych, więc jest pokazana osobno.',   // GH #414
         'leaver' => 'Odchodzący',
+        'you' => 'Ty',   // the reader, on the portal's chart (GH #414)
         'reports_n' => 'Podlega mu: {n}',
         'reports_total' => 'Podlega mu: {n}, łącznie pod nim: {total}',
         'expand' => 'Pokaż, kto podlega: {name}',
@@ -328,7 +331,7 @@ return [
         'first_seen' => 'Po raz pierwszy widziano',
         'left' => 'Odejście',
         'leaver' => 'Odchodzący',
-        'edit_in' => 'Edytuj w',
+        'open_in' => 'Otwórz w',   // GH #397: Edit is on the page; these only open
         'tickets_app' => 'Zgłoszenia',
         'assets_app' => 'Zasoby',
         'org' => 'Organizacja',
@@ -519,8 +522,8 @@ return [
         'edit' => [
             'nav' => 'Zmiana danych',
             'title' => 'Zmiana danych osoby',
-            'intro' => 'Osoby tylko czytają. Dane są przechowywane i zmieniane tam, gdzie zawsze były.',
-            'p1' => '**Edytuj w → Zgłoszenia** lub **Zasoby** na górze strony osoby otwiera ją w Zgłoszenia → Użytkownicy lub Zasoby → Użytkownicy, gdzie edytuje się jej dane, przełożonego i logowanie - tym samym edytorem z obu miejsc.',
+            'intro' => 'Większość danych można zmienić bezpośrednio tutaj.',
+            'p1' => '**Edytuj** na górze strony osoby zmienia jej dane, przełożonego i logowanie bez wychodzenia z Osób - ten sam edytor co w Zgłoszenia → Użytkownicy i Zasoby → Użytkownicy, dostępny dla każdego, kto może otworzyć którykolwiek z nich. **Otwórz w → Zgłoszenia** lub **Zasoby** otwiera osobę w tym module.',
             'p2' => 'Osoba, której dane pochodzą z katalogu lub książki adresowej, jest aktualizowana tam, jak dotąd; jej strona tutaj po prostu pokazuje wynik.',
         ],
         'who' => [

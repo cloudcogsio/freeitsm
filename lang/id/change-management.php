@@ -44,6 +44,11 @@ return [
         'work' => 'Pekerjaan: {date}',
         'unassigned' => 'Belum ditugaskan',
     ],
+    // A list opened from a Watchtower count (discussion #388).
+    'link_filter' => [
+        'open' => 'Perubahan terbuka, sesuai hitungan Watchtower',
+        'remove' => 'Hapus filter',
+    ],
     'detail' => [
         'back' => 'Kembali',
         'share' => 'Bagikan',
@@ -332,6 +337,7 @@ return [
         'created' => 'Dibuat: {datetime}',
         'created_by' => 'Dibuat: {datetime} oleh {name}',
         'last_modified' => 'Terakhir Diubah: {datetime}',
+        'generated' => 'Dibuat {datetime}',   // the branded header (Ed, 2026-11-20)
     ],
     'approvals' => [
         'filter' => 'Filter',
@@ -366,6 +372,14 @@ return [
         'assigned_to' => 'Ditugaskan Kepada',
         'open_change' => 'Buka Perubahan',
     ],
+    // Preferences → Change list labels (Ed, 2026-11-20).
+    'list_labels' => [
+        'heading' => 'Label daftar perubahan',
+        'colour' => 'Berwarna',
+        'plain' => 'Teks biasa',
+        'note' => 'Cara Risiko, Prioritas, Jenis, dan Status ditampilkan di daftar perubahan: berwarna dengan titik, atau teks biasa.',
+    ],
+
     'table' => [
         'col_ref' => 'Ref',
         'col_title' => 'Judul',
@@ -871,6 +885,14 @@ return [
         'tip_attachments' => 'Lampiran',
         'tip_attachments_desc' => 'Unggah tangkapan layar, cadangan konfigurasi, atau email persetujuan bersama perubahan. Menambah atau menghapus file dicatat, beserta sidik jari file.',
         'tip_audit' => 'Jejak audit',
+        'tip_company'   => 'Memindahkan ke perusahaan lain',
+        'tip_company_desc' => 'Tercatat di perusahaan yang salah? Klik kanan perubahan dan pilih Pindahkan ke perusahaan (atau gunakan POST /changes/{id}/move-to-company di API). Tugas yang terhubung ke perubahan ikut pindah (ini juga memerlukan akses tulis ke Tugas). Tiket terlampir tidak: tiket harus sudah berada di perusahaan baru, jadi lepaskan tautan tiket yang belum. Pemindahan dicatat di linimasa Aktivitas.',
         'tip_audit_desc' => 'Setiap perubahan bidang dilacak di linimasa Aktivitas, dan setiap versi teks panjang disimpan secara utuh - buka dari "Lihat" atau tautan Versi pada bagian.',
+        'tip_labels' => 'Kolom berlabel',
+        'tip_labels_desc' => 'Daftar perubahan menampilkan Risiko, Prioritas, Jenis, dan Status dalam kolom berlabel (di ponsel, dengan label kecil sebelum setiap nilai). Pilih sendiri nilai berwarna dengan titik atau teks biasa di Preferensi → Label daftar perubahan.',
+        'tip_pdf' => 'Perubahan sebagai PDF',
+        'tip_pdf_desc' => 'Bagikan → Ekspor sebagai PDF menghasilkan dokumen dengan logo organisasi Anda (jika sudah diatur di Branding) dan namanya di bagian atas, lalu detail, rencana, matriks risiko, persetujuan, tinjauan pasca-implementasi, tiket tertaut, nama lampiran, dan aktivitas. Dokumen selalu digambar dengan tema terang, apa pun tema yang Anda gunakan.',
+        'tip_views' => 'Tampilan tabel tersimpan',
+        'tip_views_desc' => 'Di tabel, Simpan tampilan menyimpan kolom, urutan, dan filter dengan sebuah nama, dan Tampilan membuka pustakanya. Tabel mengingat tampilan yang terakhir Anda pilih dan membukanya lagi lain kali, di browser mana pun - sampai Anda memilih yang lain atau menggunakan Atur ulang, setelah itu tabel kembali dibuka dengan tampilan default Anda.',
     ],
 ];

@@ -26,8 +26,8 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(pageTitle('system', t('system.backups.title'))); ?></title>
-    <link rel="stylesheet" href="../../assets/css/theme.css?v=27">
-    <link rel="stylesheet" href="../../assets/css/inbox.css?v=96">
+    <link rel="stylesheet" href="../../assets/css/theme.css?v=29">
+    <link rel="stylesheet" href="../../assets/css/inbox.css?v=97">
     <style>
         body { --accent: var(--sys-accent, #546e7a); --accent-hover: var(--sys-accent-hover, #37474f); --on-accent: var(--sys-on-accent, #fff); }
         .main-container { flex: 1; background: var(--app-bg, #f5f7fa); overflow-y: auto; }
@@ -41,32 +41,32 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
             body > .main-container { display: block; height: auto; flex: 1 1 auto; min-height: 0; }
         }
         .bk-container { max-width: 960px; margin: 0 auto; padding: 30px 20px; }
-        .page-title { font-size: 22px; font-weight: 600; color: var(--text, #333); margin: 0 0 6px 0; }
-        .page-subtitle { font-size: 13px; color: var(--text-dim, #888); margin: 0 0 24px 0; }
+        .page-title { font-size: var(--font-size-4xl, 24px); font-weight: 600; color: var(--text, #333); margin: 0 0 6px 0; }
+        .page-subtitle { font-size: var(--font-size-md, 13px); color: var(--text-dim, #888); margin: 0 0 24px 0; }
         .bk-card { background: var(--surface, #fff); border: 1px solid var(--border, #e0e0e0); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
-        .bk-card h3 { margin: 0 0 4px 0; font-size: 16px; color: var(--text, #333); }
-        .bk-card .bk-hint { margin: 0 0 14px 0; font-size: 13px; color: var(--text-dim, #777); }
+        .bk-card h3 { margin: 0 0 4px 0; font-size: var(--font-size-xl, 16px); color: var(--text, #333); }
+        .bk-card .bk-hint { margin: 0 0 14px 0; font-size: var(--font-size-md, 13px); color: var(--text-dim, #777); }
         .bk-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
         .bk-field { display: flex; flex-direction: column; gap: 4px; min-width: 200px; flex: 1; }
-        .bk-field label { font-size: 12px; font-weight: 600; color: var(--text-dim, #666); }
-        .bk-field input, .bk-field select { padding: 8px 10px; border: 1px solid var(--border, #ccc); border-radius: 5px; font-size: 14px;
+        .bk-field label { font-size: var(--font-size-sm, 12px); font-weight: 600; color: var(--text-dim, #666); }
+        .bk-field input, .bk-field select { padding: 8px 10px; border: 1px solid var(--border, #ccc); border-radius: 5px; font-size: var(--font-size-lg, 14px);
                                             background: var(--input-bg, #fff); color: var(--text, #333); }
-        .bk-check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text, #333); }
+        .bk-check { display: flex; align-items: center; gap: 6px; font-size: var(--font-size-md, 13px); color: var(--text, #333); }
         .bk-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        .btn { padding: 8px 16px; border-radius: 5px; border: 1px solid var(--border, #ccc); background: var(--surface, #fff); color: var(--text, #333); cursor: pointer; font-size: 14px; }
+        .btn { padding: 8px 16px; border-radius: 5px; border: 1px solid var(--border, #ccc); background: var(--surface, #fff); color: var(--text, #333); cursor: pointer; font-size: var(--font-size-lg, 14px); }
         .btn:disabled { opacity: .55; cursor: default; }
         .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
         .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
-        .bk-msg { font-size: 13px; }
+        .bk-msg { font-size: var(--font-size-md, 13px); }
         .bk-msg.ok { color: var(--success, #2e7d32); }
         .bk-msg.err { color: var(--danger, #c62828); white-space: pre-line; }
         .bk-warning { background: var(--warn-bg, #fff8e1); border: 1px solid var(--warn-border, #ffe082); color: var(--text, #5d4037);
-                      border-radius: 6px; padding: 10px 12px; font-size: 13px; margin-bottom: 14px; }
-        .bk-status { font-size: 13px; color: var(--text, #333); margin-bottom: 12px; }
-        .bk-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+                      border-radius: 6px; padding: 10px 12px; font-size: var(--font-size-md, 13px); margin-bottom: 14px; }
+        .bk-status { font-size: var(--font-size-md, 13px); color: var(--text, #333); margin-bottom: 12px; }
+        .bk-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-md, 13px); }
         .bk-table th, .bk-table td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border, #eee); vertical-align: top; }
         .bk-table th { color: var(--text-dim, #666); font-weight: 600; }
-        .bk-pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; background: var(--chip-bg, #eceff1); }
+        .bk-pill { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: var(--font-size-sm, 12px); background: var(--chip-bg, #eceff1); }
         .bk-pill.ok { background: #e8f5e9; color: #2e7d32; }
         .bk-pill.failed { background: #ffebee; color: #c62828; }
         .bk-pill.running { background: #e3f2fd; color: #1565c0; }
@@ -74,16 +74,16 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
         [data-theme-mode="dark"] .bk-pill.failed { background: #4a1c1c; color: #ef9a9a; }
         [data-theme-mode="dark"] .bk-pill.running { background: #0d2a45; color: #90caf9; }
         [data-theme-mode="dark"] .bk-warning { background: #3a3220; border-color: #6d5a2a; color: var(--text); }
-        .bk-detail { color: var(--text-dim, #777); font-size: 12px; white-space: pre-line; margin-top: 4px; }
+        .bk-detail { color: var(--text-dim, #777); font-size: var(--font-size-sm, 12px); white-space: pre-line; margin-top: 4px; }
         .bk-hidden { display: none !important; }
         .bk-row-actions { white-space: nowrap; }
         .bk-row-actions .btn + .btn { margin-left: 6px; }
         .bk-restore { border: 1px solid var(--danger, #c62828); border-radius: 8px; padding: 16px; margin-bottom: 14px; }
-        .bk-restore h4 { margin: 0 0 10px 0; font-size: 15px; color: var(--text, #333); }
+        .bk-restore h4 { margin: 0 0 10px 0; font-size: var(--font-size-xl, 16px); color: var(--text, #333); }
         .btn-danger { background: var(--danger, #c62828); border-color: var(--danger, #c62828); color: #fff; }
         #bkLastRestore { display: block; margin-bottom: 12px; }
     </style>
-    <link rel="stylesheet" href="../../assets/css/mobile.css?v=196">
+    <link rel="stylesheet" href="../../assets/css/mobile.css?v=200">
 </head>
 <body data-mobile-module="system" data-mobile-page="backups">
     <?php include '../includes/header.php'; ?>
@@ -232,8 +232,8 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
     <script>window.translations = <?php echo json_encode(I18n::exportForJs($translationNamespaces), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE); ?>;</script>
     <script>window.BK_API = '<?php echo $path_prefix; ?>api/system/backups.php';</script>
     <script src="../../assets/js/tz.js?v=5"></script>
-    <script src="../../assets/js/i18n.js?v=3"></script>
+    <script src="../../assets/js/i18n.js?v=4"></script>
     <script src="../../assets/js/system-backups.js?v=2"></script>
-    <script src="../../assets/js/mobile.js?v=83"></script>
+    <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>
