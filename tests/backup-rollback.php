@@ -309,7 +309,8 @@ try {
     mkdir($filesDir);
     $files = new LocalDriver($filesDir);
     filesStorageReset();
-    FilesStorageCache::$drivers['active'] = new ZzRbFiles($files, filesActiveStore($conn));   // the install's own Files content stays readable
+    $realFiles = filesActiveStore($conn);
+    FilesStorageCache::$drivers['active'] = new ZzRbFiles($files, $realFiles);   // the install's own Files content stays readable
     $conn->prepare("INSERT INTO files_folders (name, created_by, created_datetime) VALUES ('ZZ rollback', ?, UTC_TIMESTAMP())")->execute([$admin]);
     $zzFolder = (int)$conn->lastInsertId();
     $cleanup[] = fn() => $conn->prepare("DELETE FROM files_folders WHERE name LIKE 'ZZ rollback%'")->execute();
@@ -327,6 +328,15 @@ try {
     };
     $fKept = $mkFile('files one');
     $fGone = $mkFile('files two');
+    // The real restore job further down runs in its own process with the install's real Files
+    // storage, so restoring a backup that lists these two writes their bytes there too: remove
+    // exactly these keys from the real storage at the end, and nothing else.
+    $cleanup[] = function () use ($realFiles, $fKept, $fGone) {
+        foreach ([$fKept, $fGone] as $k) {
+            try { if ($realFiles->size($k) !== null) $realFiles->delete($k); } catch (Throwable $e) { echo "  (could not remove the test's Files bytes {$k}: {$e->getMessage()})
+"; }
+        }
+    };
     $keyPath = "$work/keys/freeitsm.key";
     mkdir(dirname($keyPath));
     copy(ENCRYPTION_KEY_PATH, $keyPath);
