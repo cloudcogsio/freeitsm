@@ -136,6 +136,8 @@
         shortcut: svgIcon('<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 16c0-4.5 2.5-7 7-7M12 6l3 3-3 3"/>'),
         location: svgIcon('<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>'),
         restore: svgIcon('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>'),
+        offline: svgIcon('<path d="M20 16.6A5 5 0 0 0 18 7h-1.3A8 8 0 1 0 4 15.3"/><path d="M12 12v9M8 17l4 4 4-4"/>'),
+        offlineOff: svgIcon('<path d="M22.6 17.3A5 5 0 0 0 18 10h-1.3A8 8 0 0 0 9.3 4.2M5 5.4A8 8 0 0 0 4 16.3"/><line x1="1" y1="1" x2="23" y2="23"/>'),
         chevron: '<svg viewBox="0 0 10 10" width="10" height="10"><path d="M3 2l4 3-4 3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>'
     };
 
@@ -264,7 +266,7 @@
             include: L('ex.offline_include', 'Keep offline again')
         };
         return ['on', 'off', 'exclude', 'include'].filter(function (k) { return groups[k].length; }).map(function (k) {
-            return { label: labels[k], action: function () { setOffline(ex, groups[k], k); } };
+            return { label: labels[k], icon: (k === 'on' || k === 'include') ? IC.offline : IC.offlineOff, action: function () { setOffline(ex, groups[k], k); } };
         });
     }
 

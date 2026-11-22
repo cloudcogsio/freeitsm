@@ -73,7 +73,10 @@
         showMode();
         var why = !s.sodium ? t('err_sodium') : !s.target ? t('now_needs_target') : !s.has_passphrase ? t('now_needs_passphrase') : s.running ? t('now_running') : '';
         $('bkNowBtn').disabled = why !== '';
-        if (why) msg('bkNowMsg', why, s.running); else if ($('bkNowMsg').textContent === t('now_running')) msg('bkNowMsg', '');
+        // Clear a reason this shows itself once it no longer applies (a passphrase or target just
+        // set, a run finished), but never a message from Start itself.
+        if (why) { msg('bkNowMsg', why, s.running); state.nowWhy = why; }
+        else if (state.nowWhy && $('bkNowMsg').textContent === state.nowWhy) { msg('bkNowMsg', ''); state.nowWhy = ''; }
         renderLastRestore();
         renderRuns();
     }
