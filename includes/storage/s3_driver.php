@@ -148,7 +148,14 @@ final class S3Driver implements StorageDriver, StorageLister
 
     public function listObjects(string $prefix): array
     {
-        $keys  = [];
+        $keys = [];
+        $this->eachObject($prefix, function (string $key, int $size, int $mtime) use (&$keys) { $keys[$key] = ['size' => $size, 'mtime' => $mtime]; });
+        ksort($keys, SORT_STRING);
+        return $keys;
+    }
+
+    public function eachObject(string $prefix, callable $fn): void
+    {
         $token = null;
         do {
             $q = ['list-type' => '2', 'max-keys' => (string)$this->listPageSize, 'prefix' => $this->base . $prefix];
@@ -156,12 +163,10 @@ final class S3Driver implements StorageDriver, StorageLister
             $r = $this->call('GET', '', $q);
             $page = s3ParseListObjects((string)$r['body']);
             foreach ($page['objects'] as $k => $o) {
-                if (str_starts_with($k, $this->base)) $keys[substr($k, strlen($this->base))] = $o;
+                if (str_starts_with($k, $this->base)) $fn(substr($k, strlen($this->base)), (int)$o['size'], (int)$o['mtime']);
             }
             $token = $page['next'];
         } while ($token !== null);
-        ksort($keys, SORT_STRING);
-        return $keys;
     }
 
     private function putMultipart(string $objectKey, string $localPath, int $size): void

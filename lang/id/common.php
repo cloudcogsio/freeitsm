@@ -692,6 +692,11 @@ return [
             'consumable' => [
                 'low_stock' => 'Stok menipis - saatnya memesan ulang',
             ],
+            'backup' => [
+                'changed' => 'Pengaturan cadangan berubah',
+                'failed' => 'Pencadangan atau pemeriksaannya gagal',
+                'restore' => 'Pemulihan dimulai atau selesai',
+            ],
             'hyperv' => [
                 'collector' => 'Collector Hyper-V memerlukan perhatian Anda',
             ],
@@ -753,6 +758,11 @@ return [
             ],
             'consumable' => [
                 'low_stock' => 'Barang habis pakai turun ke titik pemesanan ulangnya (siapa yang diberi tahu dipilih di Aset -> Pengaturan -> Barang habis pakai)',
+            ],
+            'backup' => [
+                'changed' => 'Tujuan cadangan, frasa sandi cadangan, atau jadwal cadangan berubah (administrator dan pemegang izin Penyimpanan dan cadangan)',
+                'failed' => 'Pencadangan atau pemeriksaan cadangan gagal (administrator dan pemegang izin Penyimpanan dan cadangan)',
+                'restore' => 'Sebuah cadangan dipulihkan ke instalasi ini: saat dimulai, dan saat selesai atau gagal (administrator dan pemegang izin Penyimpanan dan cadangan)',
             ],
             'hyperv' => [
                 'collector' => 'Collector Hyper-V berhenti melapor, atau penyimpanan sebuah cluster tidak dapat dibaca (orang yang mengelola koneksi Hyper-V)',

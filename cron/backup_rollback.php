@@ -15,6 +15,9 @@ if (PHP_SAPI !== 'cli') {
     exit("Run from the command line.\n");
 }
 set_time_limit(0);
+// A backstop only: manifests and listings are streamed, but a very large install's sets still grow.
+$memoryLimit = (string)ini_get('memory_limit');
+if ($memoryLimit !== '-1' && preg_match('/^(\d+)M$/i', $memoryLimit, $mm) && (int)$mm[1] < 512) @ini_set('memory_limit', '512M');
 ignore_user_abort(true);
 
 $line = fgets(STDIN);
@@ -31,22 +34,31 @@ $by   = isset($opts['by']) && ctype_digit((string)$opts['by']) ? (int)$opts['by'
 
 $st = backupMaintenanceRead();
 if ($st === null || ($st['state'] ?? '') !== 'starting' || (string)($st['set'] ?? '') !== $set || (int)($st['by'] ?? 0) !== $by || $passphrase === '') {
+    // Maintenance mode waiting for exactly this restore, which cannot run without the passphrase:
+    // nothing has changed, so it is switched off now rather than left on until it counts as stopped.
+    if ($st !== null && ($st['state'] ?? '') === 'starting' && (string)($st['set'] ?? '') === $set && (int)($st['by'] ?? 0) === $by && empty($st['pid'])) {
+        backupMaintenanceEnd(['state' => 'failed', 'error' => backupMaintenanceT('mm_no_passphrase')]);
+    }
     fwrite(STDERR, "Not started from System -> Backups (maintenance mode is not waiting for this restore).\n");
     exit(2);
 }
-backupMaintenanceUpdate(['pid' => getmypid()], 'Restore started.');
+backupMaintenanceUpdate(['pid' => getmypid()], backupMaintenanceT('mm_job_started'));
+
+// A fatal error (out of memory, say) ends this process without run() finishing: say so at once
+// rather than leave maintenance mode on until the restore counts as stopped.
+register_shutdown_function('backupMaintenanceProcessEnded');
 
 try {
     $conn = connectToDatabase();
     $cfg = backupTargetConfig($conn);
-    if ($cfg === null) throw new RuntimeException('No backup target is set.');
+    if ($cfg === null) throw new RuntimeException(backupT('err_no_target'));
     $rb = new BackupRollback($conn, backupTargetDriver($cfg), $set, $passphrase, $by, dirname(__DIR__), (string)ENCRYPTION_KEY_PATH, filesActiveStore($conn));
     $r = $rb->run();
     echo 'Restore ' . $r['state'] . ($r['error'] ? ': ' . $r['error'] : '') . "\n";
     $code = $r['state'] === 'done' ? 0 : 1;
 } catch (Throwable $e) {
     // Before anything was restored (no database, no target): nothing changed, so let people back in.
-    backupMaintenanceUpdate([], 'Stopped: ' . $e->getMessage());
+    backupMaintenanceUpdate([], backupT('rb_stopped', ['error' => $e->getMessage()]));
     backupMaintenanceEnd(['state' => 'failed', 'error' => $e->getMessage()]);
     fwrite(STDERR, 'Restore failed: ' . $e->getMessage() . "\n");
     $code = 1;

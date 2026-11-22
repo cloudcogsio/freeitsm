@@ -10,6 +10,7 @@
 
 require_once __DIR__ . '/../backup/crypto.php';
 require_once __DIR__ . '/../backup/target.php';
+require_once __DIR__ . '/../backup/notify.php';
 require_once __DIR__ . '/../job_runs.php';
 require_once __DIR__ . '/../job_registry.php';
 require_once __DIR__ . '/../job_scheduler.php';
@@ -24,13 +25,15 @@ final class BackupsService
     public const KEEP_MAX = 365;
     /** A Verify still "running" after this long was killed (by a web server timeout): shown as interrupted. */
     public const VERIFY_STALE_SECONDS = 7200;
+    /** Watchtower asks for a Verify when none has passed for this many days (W7). */
+    public const VERIFY_DUE_DAYS = 30;
 
     /** Key derivation cost; tests lower it. Null = libsodium's MODERATE. */
     public static ?int $kdfOps = null;
     public static ?int $kdfMem = null;
 
-    /** Everything the page shows. Never contains a secret. */
-    public static function describe(PDO $conn): array
+    /** Everything the page shows. Never contains a secret. $canRestore: the viewer is an administrator (Restore). */
+    public static function describe(PDO $conn, bool $canRestore = false): array
     {
         $cfg = backupTargetConfig($conn);
         $target = null;
@@ -57,6 +60,7 @@ final class BackupsService
             'running'        => self::isRunning($conn),
             'last_restore'   => self::lastRestore(),
             'restore_confirm' => self::RESTORE_CONFIRM,
+            'can_restore'    => $canRestore,   // a restore replaces users and roles: administrators only
         ];
     }
 
@@ -125,11 +129,17 @@ final class BackupsService
     /** Saves the target after it passes test(). An existing keyring is written there too. */
     public static function saveTarget(PDO $conn, array $in, int $by): void
     {
+        self::withSettingsLock($conn, fn() => self::saveTargetLocked($conn, $in, $by));
+    }
+
+    private static function saveTargetLocked(PDO $conn, array $in, int $by): void
+    {
         $cfg = self::targetFromInput($in, $conn);
         if (self::isRunning($conn)) throw new BackupsInputError('err_running');
         if (!self::test($in, $conn)['ok']) throw new BackupsInputError('err_target_test');
         $keyring = backupKeyring($conn);
         if ($keyring !== null) backupWriteKeyring(backupTargetDriver($cfg), $keyring);
+        $before = backupTargetConfig($conn);
 
         backupSaveSetting($conn, 'backup_target', $cfg['type']);
         if ($cfg['type'] === 'folder') {
@@ -145,10 +155,22 @@ final class BackupsService
             backupSaveSetting($conn, 'backup_s3_secret', encryptValue($cfg['secret']));
             backupSaveSetting($conn, 'backup_s3_path_style', $cfg['path_style'] ? '1' : '0');
         }
+        // A copy of everything now goes somewhere else (wiki N2): tell the people concerned.
+        if ($before !== $cfg) {
+            $what = $before !== null && backupTargetLabel($before) === backupTargetLabel($cfg)
+                ? backupT('n_target_details', ['target' => backupTargetLabel($cfg), 'who' => self::who($conn, $by)])
+                : backupT('n_target_changed', ['target' => backupTargetLabel($cfg), 'before' => backupTargetLabel($before), 'who' => self::who($conn, $by)]);
+            backupNotify($conn, 'changed', backupT('n_target_title'), $what, $by);
+        }
     }
 
     /** First-time passphrase: creates the keypair, the pool name key and this install's id. */
     public static function setPassphrase(PDO $conn, string $pass, string $confirm, int $by): void
+    {
+        self::withSettingsLock($conn, fn() => self::setPassphraseLocked($conn, $pass, $confirm, $by));
+    }
+
+    private static function setPassphraseLocked(PDO $conn, string $pass, string $confirm, int $by): void
     {
         if (backupKeyring($conn) !== null) throw new BackupsInputError('err_passphrase_exists');
         self::checkNewPassphrase($pass, $confirm);
@@ -168,28 +190,43 @@ final class BackupsService
         if (backupSetting($conn, 'backup_install_id') === '') {
             backupSaveSetting($conn, 'backup_install_id', bin2hex(random_bytes(16)));
         }
+        backupNotify($conn, 'changed', backupT('n_pass_set_title'), backupT('n_pass_set', ['who' => self::who($conn, $by)]), $by);
     }
 
-    /** New passphrase for the same keys: every existing backup opens with it. */
+    /**
+     * A new passphrase, and with it a new keypair for everything backed up from now on
+     * (backupChangeKeyring()): the old passphrase opens nothing made after the change. The new
+     * one opens every backup; the old one still opens the backups made before, and the pooled
+     * files those hold.
+     */
     public static function changePassphrase(PDO $conn, string $old, string $new, string $confirm, int $by): void
     {
-        $kr = backupKeyring($conn);
-        if ($kr === null) throw new BackupsInputError('err_no_passphrase');
-        self::checkNewPassphrase($new, $confirm);
-        try {
-            $re = backupRekeyKeyring($kr, $old, $new);
-        } catch (BackupWrongPassphrase $e) {
-            throw new BackupsInputError('err_passphrase_wrong');
-        }
-        $cfg = backupTargetConfig($conn);
-        if ($cfg !== null) {
+        self::withSettingsLock($conn, function () use ($conn, $old, $new, $confirm, $by) {
+            $kr = backupKeyring($conn);
+            if ($kr === null) throw new BackupsInputError('err_no_passphrase');
+            self::checkNewPassphrase($new, $confirm);
+            $ticket = self::throttleKdf($conn, $by, 'check');
+            $wrong = false;
             try {
-                backupWriteKeyring(backupTargetDriver($cfg), $re);
-            } catch (Throwable $e) {
-                throw new BackupsInputError('err_target_unreachable');
+                $re = backupChangeKeyring($kr, $old, $new);
+            } catch (BackupWrongPassphrase $e) {
+                $wrong = true;   // the reservation stays: it counts as a wrong passphrase
+                throw new BackupsInputError('err_passphrase_wrong');
+            } finally {
+                if (!$wrong) self::kdfRelease($conn, $ticket);
             }
-        }
-        backupSaveSetting($conn, 'backup_keyring', json_encode($re));
+            $cfg = backupTargetConfig($conn);
+            if ($cfg !== null) {
+                try {
+                    backupWriteKeyring(backupTargetDriver($cfg), $re['keyring']);   // the old keyring is kept beside it
+                } catch (Throwable $e) {
+                    throw new BackupsInputError('err_target_unreachable');
+                }
+            }
+            backupSaveSetting($conn, 'backup_keyring', json_encode($re['keyring']));
+            backupSaveSetting($conn, 'backup_public_key', $re['public']);
+        });
+        backupNotify($conn, 'changed', backupT('n_pass_changed_title'), backupT('n_pass_changed', ['who' => self::who($conn, $by)]), $by);
     }
 
     /**
@@ -205,6 +242,7 @@ final class BackupsService
             throw new BackupsInputError('err_schedule_time');
         }
         if ($mode === 'weekly' && ($weekday === null || $weekday < 1 || $weekday > 7)) throw new BackupsInputError('err_schedule_day');
+        $before = self::scheduleLabel($conn);
 
         backupSaveSetting($conn, 'backup_schedule', $mode);
         backupSaveSetting($conn, 'backup_weekday', $mode === 'weekly' ? (string)$weekday : null);
@@ -212,6 +250,29 @@ final class BackupsService
         backupSaveSetting($conn, 'backup_keep_count', (string)$keep);
         // Weekly runs as a daily schedule; the job's "needed" says no on the other six days.
         jobScheduleSave($conn, 'backup', $mode === 'off' ? 'off' : 'daily', null, $mode === 'off' ? null : $time, $by);
+        $after = self::scheduleLabel($conn);
+        if ($after !== $before) {
+            backupNotify($conn, 'changed', backupT($mode === 'off' ? 'n_schedule_off_title' : 'n_schedule_title'),
+                backupT('n_schedule', ['after' => $after, 'before' => $before, 'who' => self::who($conn, $by)]), $by);
+        }
+    }
+
+    /** The schedule and keep count as people read them, e.g. "weekly on Sunday at 02:00, keep 7". */
+    private static function scheduleLabel(PDO $conn): string
+    {
+        $mode = self::scheduleMode($conn);
+        $keep = self::keepCount($conn);
+        if ($mode === 'off') return backupT('label_off', ['keep' => $keep]);
+        $time = backupSetting($conn, 'backup_time');
+        if ($mode === 'daily') return backupT('label_daily', ['time' => $time, 'keep' => $keep]);
+        $day = ['', 'day_mon', 'day_tue', 'day_wed', 'day_thu', 'day_fri', 'day_sat', 'day_sun'][(int)backupSetting($conn, 'backup_weekday', '0')] ?? '';
+        return backupT('label_weekly', ['day' => $day !== '' ? backupT($day) : '?', 'time' => $time, 'keep' => $keep]);
+    }
+
+    /** An analyst's name for a message, or "someone" when the id names nobody. */
+    private static function who(PDO $conn, int $id): string
+    {
+        return backupAnalystName($conn, $id);
     }
 
     /**
@@ -274,11 +335,19 @@ final class BackupsService
         $cfg = backupTargetConfig($conn);
         $kr  = backupKeyring($conn);
         if ($cfg === null || $kr === null) throw new BackupsInputError('err_not_set_up');
+        $ticket = self::throttleKdf($conn, $by, 'check');
+        $wrong = false;
         try {
-            backupUnlockKeyring($kr, $passphrase);   // say "wrong passphrase" before anything is marked running
+            $unlocked = backupUnlockKeyring($kr, $passphrase);   // say "wrong passphrase" before anything is marked running
+            backupForgetKeys($unlocked);
         } catch (BackupWrongPassphrase $e) {
+            $wrong = true;   // the reservation stays: it counts as a wrong passphrase
             throw new BackupsInputError('err_passphrase_wrong');
+        } finally {
+            if (!$wrong) self::kdfRelease($conn, $ticket);
         }
+        // One Verify at a time, and pruning (which could remove what is being read) waits for it.
+        if (!self::verifyLock($conn)) throw new BackupsInputError('err_verify_running');
         $conn->prepare("UPDATE backup_runs SET verify_status = 'running', verified_at = UTC_TIMESTAMP(), verified_by = ?, verify_detail = NULL WHERE id = ?")
              ->execute([$by, $runId]);
         // Keep going if the browser gives up, and record a fatal stop (PHP's time limit) as a failure.
@@ -301,11 +370,100 @@ final class BackupsService
         } catch (Throwable $e) {
             $r = ['ok' => false, 'checked' => 0, 'errors' => [$e->getMessage()]];
         }
-        $detail = $r['ok'] ? 'Files checked: ' . $r['checked'] : implode("\n", array_slice($r['errors'], 0, 50));
+        // A passed check can still carry a warning (an older backup's dump without an end record): on its own line.
+        $detail = $r['ok'] ? implode("\n", array_merge(['Files checked: ' . $r['checked']], $r['warnings'] ?? []))
+                           : implode("\n", array_slice($r['errors'], 0, 50));
         $conn->prepare('UPDATE backup_runs SET verify_status = ?, verified_at = UTC_TIMESTAMP(), verify_detail = ? WHERE id = ?')
              ->execute([$r['ok'] ? 'ok' : 'failed', $detail, $runId]);
         $finished = true;
+        $conn->prepare('SELECT RELEASE_LOCK(?)')->execute([backupVerifyLockName($conn)]);
+        if (!$r['ok']) {
+            // A backup that does not check out may not restore (wiki N2). Not the person who ran Verify: they see it.
+            backupNotify($conn, 'failed', backupT('n_verify_failed_title'), backupT('n_verify_failed', ['set' => $run['set_name'],
+                         'errors' => implode('; ', array_slice($r['errors'], 0, 3)), 'who' => self::who($conn, $by)]), $by, $runId);
+        }
         return $r;
+    }
+
+    /**
+     * May this analyst open System -> Backups? An administrator, or a holder of Storage and
+     * backups who can open Files - the same rule as the page and the API.
+     */
+    public static function mayOpen(PDO $conn, int $analystId): bool
+    {
+        if (analystIsAdmin($conn, $analystId)) return true;
+        require_once __DIR__ . '/../rbac.php';
+        return analystHasCapability($conn, $analystId, Cap::FILES_STORAGE_BACKUPS) && analystCanAccessModule($conn, $analystId, 'files');
+    }
+
+    /**
+     * What is wrong with backups, for Watchtower (wiki Storage-Series-Follow-Ups W6, W7); [] when
+     * nothing is - or backups were never set up (an install that does not use them sees nothing).
+     *
+     *   last_failed      the last backup failed, or was interrupted                      (red)
+     *   overdue          no backup within its schedule plus a day (since the last one,
+     *                    or since the schedule was set when there has been none)          (red)
+     *   verify_failed    the last Verify found a problem                                 (red)
+     *   never_verified   there are backups, but none has ever been checked with Verify   (amber)
+     *
+     * @param int|null $now  a Unix time (tests)
+     * @return array<int, array{key: string, severity: string, params: array}>
+     */
+    public static function attention(PDO $conn, ?int $now = null): array
+    {
+        $now ??= time();
+        if (backupTargetConfig($conn) === null || backupKeyring($conn) === null) return [];
+        try {
+            $runs = $conn->query("SELECT id, status, started_at, finished_at, error_text, verify_status, verified_at
+                                    FROM backup_runs WHERE kind IN ('scheduled', 'manual') ORDER BY id DESC LIMIT 200")->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            if ($e->getCode() === '42S02') return [];   // no history table yet: System -> Backups says so
+            throw $e;                                   // a failed lookup is not an answer (Watchtower says so)
+        }
+        $out = [];
+        $running = self::isRunning($conn);
+        $last = null;
+        foreach ($runs as $r) {
+            if ($r['status'] === 'running' && $running) continue;   // the one in progress: judged when it ends
+            $last = $r;
+            break;
+        }
+        if ($last !== null && $last['status'] !== 'ok') {
+            $out[] = ['key' => 'last_failed', 'severity' => 'red',
+                      'params' => ['when' => (string)$last['started_at'], 'error' => $last['status'] === 'running' ? null : (string)$last['error_text']]];   // null: interrupted
+        }
+        $mode = self::scheduleMode($conn);
+        if ($mode !== 'off') {
+            $lastOk = null;
+            foreach ($runs as $r) if ($r['status'] === 'ok') { $lastOk = (string)($r['finished_at'] ?: $r['started_at']); break; }
+            $since = $lastOk;
+            if ($since === null) {
+                $s = $conn->query("SELECT updated_datetime FROM job_schedules WHERE job_key = 'backup'")->fetchColumn();
+                $since = $s ? (string)$s : null;
+            }
+            $allowed = ($mode === 'weekly' ? 7 : 1) * 86400 + 86400;   // its schedule, plus a day
+            if ($since !== null && $now - strtotime($since . ' UTC') > $allowed) {
+                $out[] = ['key' => 'overdue', 'severity' => 'red', 'params' => ['since' => $since, 'never' => $lastOk === null]];
+            }
+        }
+        $lastVerify = null;
+        $everVerified = false;
+        $anyOk = false;
+        foreach ($runs as $r) {
+            if ($r['status'] === 'ok') $anyOk = true;
+            if ($r['verify_status'] === 'ok') $everVerified = true;
+            if (in_array($r['verify_status'], ['ok', 'failed'], true)
+                && ($lastVerify === null || (string)$r['verified_at'] > (string)$lastVerify['verified_at'])) $lastVerify = $r;   // the latest check, of any backup
+        }
+        if ($lastVerify !== null && $lastVerify['verify_status'] === 'failed') {
+            $out[] = ['key' => 'verify_failed', 'severity' => 'red', 'params' => ['when' => (string)$lastVerify['verified_at']]];
+        } elseif ($anyOk && !$everVerified) {
+            $out[] = ['key' => 'never_verified', 'severity' => 'amber', 'params' => []];
+        } elseif ($lastVerify !== null && $now - strtotime($lastVerify['verified_at'] . ' UTC') > self::VERIFY_DUE_DAYS * 86400) {
+            // A backup only says its stored files are there at the right size; Verify reads them through.
+            $out[] = ['key' => 'verify_stale', 'severity' => 'amber', 'params' => ['when' => (string)$lastVerify['verified_at'], 'days' => self::VERIFY_DUE_DAYS]];
+        }
+        return $out;
     }
 
     /** What the administrator types to confirm a restore (shown on the page as it is, in every language). */
@@ -318,7 +476,7 @@ final class BackupsService
      *
      * @return array{run_id: int, set: string, created_at: ?string, app_version: ?string, files: int, size: ?int, key_differs: bool}
      */
-    public static function restoreCheck(PDO $conn, int $runId, string $passphrase): array
+    public static function restoreCheck(PDO $conn, int $runId, string $passphrase, int $by): array
     {
         require_once __DIR__ . '/../backup/restore.php';
         $s = $conn->prepare("SELECT set_name, status, kind, size_bytes FROM backup_runs WHERE id = ?");
@@ -329,37 +487,46 @@ final class BackupsService
         if ($cfg === null || backupKeyring($conn) === null) throw new BackupsInputError('err_not_set_up');
         if (!backupSodiumAvailable()) throw new BackupsInputError('err_sodium');
         $t = backupTargetDriver($cfg);
+        $ticket = self::throttleKdf($conn, $by, 'restore');
+        $wrong = false;
         try {
-            $open = backupOpenSet($t, (string)$run['set_name'], $passphrase);
-        } catch (BackupWrongPassphrase $e) {
-            throw new BackupsInputError('err_passphrase_wrong');
-        } catch (Throwable $e) {
-            error_log('[backups] restore check: ' . $e->getMessage());
-            throw new BackupsInputError('err_restore_unreadable');
-        }
-        // Only the CURRENT passphrase: an older one can still open an older backup, but not the
-        // safety backup taken first, which a failed restore must be able to put back.
-        try {
-            sodium_memzero(backupUnlockKeyring(backupKeyring($conn), $passphrase)['secret']);
-        } catch (BackupWrongPassphrase $e) {
-            sodium_memzero($open['keys']['secret']);
-            throw new BackupsInputError('err_restore_old_passphrase');
+            try {
+                $open = backupOpenSet($t, (string)$run['set_name'], $passphrase);
+            } catch (BackupWrongPassphrase $e) {
+                $wrong = true;   // the reservation stays: it counts as a wrong passphrase
+                throw new BackupsInputError('err_passphrase_wrong');
+            } catch (Throwable $e) {
+                error_log('[backups] restore check: ' . $e->getMessage());
+                throw new BackupsInputError('err_restore_unreadable');
+            }
+            // Only the CURRENT passphrase: an older one can still open an older backup, but not the
+            // safety backup taken first, which a failed restore must be able to put back.
+            try {
+                $current = backupUnlockKeyring(backupKeyring($conn), $passphrase);
+                backupForgetKeys($current);
+            } catch (BackupWrongPassphrase $e) {
+                backupCloseSet($open);
+                $wrong = true;
+                throw new BackupsInputError('err_restore_old_passphrase');
+            }
+        } finally {
+            if (!$wrong) self::kdfRelease($conn, $ticket);
         }
         try {
             $key = trim(backupDecryptString(backupReadString($t, 'sets/' . $run['set_name'] . '/key.bin'), $open['datakey']));
         } catch (Throwable $e) {
             throw new BackupsInputError('err_restore_unreadable');
         } finally {
-            sodium_memzero($open['keys']['secret']);
+            $m = $open['manifest'];
+            backupCloseSet($open);
         }
         $current = is_file(ENCRYPTION_KEY_PATH) ? trim((string)file_get_contents(ENCRYPTION_KEY_PATH)) : '';
-        $m = $open['manifest'];
         return [
             'run_id'      => $runId,
             'set'         => (string)$run['set_name'],
             'created_at'  => isset($m['created_at']) && strtotime((string)$m['created_at']) ? gmdate('Y-m-d H:i:s', strtotime((string)$m['created_at'])) : null,   // UTC, as the page's dates
             'app_version' => isset($m['app_version']) ? (string)$m['app_version'] : null,
-            'files'       => count((array)($m['files'] ?? [])),
+            'files'       => (int)($m['file_count'] ?? 0),
             'size'        => $run['size_bytes'] !== null ? (int)$run['size_bytes'] : null,
             'key_differs' => !hash_equals($current, $key),
         ];
@@ -378,7 +545,7 @@ final class BackupsService
         if (backupMaintenanceActive()) throw new BackupsInputError('err_maintenance_on');
         if (self::isRunning($conn)) throw new BackupsInputError('err_running');
         if (backupSetting($conn, 'files_storage_previous') !== '') throw new BackupsInputError('err_storage_moving');
-        $check = self::restoreCheck($conn, $runId, $passphrase);
+        $check = self::restoreCheck($conn, $runId, $passphrase, $by);
 
         $script = realpath(__DIR__ . '/../../cron/backup_rollback.php');
         require_once __DIR__ . '/../intune.php';   // intuneFindPhpExe(): the PHP the scheduler fallback uses
@@ -393,6 +560,8 @@ final class BackupsService
             backupMaintenanceEnd(['state' => 'failed', 'error' => 'The restore could not be started on the server.']);
             throw new BackupsInputError('err_spawn');
         }
+        // Told by email above all: the bell row is written to the database the restore replaces.
+        backupNotify($conn, 'restore', backupT('n_restore_started_title'), backupT('n_restore_started', ['set' => $check['set'], 'who' => self::who($conn, $by)]), $by);
         return $token;
     }
 
@@ -433,6 +602,84 @@ final class BackupsService
     }
 
     // ── internals ──
+
+    /** At most this many WRONG passphrases per analyst and kind of check, per window. */
+    public static int $kdfLimit = 10;   // tests change it
+    public const KDF_WINDOW_SECONDS = 300;
+
+    /**
+     * Reserves one passphrase check (Argon2id per keyring tried: slow and memory-hungry on purpose), or
+     * refuses it when this analyst already has $kdfLimit wrong passphrases - and checks still running -
+     * for this kind of check in the last KDF_WINDOW_SECONDS. Checked and reserved under the settings
+     * lock, so requests sent in parallel cannot all slip past the count. A check that turns out right
+     * gives its reservation back (kdfRelease()); a wrong one keeps it, so only wrong passphrases count.
+     * Per analyst, and restores ('restore') counted apart from Verify and passphrase changes ('check'):
+     * someone guessing cannot lock anyone else out, nor an administrator out of a restore.
+     *
+     * @return array{0: string, 1: string}  the reservation, for kdfRelease()
+     */
+    private static function throttleKdf(PDO $conn, int $by, string $kind): array
+    {
+        $slot = $kind . ':' . $by;
+        $ticket = time() . ':' . bin2hex(random_bytes(6));
+        self::withSettingsLock($conn, function () use ($conn, $slot, $ticket) {
+            $all = self::kdfFailures($conn);
+            if (count($all[$slot] ?? []) >= self::$kdfLimit) throw new BackupsInputError('err_throttled');
+            $all[$slot][] = $ticket;
+            backupSaveSetting($conn, 'backup_kdf_failures', json_encode($all));
+        });
+        return [$slot, $ticket];
+    }
+
+    /** Gives back a reservation (throttleKdf()): the passphrase was right, or it was never checked. */
+    private static function kdfRelease(PDO $conn, array $reservation): void
+    {
+        [$slot, $ticket] = $reservation;
+        self::withSettingsLock($conn, function () use ($conn, $slot, $ticket) {
+            $all = self::kdfFailures($conn);
+            $all[$slot] = array_values(array_diff($all[$slot] ?? [], [$ticket]));
+            if (!$all[$slot]) unset($all[$slot]);
+            backupSaveSetting($conn, 'backup_kdf_failures', json_encode($all));
+        });
+    }
+
+    /** @return array<string, string[]>  "<kind>:<analyst id>" => "<time>:<id>" of wrong (or running) checks within the window */
+    private static function kdfFailures(PDO $conn): array
+    {
+        $now = time();
+        $out = [];
+        foreach ((array)json_decode(backupSetting($conn, 'backup_kdf_failures', '{}'), true) as $k => $entries) {
+            $recent = array_values(array_filter((array)$entries, fn($e) => is_string($e) && (int)$e > $now - self::KDF_WINDOW_SECONDS));
+            if ($recent) $out[(string)$k] = $recent;
+        }
+        return $out;
+    }
+
+    /** Holds the Verify lock for this request: pruning skips while a Verify reads a backup. */
+    private static function verifyLock(PDO $conn): bool
+    {
+        $s = $conn->prepare('SELECT GET_LOCK(?, 0)');
+        $s->execute([backupVerifyLockName($conn)]);
+        return (int)$s->fetchColumn() === 1;
+    }
+
+    /**
+     * Runs $fn holding the backup settings lock, so two people saving the target or the passphrase
+     * at once cannot interleave their checks and writes (two first-time keyrings, a keyring written to
+     * one target and saved against another).
+     */
+    private static function withSettingsLock(PDO $conn, callable $fn): void
+    {
+        $name = 'freeitsm_backup_settings_' . substr(sha1((string)$conn->query('SELECT DATABASE()')->fetchColumn()), 0, 16);
+        $s = $conn->prepare('SELECT GET_LOCK(?, 10)');
+        $s->execute([$name]);
+        if ((int)$s->fetchColumn() !== 1) throw new BackupsInputError('err_busy');
+        try {
+            $fn();
+        } finally {
+            $conn->prepare('SELECT RELEASE_LOCK(?)')->execute([$name]);
+        }
+    }
 
     private static function checkNewPassphrase(string $pass, string $confirm): void
     {

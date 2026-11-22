@@ -2,8 +2,12 @@
 /**
  * POST {action: 'on'|'off'|'exclude'|'include', type: 'folder'|'item', id} - "Make
  * available offline" / "Remove offline copy" / "Don't keep offline" / "Keep offline
- * again" (includes/services/files_offline.php). Anyone who can see the folder may.
+ * again" (includes/services/files_offline.php).
+ * Changing what is kept offline needs Modify on the folder, or Cap::FILES_STORAGE.
  * POST {action: 'clear_all'} - "Remove all offline copies" (Cap::FILES_STORAGE).
+ * POST {action: 'limit', gb} - the limit on what offline copies use (Cap::FILES_STORAGE).
+ * POST {action: 'remove_old_folder', root} - Remove for an earlier storage folder that could
+ *      not be proved to be another place: probed again first (Cap::FILES_STORAGE).
  *
  * All are in the audit trail. Only offered while Files is stored in S3-compatible storage.
  */
@@ -19,6 +23,23 @@ filesApiRun(function () use ($conn, $analystId) {
     if ($action === 'clear_all') {
         requireCapabilityJson(Cap::FILES_STORAGE, $conn);
         filesApiOk(FilesOfflineService::clearAll($conn, $analystId));
+    }
+    if ($action === 'remove_old_folder') {
+        requireCapabilityJson(Cap::FILES_STORAGE, $conn);
+        try {
+            filesApiOk(FilesOfflineService::removeOldRoot($conn, $analystId, (string)($in['root'] ?? '')));
+        } catch (InvalidArgumentException $e) {
+            filesApiFail($e->getMessage());
+        }
+    }
+    if ($action === 'limit') {
+        requireCapabilityJson(Cap::FILES_STORAGE, $conn);
+        try {
+            FilesOfflineService::setLimit($conn, $analystId, (int)($in['gb'] ?? -1));
+        } catch (InvalidArgumentException $e) {
+            filesApiFail($e->getMessage());
+        }
+        filesApiOk(['ok' => true]);
     }
     $type   = (string)($in['type'] ?? '');
     $id     = (int)($in['id'] ?? 0);

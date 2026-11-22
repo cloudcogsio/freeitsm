@@ -59,7 +59,12 @@ function backupNewKeyring(string $passphrase, ?int $ops = null, ?int $mem = null
     return ['public' => base64_encode($public), 'keyring' => $keyring, 'pool_name_key' => $pool];
 }
 
-function backupLockKeyring(string $public, string $secret, string $pool, string $passphrase, int $ops, int $mem): array
+/**
+ * @param array $previous  earlier keypairs ([['public' => raw, 'secret' => raw], ...], newest first):
+ *                         the pool objects and sets made before a passphrase change were sealed to
+ *                         them, so the current passphrase must open them too
+ */
+function backupLockKeyring(string $public, string $secret, string $pool, string $passphrase, int $ops, int $mem, array $previous = []): array
 {
     $salt = random_bytes(SODIUM_CRYPTO_PWHASH_SALTBYTES);
     $k    = backupPassphraseKey($passphrase, $salt, $ops, $mem);
@@ -74,6 +79,12 @@ function backupLockKeyring(string $public, string $secret, string $pool, string 
         'secret_enc'   => base64_encode($n1 . sodium_crypto_secretbox($secret, $n1, $k)),
         'pool_key_enc' => base64_encode($n2 . sodium_crypto_secretbox($pool, $n2, $k)),
     ];
+    if ($previous) {
+        $n3 = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+        $plain = json_encode(array_map(fn($p) => [base64_encode($p['public']), base64_encode($p['secret'])], array_values($previous)));
+        $out['previous_enc'] = base64_encode($n3 . sodium_crypto_secretbox($plain, $n3, $k));
+        sodium_memzero($plain);
+    }
     sodium_memzero($k);
     return $out;
 }
@@ -107,19 +118,74 @@ function backupUnlockKeyring(array $keyring, string $passphrase): array
     $k = backupPassphraseKey($passphrase, $salt, $ops, $mem);
     $secret = sodium_crypto_secretbox_open(substr($se, $nb), substr($se, 0, $nb), $k);
     $pool   = $secret === false ? false : sodium_crypto_secretbox_open(substr($pe, $nb), substr($pe, 0, $nb), $k);
+    $previous = [];
+    if ($secret !== false && $pool !== false && isset($keyring['previous_enc'])) {
+        $ve = base64_decode((string)$keyring['previous_enc'], true);
+        $plain = is_string($ve) && strlen($ve) > $nb ? sodium_crypto_secretbox_open(substr($ve, $nb), substr($ve, 0, $nb), $k) : false;
+        $list = $plain === false ? null : json_decode($plain, true);
+        if (!is_array($list)) { sodium_memzero($k); throw new BackupCorrupt('The backup keyring is not readable.'); }
+        foreach ($list as $p) {
+            $previous[] = ['public' => (string)base64_decode((string)($p[0] ?? ''), true), 'secret' => (string)base64_decode((string)($p[1] ?? ''), true)];
+        }
+        sodium_memzero($plain);
+    }
     sodium_memzero($k);
     if ($secret === false || $pool === false) throw new BackupWrongPassphrase('The backup passphrase is not correct.');
-    return ['public' => $pub, 'secret' => $secret, 'pool_name_key' => $pool];
+    return ['public' => $pub, 'secret' => $secret, 'pool_name_key' => $pool, 'previous' => $previous];
 }
 
-/** The same keys under a new passphrase and salt: every existing backup opens with the new one. */
-function backupRekeyKeyring(array $keyring, string $old, string $new): array
+/**
+ * A passphrase change: a NEW keypair, locked with the new passphrase, for everything backed up
+ * from now on - so the old passphrase opens nothing made after the change. The pool name key
+ * stays (files already pooled are reused, not uploaded again), and the earlier keypairs travel
+ * inside, under the new passphrase, so it opens the older backups and pooled files too.
+ *
+ * What the OLD passphrase still opens: the backups made before the change (each keeps its copy
+ * of the keyring it was made with, and the target keeps the old keyring beside the new one),
+ * and the pooled files sealed before the change - including those a newer backup reuses.
+ *
+ * @return array{keyring: array, public: string}  public = the new public key, base64
+ * @throws BackupWrongPassphrase  the old passphrase does not open $keyring
+ */
+function backupChangeKeyring(array $keyring, string $old, string $new): array
 {
     $keys = backupUnlockKeyring($keyring, $old);
-    $out = backupLockKeyring($keys['public'], $keys['secret'], $keys['pool_name_key'], $new,
-                             (int)$keyring['ops'], (int)$keyring['mem']);
-    sodium_memzero($keys['secret']);
-    return $out;
+    $pair = sodium_crypto_box_keypair();
+    $public = sodium_crypto_box_publickey($pair);
+    $secret = sodium_crypto_box_secretkey($pair);
+    $previous = array_merge([['public' => $keys['public'], 'secret' => $keys['secret']]], $keys['previous']);
+    $out = backupLockKeyring($public, $secret, $keys['pool_name_key'], $new, (int)$keyring['ops'], (int)$keyring['mem'], $previous);
+    sodium_memzero($secret);
+    sodium_memzero($pair);
+    backupForgetKeys($keys);
+    return ['keyring' => $out, 'public' => base64_encode($public)];
+}
+
+/** Wipes the secret halves of unlocked keys (backupUnlockKeyring()). */
+function backupForgetKeys(array &$keys): void
+{
+    if (isset($keys['secret']) && is_string($keys['secret'])) sodium_memzero($keys['secret']);
+    foreach ($keys['previous'] ?? [] as $i => $p) {
+        if (is_string($p['secret'] ?? null)) sodium_memzero($keys['previous'][$i]['secret']);
+    }
+}
+
+/**
+ * Opens a sealed key with the current keypair or, failing that, an earlier one (a pool object or
+ * set sealed before a passphrase change).
+ *
+ * @throws BackupCorrupt  none of them opens it
+ */
+function backupOpenKeyAny(string $sealed, array $keys): string
+{
+    foreach (array_merge([['public' => $keys['public'], 'secret' => $keys['secret']]], $keys['previous'] ?? []) as $p) {
+        try {
+            return backupOpenKey($sealed, $p['public'], $p['secret']);
+        } catch (BackupCorrupt $e) {
+            // try the next one
+        }
+    }
+    throw new BackupCorrupt('A backup key could not be opened.');
 }
 
 /** Opaque, stable name for a pooled file: nothing in the bucket shows its real hash. */
@@ -133,9 +199,9 @@ function backupPoolName(string $poolNameKey, string $sha256hex): string
  * only bucket access (and the published public key) does not have. Covers the sealed
  * data key and the encrypted manifest; the manifest pins every other checksum.
  */
-function backupSetAuth(string $poolNameKey, string $set, string $datakeyBin, string $manifestBin): string
+function backupSetAuth(string $poolNameKey, string $set, string $datakeyBin, string $manifestSha256): string
 {
-    return hash_hmac('sha256', "FIBK-set-v1\n$set\n" . hash('sha256', $datakeyBin) . "\n" . hash('sha256', $manifestBin),
+    return hash_hmac('sha256', "FIBK-set-v1\n$set\n" . hash('sha256', $datakeyBin) . "\n" . $manifestSha256,
                      hash_hmac('sha256', 'set-auth', $poolNameKey, true));
 }
 

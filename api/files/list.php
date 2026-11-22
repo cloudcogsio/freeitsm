@@ -24,8 +24,7 @@ filesApiRun(function () use ($conn, $analystId) {
 
     // "Make available offline" badges: 'self' (marked), 'folder' (a marked folder above),
     // 'excluded' (left out of one), null.
-    $offMarks   = filesOfflineDisplayMarks($conn);   // null: none, or copies mean nothing here
-    $offFolders = filesOfflineCoveredFolders($conn, $offMarks);
+    $offCov = filesOfflineDisplayCoverage($conn);   // null: copies mean nothing here
 
     // Subfolders the caller can see.
     $childIds = [];
@@ -56,7 +55,7 @@ filesApiRun(function () use ($conn, $analystId) {
                 // caller may not see, which is fine: expanding one reveals nothing.
                 'has_children' => (int)$r['sub_count'] > 0,
                 'path'      => $folderId === 0 && $r['parent_id'] !== null ? FilesAcl::path($conn, $id) : null,
-                'offline'   => $offFolders[$id] ?? null,
+                'offline'   => $offCov ? $offCov->folder($id) : null,
             ];
         }
         usort($folders, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
@@ -64,15 +63,20 @@ filesApiRun(function () use ($conn, $analystId) {
 
     if ($treeOnly) filesApiOk(['folders' => $folders]);
 
+    // How far the copies have got: 'ready', 'pending' (still being copied), 'failed' (could
+    // not be copied; tried again later) or 'unknown'. A folder is ready once everything in it
+    // that this person can see is.
+    $offStates = $offCov ? filesOfflineFolderStates($conn, $offCov, $levels, array_column($folders, 'id')) : [];
+    foreach ($folders as &$f) $f['offline_status'] = $offStates[$f['id']] ?? null;
+    unset($f);
+
     $items = [];
     if ($folderId > 0) {
         $st = $conn->prepare("SELECT i.id, i.name, i.size_bytes, i.mime_type,
                                      COALESCE(i.updated_datetime, i.created_datetime) AS modified,
                                      COALESCE(u.full_name, c.full_name) AS modified_by,
-                                     (SELECT COUNT(*) FROM files_versions v WHERE v.item_id = i.id) AS versions,
-                                     cv.storage_path
+                                     (SELECT COUNT(*) FROM files_versions v WHERE v.item_id = i.id) AS versions
                                 FROM files_items i
-                           LEFT JOIN files_versions cv ON cv.id = i.current_version_id
                            LEFT JOIN analysts c ON c.id = i.created_by
                            LEFT JOIN analysts u ON u.id = i.updated_by
                                WHERE i.folder_id = ? AND i.deleted_datetime IS NULL");
@@ -86,11 +90,13 @@ filesApiRun(function () use ($conn, $analystId) {
                 'modified'    => $r['modified'],
                 'modified_by' => $r['modified_by'],
                 'versions'    => (int)$r['versions'],
-                'offline'     => $off = filesOfflineItemCoverage($offFolders, $offMarks, (int)$r['id'], $folderId),
-                // Covered but not copied yet: the job is still making it.
-                'offline_ready' => filesOfflineKept($off) && filesOfflineHasCopy($conn, (string)$r['storage_path'], (int)$r['size_bytes']),
+                'offline'     => $offCov ? $offCov->item((int)$r['id'], $folderId) : null,
             ];
         }
+        $kept = array_column(array_filter($items, fn($i) => filesOfflineKept($i['offline'])), 'id');
+        $offItems = $offCov ? filesOfflineItemStates($conn, $kept) : [];
+        foreach ($items as &$i) $i['offline_status'] = $offItems[$i['id']] ?? null;
+        unset($i);
         usort($items, fn($a, $b) => strnatcasecmp($a['name'], $b['name']));
     }
 
@@ -136,12 +142,14 @@ filesApiRun(function () use ($conn, $analystId) {
         'items'   => $items,
         'shortcuts' => $shortcuts,
         // Whether "Make available offline" means anything here (Files is in S3-compatible storage).
-        'offline_enabled' => $offMarks !== null,
+        'offline_enabled' => $offCov !== null,
         'can'     => [
             'upload' => $folderId > 0 ? $level >= FilesAcl::UPLOAD : filesHasCap($conn, $analystId, Cap::FILES_FOLDERS),
             'modify' => $level >= FilesAcl::MODIFY,
             'full'   => $level >= FilesAcl::FULL,
             'download' => $level >= FilesAcl::DOWNLOAD,
+            // Change what is kept offline anywhere they can see (otherwise Modify is needed).
+            'offline_any' => $offCov !== null && filesHasCap($conn, $analystId, Cap::FILES_STORAGE),
         ],
     ]);
 });

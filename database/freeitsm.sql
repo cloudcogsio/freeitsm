@@ -11205,12 +11205,38 @@ CREATE TABLE IF NOT EXISTS `files_offline` (
     UNIQUE KEY `uq_files_offline_target` (`target_type`, `target_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- The offline copies on the server, one row per stored file: 'ready' (a complete copy of
+-- size_bytes) or 'failed' (its copy failed at failed_datetime; tried again a day later).
+-- Written by includes/services/files_offline.php; read for the ticks and the Storage tab.
+CREATE TABLE IF NOT EXISTS `files_offline_copies` (
+    `id`                    INT NOT NULL AUTO_INCREMENT,
+    `storage_path`          VARCHAR(255) NOT NULL,                  -- yyyy/mm/dd/<hex>.bin
+    `size_bytes`            BIGINT NOT NULL DEFAULT 0,
+    `state`                 VARCHAR(10) NOT NULL,                   -- ready | failed
+    `failed_datetime`       DATETIME NULL,
+    `updated_datetime`      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_files_offline_copies_path` (`storage_path`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Where the kept files directly in each folder stand (0 ready, 1 failed, 2 pending), so a
+-- folder's offline tick is one lookup. Rewritten by the files_offline_sync job each run;
+-- set to pending by the service when something is added to copy.
+CREATE TABLE IF NOT EXISTS `files_offline_folders` (
+    `id`                    INT NOT NULL AUTO_INCREMENT,
+    `folder_id`             INT NOT NULL,
+    `state`                 TINYINT NOT NULL DEFAULT 2,
+    `updated_datetime`      DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),   -- to the millisecond: a run keeps rows marked pending after it began
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_files_offline_folders_folder` (`folder_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Backups (System -> Backups): one row per backup run, and the last on-demand
 -- verification of it. The backups themselves live on the backup target.
 -- See includes/backup/runner.php.
 CREATE TABLE IF NOT EXISTS `backup_runs` (
     `id`                    INT NOT NULL AUTO_INCREMENT,
-    `kind`                  VARCHAR(10) NOT NULL,                   -- scheduled | manual
+    `kind`                  VARCHAR(10) NOT NULL,                   -- scheduled | manual | safety (taken by a restore first) | restore
     `status`                VARCHAR(10) NOT NULL DEFAULT 'running', -- running | ok | failed
     `set_name`              VARCHAR(20) NULL,                       -- sets/<set_name>/ on the target
     `started_at`            DATETIME NOT NULL,

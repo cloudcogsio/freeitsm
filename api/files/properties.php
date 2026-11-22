@@ -11,11 +11,10 @@ require_once __DIR__ . '/../../includes/files/offline.php';
 filesApiRun(function () use ($conn, $analystId) {
     $type = ($_GET['type'] ?? '') === 'folder' ? 'folder' : 'item';
     $id   = (int)($_GET['id'] ?? 0);
-    $offMarks   = filesOfflineDisplayMarks($conn);
-    $offFolders = filesOfflineCoveredFolders($conn, $offMarks);
 
     if ($type === 'folder') {
         $lvl = filesNeed($conn, $analystId, $id, FilesAcl::VIEW);
+        $offCov = filesOfflineDisplayCoverage($conn);
         $st = $conn->prepare("SELECT f.*, c.full_name AS created_by_name, u.full_name AS updated_by_name
                                 FROM files_folders f
                            LEFT JOIN analysts c ON c.id = f.created_by
@@ -41,19 +40,18 @@ filesApiRun(function () use ($conn, $analystId) {
             'files'      => (int)$agg['n'],
             'size'       => (int)$agg['bytes'],
             'level'      => $lvl,
-            'offline'    => ['state' => $offFolders[$id] ?? null, 'ready' => null],
+            'offline'    => ['state' => $offCov ? $offCov->folder($id) : null,
+                             'status' => $offCov ? (filesOfflineFolderStates($conn, $offCov, FilesAcl::levels($conn, $analystId), [$id])[$id] ?? null) : null],
         ]]);
     }
 
     $it = filesNeedItem($conn, $analystId, $id, FilesAcl::VIEW);
     $lvl = FilesAcl::level($conn, $analystId, (int)$it['folder_id']);
+    $offCov = filesOfflineDisplayCoverage($conn);
     $st = $conn->prepare("SELECT v.id, v.version_no, v.size_bytes, v.mime_type, v.sha256, v.uploaded_datetime, v.note, v.restored_from_no, a.full_name AS uploaded_by
                             FROM files_versions v LEFT JOIN analysts a ON a.id = v.uploaded_by
                            WHERE v.item_id = ? ORDER BY v.version_no DESC");
     $st->execute([$id]);
-    $ck = $conn->prepare("SELECT storage_path FROM files_versions WHERE id = ?");
-    $ck->execute([(int)$it['current_version_id']]);
-    $curKey = $ck->fetchColumn();
     $c = $conn->prepare("SELECT full_name FROM analysts WHERE id = ?");
     $c->execute([(int)$it['created_by']]);
     filesAudit($conn, $analystId, 'browse', ['folder_id' => (int)$it['folder_id'], 'item_id' => $id, 'item_name' => $it['name']], ['properties' => true]);
@@ -73,7 +71,7 @@ filesApiRun(function () use ($conn, $analystId) {
         ], $st->fetchAll(PDO::FETCH_ASSOC)),
         'current_version_id' => (int)$it['current_version_id'],
         'level'      => $lvl,
-        'offline'    => ['state' => $off = filesOfflineItemCoverage($offFolders, $offMarks, $id, (int)$it['folder_id']),
-                         'ready' => filesOfflineKept($off) ? filesOfflineHasCopy($conn, (string)$curKey, (int)$it['size_bytes']) : null],
+        'offline'    => ['state' => $off = ($offCov ? $offCov->item($id, (int)$it['folder_id']) : null),
+                         'status' => filesOfflineKept($off) ? (filesOfflineItemStates($conn, [$id])[$id] ?? null) : null],
     ]]);
 });

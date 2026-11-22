@@ -4,8 +4,9 @@
  *
  * Makes the server copies that "Make available offline" asks for and that are not
  * there yet (files in a marked folder, restored files), removes copies nothing
- * covers any more, and forgets marks on things deleted for good. When Files is no
- * longer in S3-compatible storage at all, it removes every copy.
+ * covers any more, forgets marks on things deleted for good, and deletes the copies
+ * left in an old storage folder. When Files is no longer in S3-compatible storage at
+ * all, it removes every copy. A very large file is copied over several runs.
  * See includes/services/files_offline.php.
  *
  * Started by the built-in scheduler (cron/run.php) every five minutes, but only
@@ -44,7 +45,8 @@ try {
     $summary = sprintf('%d copied, %d removed, %d failed, %d skipped (retried in a day)%s%s.', $r['copied'], $r['removed'], $r['failed'], $r['skipped'],
                        $r['marks_dropped'] ? ', ' . $r['marks_dropped'] . ' marks on deleted items dropped' : '',
                        $r['disk_full'] ? ' (stopped: not enough free disk on this server)'
-                       : ($r['done'] ? '' : ' (more to do, or storage could not be reached: the next run carries on)'));
+                       : ($r['limit_reached'] ? ' (stopped: the offline copies reached their limit - Files -> Settings -> Storage)'
+                       : ($r['done'] ? '' : ' (more to do, or storage could not be reached: the next run carries on)')));
     $did = $r['copied'] + $r['removed'] + $r['marks_dropped'];
     JobRun::finish($conn, $runId, $r['failed'] ? ($did > 0 ? 'partial' : 'failed') : 'ok', $r, $summary);
     echo "Files offline copies: $summary\n";

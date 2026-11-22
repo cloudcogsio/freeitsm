@@ -114,6 +114,18 @@ function sessionCookieOptions(): array
 }
 
 /**
+ * Stamps the session with the current session epoch. Every step that makes a session signed in -
+ * or half signed in, waiting for its MFA code - calls it: a restore (System -> Backups) ends every
+ * session stamped before it, because ids may then belong to someone else
+ * (includes/backup/maintenance.php, backupSessionEpochGate()).
+ */
+function sessionStampEpoch(): void
+{
+    require_once __DIR__ . '/backup/maintenance.php';
+    $_SESSION['session_epoch'] = backupSessionEpoch();
+}
+
+/**
  * Call at every point that turns an anonymous session into an identified one, and
  * whenever a password changes.
  *
@@ -138,6 +150,7 @@ function sessionPromoteToAuthenticated(bool $newIdentity = true): void
     if ($newIdentity) {
         require_once __DIR__ . '/csrf.php';
         csrfRotate();
+        sessionStampEpoch();
     }
     if (headers_sent($file, $line)) {
         error_log("session_security: cannot rotate the session id, output already started at $file:$line");

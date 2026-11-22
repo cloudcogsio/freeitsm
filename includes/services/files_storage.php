@@ -68,15 +68,29 @@ final class FilesStorageService
         }
     }
 
-    /** What "Make available offline" copies use on this server, or null when it cannot be worked out. */
-    private static function offlineUsage(PDO $conn): ?array
+    /**
+     * "Make available offline" for the Storage tab: what the copies use ('usage'), what is
+     * marked and by how many people ('marks'), the limit and whether the job stopped at it.
+     * usage and marks are null before Database Verification; a read that fails sets
+     * 'error' rather than reporting nothing.
+     */
+    private static function offlineState(PDO $conn): array
     {
+        require_once __DIR__ . '/files_offline.php';
+        $out = ['usage' => null, 'marks' => null, 'error' => false];
         try {
-            require_once __DIR__ . '/files_offline.php';
-            return FilesOfflineService::usage($conn);
+            $out['usage'] = FilesOfflineService::usage($conn);
+            $out['marks'] = FilesOfflineService::summary($conn);
         } catch (Throwable $e) {
-            return null;
+            error_log('files storage: offline copies could not be read: ' . $e->getMessage());
+            $out['error'] = true;
         }
+        $out['limit']         = filesOfflineLimit($conn);
+        $out['limit_reached'] = filesSetting($conn, 'files_offline_limit_reached') === '1';
+        $out['limit_choices'] = FilesOfflineService::LIMIT_CHOICES_GB;
+        // Earlier storage folders not proved to be other places: never emptied without Remove.
+        $out['unproven'] = array_values(array_column(array_filter(FilesOfflineService::oldRoots($conn), fn($r) => !$r['proven']), 'root'));
+        return $out;
     }
 
     /** The Storage tab's data. The S3 secret is reported as set or not, never sent. */
@@ -99,12 +113,7 @@ final class FilesStorageService
             // Of those, what only deleted files use - purging the recycle bin frees it.
             'recycle'        => self::recycleUsage($conn),
             // Copies kept on this server by "Make available offline" (in the storage folder).
-            'offline'        => self::offlineUsage($conn),
-            // What is marked, and who by: "Remove all offline copies" undoes all of it.
-            'offline_marks'  => (function () use ($conn) {
-                try { require_once __DIR__ . '/files_offline.php'; return FilesOfflineService::summary($conn); }
-                catch (Throwable $e) { return null; }
-            })(),
+            'offline'        => self::offlineState($conn),
             'free_bytes'     => $driver === 'local' ? (@disk_free_space(is_dir($root) ? $root : dirname($root)) ?: null) : null,
             's3'             => [
                 'endpoint'      => filesSetting($conn, 'files_s3_endpoint'),
@@ -220,6 +229,17 @@ final class FilesStorageService
             throw new InvalidArgumentException('A move between storage locations is still running. Wait for it to finish (or remove the old copies) before changing again.');
         }
 
+        // Offline copies live under the storage folder. Whether a new folder is really another
+        // place is probed now (it writes a marker), so that inside the save only rows change.
+        $offlineRelation = null;
+        if ($oldRoot !== $rootAbs) {
+            $offlineRelation = 'none';
+            if (is_dir($oldRoot . '/offline')) {
+                try { $offlineRelation = storageLocationRelation(new LocalDriver($oldRoot), new LocalDriver($rootAbs)); }
+                catch (Throwable $e) { $offlineRelation = 'unknown'; }
+            }
+        }
+
         $own = !$conn->inTransaction();
         if ($own) $conn->beginTransaction();
         try {
@@ -243,22 +263,17 @@ final class FilesStorageService
                 filesSaveSetting($conn, 'files_s3_prefix', $s3['prefix']);
                 filesSaveSetting($conn, 'files_s3_path_style', $s3['path_style'] ? '1' : '0');
             }
+            if ($offlineRelation !== null) {
+                // The old folder's copies are deleted by the Files offline copies job, after the commit.
+                require_once __DIR__ . '/files_offline.php';
+                FilesOfflineService::storageFolderChanged($conn, $oldRoot, $rootAbs, $offlineRelation);
+            }
             if ($own) $conn->commit();
         } catch (Throwable $e) {
             if ($own && $conn->inTransaction()) $conn->rollBack();
             throw $e;
         }
         filesStorageReset();
-        // Offline copies live under the storage folder: a new one leaves the old copies
-        // where nothing reads or tidies them. The job makes new ones under the new folder.
-        if ($oldRoot !== $rootAbs) {
-            try {
-                require_once __DIR__ . '/files_offline.php';
-                FilesOfflineService::rootChanged($conn, $oldRoot, $rootAbs);
-            } catch (Throwable $e) {
-                error_log('files storage: could not remove the old offline copies: ' . $e->getMessage());
-            }
-        }
 
         filesAudit($conn, $analystId, 'settings', ['path' => '(Settings: storage)'], [
             'storage'        => self::label($next),

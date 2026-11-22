@@ -718,6 +718,12 @@ return [
             'consumable' => [
                 'low_stock' => 'Running low - time to reorder',
             ],
+            // Backups (#286) - administrators and holders of Storage and backups.
+            'backup' => [
+                'changed' => 'A backup setting changed',
+                'failed' => 'A backup, or a check of one, failed',
+                'restore' => 'A restore started or finished',
+            ],
             'hyperv' => [
                 'collector' => 'A Hyper-V collector needs your attention',
             ],
@@ -785,6 +791,11 @@ return [
             ],
             'consumable' => [
                 'low_stock' => 'A consumable falls to its reorder point (who is told is chosen in Assets -> Settings -> Consumables)',
+            ],
+            'backup' => [
+                'changed' => 'Where backups go, the backup passphrase or the backup schedule changes (administrators, and people with Storage and backups)',
+                'failed' => 'A backup, or a check of a backup (Verify), fails (administrators, and people with Storage and backups)',
+                'restore' => 'A backup is restored over this install: when it starts, and when it finishes or fails (administrators, and people with Storage and backups)',
             ],
             'hyperv' => [
                 'collector' => 'A Hyper-V collector stops reporting, or a cluster\'s storage cannot be read (people who manage Hyper-V connections)',

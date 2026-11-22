@@ -138,3 +138,9 @@ function backupWriteKeyring(StorageDriver $target, array $keyring): void
         @unlink($tmp);
     }
 }
+
+/** The lock a Verify holds while it reads a backup; pruning does nothing while it is held. */
+function backupVerifyLockName(PDO $conn): string
+{
+    return 'freeitsm_backup_verify_' . substr(sha1((string)$conn->query('SELECT DATABASE()')->fetchColumn()), 0, 16);
+}

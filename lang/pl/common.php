@@ -692,6 +692,11 @@ return [
             'consumable' => [
                 'low_stock' => 'Kończy się zapas - czas zamówić ponownie',
             ],
+            'backup' => [
+                'changed' => 'Zmieniono ustawienie kopii zapasowych',
+                'failed' => 'Kopia zapasowa lub jej sprawdzenie nie powiodły się',
+                'restore' => 'Rozpoczęto lub zakończono przywracanie',
+            ],
             'hyperv' => [
                 'collector' => 'Kolektor Hyper-V wymaga uwagi',
             ],
@@ -753,6 +758,11 @@ return [
             ],
             'consumable' => [
                 'low_stock' => 'Materiał eksploatacyjny spada do swojego progu zamówienia (kto dostaje powiadomienie, wybiera się w Zasoby -> Ustawienia -> Materiały eksploatacyjne)',
+            ],
+            'backup' => [
+                'changed' => 'Zmienia się miejsce docelowe, hasło lub harmonogram kopii zapasowych (administratorzy i osoby z uprawnieniem Magazyn i kopie zapasowe)',
+                'failed' => 'Kopia zapasowa lub sprawdzenie kopii zapasowej kończy się niepowodzeniem (administratorzy i osoby z uprawnieniem Magazyn i kopie zapasowe)',
+                'restore' => 'Kopia zapasowa jest przywracana na tej instalacji: gdy przywracanie się zaczyna oraz gdy się kończy lub nie powiedzie (administratorzy i osoby z uprawnieniem Magazyn i kopie zapasowe)',
             ],
             'hyperv' => [
                 'collector' => 'Kolektor Hyper-V przestaje zgłaszać dane lub nie można odczytać pamięci masowej klastra (osoby zarządzające połączeniami Hyper-V)',

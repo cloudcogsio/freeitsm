@@ -56,10 +56,11 @@ function getHelpTopics() {
                 ['id' => 'target',     'label' => 'Where backups go'],
                 ['id' => 'passphrase', 'label' => 'The passphrase'],
                 ['id' => 'schedule',   'label' => 'Schedule & retention'],
+                ['id' => 'access',     'label' => 'Who can use this page, and who is told'],
                 ['id' => 'verify',     'label' => 'Verifying a backup'],
                 ['id' => 'restore',    'label' => 'Restoring'],
             ],
-            'terms' => 'backup restore rollback roll back undo maintenance mode safety backup recovery disaster rebuild offsite s3 bucket nas passphrase schedule retention verify encryption key',
+            'terms' => 'backup restore rollback roll back undo maintenance mode safety backup recovery disaster rebuild offsite s3 bucket nas passphrase schedule retention verify encryption key permission storage and backups role alert notification bell watchtower secrets',
         ],
         'docker' => [
             'hero' => 'Docker',

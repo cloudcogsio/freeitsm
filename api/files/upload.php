@@ -171,40 +171,40 @@ filesApiRun(function () use ($conn, $analystId) {
 
         // From here until the upload is saved, a failure must not leave the offline copy.
         try {
-        $conn->beginTransaction();
-        $itemId = $up['item_id'] !== null ? (int)$up['item_id'] : null;
-        if ($itemId !== null) {
-            // A new version of an existing file - still live, still in this folder?
-            $it = filesItem($conn, $itemId);
-            if (!$it || (int)$it['folder_id'] !== $folderId) $itemId = null;
-        }
-        $isNew = $itemId === null;
-        if ($isNew) {
-            $name = filesNameTaken($conn, $folderId, $up['file_name']) ? filesFreeName($conn, $folderId, $up['file_name']) : $up['file_name'];
-            $conn->prepare("INSERT INTO files_items (folder_id, name, size_bytes, mime_type, created_by, created_datetime)
-                            VALUES (?, ?, ?, ?, ?, UTC_TIMESTAMP())")->execute([$folderId, $name, $size, $mime, $analystId]);
-            $itemId = (int)$conn->lastInsertId();
-            $versionNo = 1;
-        } else {
-            $name = $it['name'];
-            $versionNo = 1 + (int)$conn->query("SELECT COALESCE(MAX(version_no), 0) FROM files_versions WHERE item_id = " . (int)$itemId)->fetchColumn();
-        }
-        $conn->prepare("INSERT INTO files_versions (item_id, version_no, storage_path, size_bytes, mime_type, sha256, uploaded_by, uploaded_datetime, note)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), ?)")
-             ->execute([$itemId, $versionNo, $rel, $size, $mime, $sha, $analystId, $up['version_note'] ?? null]);
-        $versionId = (int)$conn->lastInsertId();
-        $conn->prepare("UPDATE files_items SET current_version_id = ?, size_bytes = ?, mime_type = ?" .
-                       ($isNew ? "" : ", updated_by = " . (int)$analystId . ", updated_datetime = UTC_TIMESTAMP()") .
-                       " WHERE id = ?")->execute([$versionId, $size, $mime, $itemId]);
-        $conn->prepare("DELETE FROM files_uploads WHERE id = ?")->execute([$up['id']]);
-        $conn->commit();
+            $conn->beginTransaction();
+            $itemId = $up['item_id'] !== null ? (int)$up['item_id'] : null;
+            if ($itemId !== null) {
+                // A new version of an existing file - still live, still in this folder?
+                $it = filesItem($conn, $itemId);
+                if (!$it || (int)$it['folder_id'] !== $folderId) $itemId = null;
+            }
+            $isNew = $itemId === null;
+            if ($isNew) {
+                $name = filesNameTaken($conn, $folderId, $up['file_name']) ? filesFreeName($conn, $folderId, $up['file_name']) : $up['file_name'];
+                $conn->prepare("INSERT INTO files_items (folder_id, name, size_bytes, mime_type, created_by, created_datetime)
+                                VALUES (?, ?, ?, ?, ?, UTC_TIMESTAMP())")->execute([$folderId, $name, $size, $mime, $analystId]);
+                $itemId = (int)$conn->lastInsertId();
+                $versionNo = 1;
+            } else {
+                $name = $it['name'];
+                $versionNo = 1 + (int)$conn->query("SELECT COALESCE(MAX(version_no), 0) FROM files_versions WHERE item_id = " . (int)$itemId)->fetchColumn();
+            }
+            $conn->prepare("INSERT INTO files_versions (item_id, version_no, storage_path, size_bytes, mime_type, sha256, uploaded_by, uploaded_datetime, note)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, UTC_TIMESTAMP(), ?)")
+                 ->execute([$itemId, $versionNo, $rel, $size, $mime, $sha, $analystId, $up['version_note'] ?? null]);
+            $versionId = (int)$conn->lastInsertId();
+            $conn->prepare("UPDATE files_items SET current_version_id = ?, size_bytes = ?, mime_type = ?" .
+                           ($isNew ? "" : ", updated_by = " . (int)$analystId . ", updated_datetime = UTC_TIMESTAMP()") .
+                           " WHERE id = ?")->execute([$versionId, $size, $mime, $itemId]);
+            $conn->prepare("DELETE FROM files_uploads WHERE id = ?")->execute([$up['id']]);
+            $conn->commit();
         } catch (Throwable $e) {
             if ($offlineTmp !== null) @unlink($offlineTmp);
             throw $e;
         }
         // Someone may have saved a new storage location while this file was being stored.
         FilesStorageService::queueIfMoved($conn, $usedCfg, $rel, $size, $sha);
-        FilesOfflineService::commitUploadCopy($conn, $offlineTmp, $rel);
+        FilesOfflineService::commitUploadCopy($conn, $offlineTmp, $rel, $folderId);
 
         filesAudit($conn, $analystId, $isNew ? 'upload' : 'new_version',
                    ['folder_id' => $folderId, 'item_id' => $itemId, 'version_id' => $versionId, 'item_name' => $name],
