@@ -246,30 +246,6 @@
     }
 }
 
-/* Icon-only nav scrolls sideways with its scrollbar hidden (inbox.css), so
-   nothing showed that more buttons sat off the edge. Fade whichever edge has
-   more to scroll to. Driven by the nav's own scroll position; where scroll
-   timelines are not supported, or nothing overflows, there is no fade. */
-@property --ui-fade-start { syntax: "<length>"; inherits: false; initial-value: 0px; }
-@property --ui-fade-end   { syntax: "<length>"; inherits: false; initial-value: 0px; }
-@keyframes ui-nav-fade {
-    from { --ui-fade-start: 0px;            --ui-fade-end: var(--space-6); }
-    8%   { --ui-fade-start: var(--space-6); }
-    92%  { --ui-fade-end: var(--space-6); }
-    to   { --ui-fade-start: var(--space-6); --ui-fade-end: 0px; }
-}
-@supports (animation-timeline: scroll()) {
-    @media (min-width: 769px) {
-        /* A mask uses only the alpha of these colours, never their hue. */
-        :root[data-ui="modern"] .header.header-fit-icons .header-nav {
-            animation: ui-nav-fade linear both;
-            animation-timeline: scroll(self inline);
-            -webkit-mask-image: linear-gradient(to right, transparent, black var(--ui-fade-start), black calc(100% - var(--ui-fade-end)), transparent);
-                    mask-image: linear-gradient(to right, transparent, black var(--ui-fade-start), black calc(100% - var(--ui-fade-end)), transparent);
-        }
-    }
-}
-
 /* Phones. mobile.css draws its own header for a dark bar (white text); Modern's
    bar is the surface colour, so the bits it paints white need the text colour.
    One line holds the waffle, the module's name and the icons on the right, so

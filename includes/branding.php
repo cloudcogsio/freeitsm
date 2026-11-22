@@ -535,7 +535,7 @@ function brandingDarkLogoUrl(?PDO $conn = null): ?string
 }
 
 /** Cache-buster for the Modern stylesheets (modern-base, shell, portal, auth). */
-const BRANDING_MODERN_CSS_V = 11;
+const BRANDING_MODERN_CSS_V = 12;
 
 /**
  * The brand colours as CSS, light and dark, worked out from the one Branding
