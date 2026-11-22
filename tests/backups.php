@@ -43,14 +43,27 @@ function ok(string $label, bool $cond, string $detail = ''): void {
 final class ZzBkFakeS3 implements StorageDriver
 {
     public bool $down = false;
+    /** Reads of this test's own files (not of the install's). */
     public int $reads = 0;
     private LocalDriver $d;
-    public function __construct(string $dir) { $this->d = new LocalDriver($dir); }
+    /**
+     * @param StorageDriver|null $real  the install's own Files storage: a key the stand-in does not hold (Files
+     *                                  content the install already had) is read from there, so a backup of an
+     *                                  install with Files content runs as it would without the test
+     */
+    public function __construct(string $dir, private ?StorageDriver $real = null) { $this->d = new LocalDriver($dir); }
     private function up(): void { if ($this->down) throw new StorageUnavailable('Storage could not be reached: test stand-in is down'); }
+    private function holder(string $key): StorageDriver { return $this->real !== null && $this->d->size($key) === null ? $this->real : $this->d; }
     public function putFile(string $key, string $localPath, bool $move = false): void { $this->up(); $this->d->putFile($key, $localPath, $move); }
-    public function readRange(string $key, int $start, int $end, callable $sink): void { $this->up(); $this->d->readRange($key, $start, $end, $sink); }
-    public function readTo(string $key, string $localPath): void { $this->up(); $this->reads++; $this->d->readTo($key, $localPath); }
-    public function size(string $key): ?int { $this->up(); return $this->d->size($key); }
+    public function readRange(string $key, int $start, int $end, callable $sink): void { $this->up(); $this->holder($key)->readRange($key, $start, $end, $sink); }
+    public function readTo(string $key, string $localPath): void
+    {
+        $this->up();
+        $h = $this->holder($key);
+        if ($h === $this->d) $this->reads++;
+        $h->readTo($key, $localPath);
+    }
+    public function size(string $key): ?int { $this->up(); return $this->holder($key)->size($key); }
     public function delete(string $key): void { $this->up(); $this->d->delete($key); }
     public function label(): string { return 'zz-fake-s3'; }
 }
@@ -545,8 +558,8 @@ try {
     // folder, and a folder target. The passphrase and target come from the section above.
     $s3dir = "$work/fake-s3";
     mkdir($s3dir);
-    $fake = new ZzBkFakeS3($s3dir);
     filesStorageReset();
+    $fake = new ZzBkFakeS3($s3dir, filesActiveStore($conn));   // the install's own Files content stays readable
     FilesStorageCache::$drivers['active'] = $fake;
     $appRoot = dirname(__DIR__);
     $upDir = "$appRoot/uploads/zz-backup-test-" . bin2hex(random_bytes(3));

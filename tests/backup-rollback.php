@@ -38,6 +38,23 @@ function ok(string $label, bool $cond, string $detail = ''): void {
 }
 function section(string $t): void { echo "\n$t\n" . str_repeat('-', 72) . "\n"; }
 
+/**
+ * The Files storage backups read during this test: its own folder, and for a key it does not hold (Files
+ * content the install already had) the install's own Files storage, read only - so a backup of an install
+ * with Files content runs as it would without the test. Writes and deletes go to the folder only.
+ */
+final class ZzRbFiles implements StorageDriver
+{
+    public function __construct(private LocalDriver $d, private StorageDriver $real) {}
+    private function holder(string $key): StorageDriver { return $this->d->size($key) === null ? $this->real : $this->d; }
+    public function putFile(string $key, string $localPath, bool $move = false): void { $this->d->putFile($key, $localPath, $move); }
+    public function readRange(string $key, int $start, int $end, callable $sink): void { $this->holder($key)->readRange($key, $start, $end, $sink); }
+    public function readTo(string $key, string $localPath): void { $this->holder($key)->readTo($key, $localPath); }
+    public function size(string $key): ?int { return $this->holder($key)->size($key); }
+    public function delete(string $key): void { $this->d->delete($key); }
+    public function label(): string { return 'zz-rollback-files'; }
+}
+
 echo "\nBackups: in-app rollback\n" . str_repeat('=', 72) . "\n";
 
 $conn = connectToDatabase();
@@ -292,7 +309,7 @@ try {
     mkdir($filesDir);
     $files = new LocalDriver($filesDir);
     filesStorageReset();
-    FilesStorageCache::$drivers['active'] = $files;
+    FilesStorageCache::$drivers['active'] = new ZzRbFiles($files, filesActiveStore($conn));   // the install's own Files content stays readable
     $conn->prepare("INSERT INTO files_folders (name, created_by, created_datetime) VALUES ('ZZ rollback', ?, UTC_TIMESTAMP())")->execute([$admin]);
     $zzFolder = (int)$conn->lastInsertId();
     $cleanup[] = fn() => $conn->prepare("DELETE FROM files_folders WHERE name LIKE 'ZZ rollback%'")->execute();
@@ -328,8 +345,9 @@ try {
     $seen = 0;
     $counted = $runner();
     $counted->onFile = function () use (&$seen) { $seen++; };
-    $counted->run('manual', $admin);
-    ok('the runner reports each file (the rollback\'s heartbeat)', $seen === 5, (string)$seen);   // 3 upload files (not .htaccess / web.config) + 2 Files objects
+    $rc = $counted->run('manual', $admin);
+    // 3 upload files (not .htaccess / web.config) + 2 Files objects, and any Files content the install already had.
+    ok('the runner reports each file (the rollback\'s heartbeat)', $rc['status'] === 'ok' && $seen === $rc['files_total'] && $seen >= 5, "$seen of {$rc['files_total']}");
 
     section('Rolling back');
     // Everything that happens after B1 and must be undone, or kept.
