@@ -53,7 +53,7 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
         .bk-field { display: flex; flex-direction: column; gap: 4px; min-width: 200px; flex: 1; }
         .bk-field label { font-size: var(--font-size-sm, 12px); font-weight: 600; color: var(--text-dim, #666); }
         .bk-field input, .bk-field select { padding: 8px 10px; border: 1px solid var(--border, #ccc); border-radius: 5px; font-size: var(--font-size-lg, 14px);
-                                            background: var(--input-bg, #fff); color: var(--text, #333); }
+                                            background: var(--surface, #fff); color: var(--text, #333); }
         .bk-check { display: flex; align-items: center; gap: 6px; font-size: var(--font-size-md, 13px); color: var(--text, #333); }
         .bk-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         .btn { padding: 8px 16px; border-radius: 5px; border: 1px solid var(--border, #ccc); background: var(--surface, #fff); color: var(--text, #333); cursor: pointer; font-size: var(--font-size-lg, 14px); }
