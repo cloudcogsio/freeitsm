@@ -354,33 +354,16 @@
 /* Someone in the war room but in another channel: present, but not reading this. */
 .wr-presence-name.wr-away { color: var(--text-dim, #999); }
 
-.wr-desktop-opt {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
+/* Your own war room choices live in Preferences -> War room (5.9.0); the panel links there. */
+.wr-prefs-link {
+    display: inline-block;
     margin-top: 14px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border-soft, #f0f0f0);
+    padding-left: 12px;   /* lines up with "Nobody else is here" above */
     font-size: var(--font-size-sm, 12px);
-    line-height: 1.4;
     color: var(--text-muted, #666);
-    cursor: pointer;
+    text-decoration: none;
 }
-.wr-desktop-opt input { margin-top: 2px; flex-shrink: 0; }
-
-.wr-pref { margin-top: 12px; }
-.wr-pref-label { display: block; margin-bottom: 4px; font-size: var(--font-size-sm, 12px); color: var(--text-muted, #666); }
-.wr-pref select {
-    width: 100%;
-    padding: 6px 8px;
-    border: 1px solid var(--border, #ddd);
-    border-radius: 6px;
-    background: var(--surface, #fff);
-    color: var(--text, #333);
-    font: inherit;
-    font-size: var(--font-size-sm, 12px);
-}
-.wr-pref-hint { margin-top: 5px; font-size: var(--font-size-xs, 11px); line-height: 1.4; color: var(--text-dim, #999); }
+.wr-prefs-link:hover, .wr-prefs-link:focus-visible { color: var(--accent); text-decoration: underline; }
 
 /* ---- composer ---- */
 /* `align-items: stretch` (the default) is what actually keeps the box and the
@@ -798,22 +781,47 @@
 /* Pin, save, mark as unread (5.9.0, piece 2). */
 .wr-msg-mark { font-size: var(--font-size-xs, 11px); cursor: default; }
 .wr-pinbar {
-    display: block;
-    width: 100%;
+    display: flex;
+    align-items: stretch;
     margin: 0 0 6px;
-    padding: 5px 10px;
     border: 1px solid var(--border, #e0e0e0);
     border-radius: 6px;
     background: var(--surface, #fff);
     color: var(--text, #333);
-    font: inherit;
     font-size: var(--font-size-sm, 12px);
-    font-weight: 600;
-    text-align: left;
+    overflow: hidden;
+}
+.wr-pinbar[hidden] { display: none; }
+.wr-pinbar-msg, .wr-pinbar-all {
+    padding: 6px 10px;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
     cursor: pointer;
 }
+/* One line: the author, then as much of the message as fits, ending in an ellipsis. */
+.wr-pinbar-msg {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+}
+.wr-pinbar-icon { flex-shrink: 0; }
+.wr-pinbar-who { flex-shrink: 0; font-weight: 600; }
+.wr-pinbar-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted, #666); }
+.wr-pinbar-all {
+    flex-shrink: 0;
+    border-left: 1px solid var(--border, #e0e0e0);
+    font-weight: 600;
+    white-space: nowrap;
+}
+.wr-pinbar-all[hidden] { display: none; }
+.wr-pinbar-msg:hover .wr-pinbar-text, .wr-pinbar-msg:focus-visible .wr-pinbar-text { color: var(--text, #333); }
+.wr-pinbar-all:hover, .wr-pinbar-all:focus-visible { color: var(--accent, #ea580c); }
 .wr-pinbar:hover { border-color: var(--accent, #ea580c); }
-.wr-pinbar[hidden] { display: none; }
 .wr-list-item { display: flex; align-items: flex-start; gap: 6px; }
 .wr-list-open {
     flex: 1;
@@ -926,3 +934,43 @@
 .wr-fwd-note { width: 100%; box-sizing: border-box; resize: vertical; font-family: inherit; }
 .wr-seen-row { display: flex; justify-content: space-between; gap: 8px; padding: 5px 2px; border-bottom: 1px solid var(--border-soft, #f2f2f2); font-size: var(--font-size-md, 13px); }
 .wr-seen-gap { margin-top: 14px; }
+
+/* + : Computer or Files, and Files cards (5.9.0, piece 6). */
+.wr-attach-menu { min-width: 180px; }
+.wr-chip-files { border-style: dashed; }
+.wr-filecards { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.wr-filecard {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 320px;
+    padding: 6px 12px 6px 6px;
+    border: 1px solid var(--border, #e0e0e0);
+    border-radius: 8px;
+    background: var(--surface, #fff);
+    color: var(--text, #333);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.wr-filecard:hover:not(:disabled) { border-color: var(--accent, #ea580c); }
+.wr-filecard:disabled { cursor: default; }
+.wr-filecard-icon { flex: none; display: flex; }
+.wr-filecard-text { display: flex; flex-direction: column; min-width: 0; }
+.wr-filecard-name { font-size: var(--font-size-md, 13px); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wr-filecard-sub { font-size: var(--font-size-xs, 11px); color: var(--text-muted, #666); }
+.wr-filecard.is-locked .wr-filecard-name,
+.wr-filecard.is-gone .wr-filecard-name { color: var(--text-muted, #666); font-weight: 400; }
+.wr-filecard.is-gone .wr-filecard-icon { opacity: 0.45; }
+
+/* Database Verification not yet run since an upgrade (5.9.0) - administrators only. */
+.wr-schema-note {
+    margin: 0 0 8px;
+    padding: 8px 12px;
+    border-left: 3px solid var(--warning-accent, #d97706);
+    border-radius: 0 6px 6px 0;
+    background: var(--surface-hover, #f5f5f5);
+    font-size: var(--font-size-sm, 12px);
+    color: var(--text, #333);
+}
+.wr-schema-note a { margin-left: 6px; color: var(--accent, #ea580c); font-weight: 600; }
