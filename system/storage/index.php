@@ -43,7 +43,7 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
         .st-field { display: flex; flex-direction: column; gap: 4px; min-width: 200px; flex: 1; }
         .st-field label { font-size: var(--font-size-sm, 12px); font-weight: 600; color: var(--text-dim, #666); }
         .st-field input, select.st-select { padding: 8px 10px; border: 1px solid var(--border, #ccc); border-radius: 5px; font-size: var(--font-size-lg, 14px);
-                           background: var(--input-bg, #fff); color: var(--text, #333); }
+                           background: var(--surface, #fff); color: var(--text, #333); }
         /* A field alone on its row keeps the width of the paired fields above it. */
         .st-field.st-half { flex: 0 1 calc(50% - 6px); }
         .st-check { display: flex; align-items: center; gap: 6px; font-size: var(--font-size-md, 13px); color: var(--text, #333); }
