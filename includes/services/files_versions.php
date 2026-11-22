@@ -107,6 +107,8 @@ final class FilesVersionsService
             if ($own && $conn->inTransaction()) $conn->rollBack();
             throw $e;
         }
+        require_once __DIR__ . '/files_offline.php';
+        FilesOfflineService::foldersChanged($conn, [(int)$item['folder_id']]);   // the restored bytes may need an offline copy
         filesAudit($conn, $analystId, 'restore_version',
                    ['folder_id' => (int)$item['folder_id'], 'item_id' => (int)$item['id'], 'version_id' => $newId, 'item_name' => $item['name']],
                    ['restored_from' => (int)$v['version_no'], 'version' => $no]);
@@ -205,9 +207,8 @@ function filesPurgeBytesIfUnused(PDO $conn, string $key): string
     // its row gone and nothing using the bytes, and removes it (storageMigrateBatch).
     $conn->prepare("DELETE FROM storage_migration_items WHERE store = 'files' AND object_key = ?")->execute([$key]);
     // Its offline copy ("Make available offline") goes too: nothing uses the key any more.
-    require_once __DIR__ . '/../files/offline.php';
-    $copy = filesOfflinePath($conn, $key);
-    if ($copy !== null && is_file($copy) && !filesOfflineOverlapsStore($conn) && !@unlink($copy)) error_log("files: could not delete the offline copy of {$key}");
+    require_once __DIR__ . '/files_offline.php';
+    FilesOfflineService::forgetKey($conn, $key);
     $stores = [filesActiveStore($conn)];
     try { if (($prev = filesPreviousStore($conn)) !== null) $stores[] = $prev; } catch (Throwable) {}
     $result = 'deleted';

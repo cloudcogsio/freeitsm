@@ -13,6 +13,9 @@ if (PHP_SAPI !== 'cli') {
     exit("Run from the command line.\n");
 }
 set_time_limit(0);
+// A backstop only: manifests and listings are streamed, but a very large install's maps still grow.
+$memoryLimit = (string)ini_get('memory_limit');
+if ($memoryLimit !== '-1' && preg_match('/^(\d+)M$/i', $memoryLimit, $mm) && (int)$mm[1] < 512) @ini_set('memory_limit', '512M');
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../includes/functions.php';
@@ -21,7 +24,11 @@ require_once __DIR__ . '/../includes/backup/runner.php';
 
 $opts   = getopt('', ['manual', 'by:']);
 $manual = isset($opts['manual']);
-$by     = isset($opts['by']) && ctype_digit((string)$opts['by']) ? (int)$opts['by'] : null;
+$by     = isset($opts['by']) && ctype_digit((string)$opts['by']) && (int)$opts['by'] > 0 ? (int)$opts['by'] : null;
+if (isset($opts['by']) && $by === null) {
+    fwrite(STDERR, "--by must be an analyst id (a positive number).\n");
+    exit(2);
+}
 
 try {
     $conn = connectToDatabase();
@@ -37,7 +44,7 @@ $runId = JobRun::start($conn, 'backup', $trigger, $by);
 $code = 0;
 try {
     $cfg = backupTargetConfig($conn);
-    if ($cfg === null) throw new RuntimeException('No backup target is set (System -> Backups).');
+    if ($cfg === null) throw new RuntimeException(backupT('err_no_target'));
     $runner = new BackupRunner($conn, backupTargetDriver($cfg), dirname(__DIR__));
     $r = $runner->run($manual ? 'manual' : 'scheduled', $by);
     $mb = number_format($r['size'] / 1048576, 1);
@@ -53,6 +60,7 @@ try {
 } catch (Throwable $e) {
     JobRun::fail($conn, $runId, $e);
     fwrite(STDERR, 'Backup failed: ' . $e->getMessage() . "\n");
+    backupNotify($conn, 'failed', backupT('n_failed_title'), backupT('n_not_started', ['error' => $e->getMessage()]));   // the runner tells about the rest
     $code = 1;
 } finally {
     JobRun::unlock($conn, 'backup');

@@ -492,6 +492,63 @@ try {
         </div>
         <?php endif; ?>
 
+        <?php
+        // Backups (#286, wiki Storage-Series-Follow-Ups W6, W7): the same kind of card as Background
+        // jobs - ONLY while something is wrong (the last backup failed, none within its schedule plus
+        // a day, the last Verify failed, or none has ever been verified), and only to people who can
+        // open System -> Backups. An install that never set up backups never sees it.
+        $wtBackups = [];
+        try {
+            require_once '../includes/services/backups.php';
+            $wtConn ??= connectToDatabase();
+            if (BackupsService::mayOpen($wtConn, (int)$_SESSION['analyst_id'])) {
+                try {
+                    $wtBackups = BackupsService::attention($wtConn);
+                } catch (Throwable $e) {
+                    // A failed lookup is not an answer: say backups could not be checked, rather than nothing.
+                    error_log('[watchtower] backups: ' . $e->getMessage());
+                    $wtBackups = [['key' => 'check_failed', 'severity' => 'amber', 'params' => []]];
+                }
+            }
+        } catch (Throwable $e) { $wtBackups = []; /* never break the dashboard */ }
+        if ($wtBackups): ?>
+        <div class="wt-card wt-backups-card" id="wtBackups" style="margin-bottom:16px;">
+            <div class="wt-card-header">
+                <div class="wt-card-header-left">
+                    <div class="wt-card-icon" style="background:var(--sys-accent, #546e7a);">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
+                    </div>
+                    <div class="wt-card-name"><a href="../system/backups/"><?php echo htmlspecialchars(t('system.backups.wt_title')); ?></a></div>
+                </div>
+                <div class="wt-status-dot <?php echo in_array('red', array_column($wtBackups, 'severity'), true) ? 'red' : 'amber'; ?>"></div>
+            </div>
+            <div class="wt-card-body" style="font-size:var(--font-size-md, 13px);">
+                <div><?php echo htmlspecialchars(t('system.backups.wt_body')); ?></div>
+                <ul style="margin:6px 0 8px; padding-left:18px;">
+                    <?php foreach ($wtBackups as $b):
+                        $p = $b['params'];
+                        // if/elseif, not match: this page must still parse on an old PHP, so the version guard can speak.
+                        if ($b['key'] === 'last_failed') {
+                            $line = t('system.backups.wt_last_failed', ['when' => fmt_datetime($p['when']), 'error' => $p['error'] !== null ? mb_strimwidth($p['error'], 0, 300, '...') : t('system.backups.wt_interrupted')]);
+                        } elseif ($b['key'] === 'overdue') {
+                            $line = t($p['never'] ? 'system.backups.wt_overdue_never' : 'system.backups.wt_overdue', ['when' => fmt_datetime($p['since'])]);
+                        } elseif ($b['key'] === 'verify_failed') {
+                            $line = t('system.backups.wt_verify_failed', ['when' => fmt_datetime($p['when'])]);
+                        } elseif ($b['key'] === 'verify_stale') {
+                            $line = t('system.backups.wt_verify_stale', ['when' => fmt_datetime($p['when']), 'days' => $p['days']]);
+                        } elseif ($b['key'] === 'check_failed') {
+                            $line = t('system.backups.wt_check_failed');
+                        } else {
+                            $line = t('system.backups.wt_never_verified');
+                        } ?>
+                    <li><?php echo htmlspecialchars($line); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+                <a href="../system/backups/"><?php echo htmlspecialchars(t('system.backups.wt_link')); ?></a>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <div class="wt-grid">
             <!-- Morning Checks -->
             <div class="wt-card" id="wtMorningChecks">

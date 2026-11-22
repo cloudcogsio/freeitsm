@@ -692,6 +692,11 @@ return [
             'consumable' => [
                 'low_stock' => 'Queda poco: hora de volver a pedir',
             ],
+            'backup' => [
+                'changed' => 'Ha cambiado un ajuste de las copias de seguridad',
+                'failed' => 'Ha fallado una copia de seguridad o su comprobación',
+                'restore' => 'Ha empezado o terminado una restauración',
+            ],
             'hyperv' => [
                 'collector' => 'Un recopilador de Hyper-V requiere su atención',
             ],
@@ -753,6 +758,11 @@ return [
             ],
             'consumable' => [
                 'low_stock' => 'Un consumible baja a su punto de pedido (a quién se avisa se elige en Activos -> Ajustes -> Consumibles)',
+            ],
+            'backup' => [
+                'changed' => 'Cambia el destino, la frase de contraseña o la programación de las copias de seguridad (administradores y quienes tienen Almacenamiento y copias de seguridad)',
+                'failed' => 'Falla una copia de seguridad o la comprobación de una (administradores y quienes tienen Almacenamiento y copias de seguridad)',
+                'restore' => 'Se restaura una copia de seguridad sobre esta instalación: cuando empieza y cuando termina o falla (administradores y quienes tienen Almacenamiento y copias de seguridad)',
             ],
             'hyperv' => [
                 'collector' => 'Un recopilador de Hyper-V deja de informar, o no se puede leer el almacenamiento de un clúster (personas que gestionan conexiones de Hyper-V)',

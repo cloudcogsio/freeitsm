@@ -705,6 +705,7 @@ final class FilesRecycleService
             throw $ex;
         }
         FilesAcl::reset();
+        self::offlineFoldersChanged($conn, $type === 'folder' ? self::subtree($conn, $id) : [(int)$parent]);
 
         $t = $type === 'folder' ? ['folder_id' => $id] : ['folder_id' => $parent, 'item_id' => $id, 'item_name' => $name];
         filesAudit($conn, $analystId, 'restore', $t, array_filter(['type' => $type, 'restored_as' => $name !== $e['name'] ? $name : null]));
@@ -903,15 +904,20 @@ final class FilesRecycleService
     }
 
     /**
-     * Deletes the offline copy ("Make available offline") of bytes nothing uses any more.
-     * A leftover would be removed by the files_offline_sync job anyway.
+     * Deletes the offline copy ("Make available offline") of bytes nothing uses any more,
+     * and its record. A leftover would be removed by the files_offline_sync job anyway.
      */
     private static function dropOfflineCopy(PDO $conn, string $key): void
     {
-        if (!filesStorageKeyIsValid($key)) return;
-        require_once __DIR__ . '/../files/offline.php';
-        $copy = filesOfflinePath($conn, $key);
-        if ($copy !== null && is_file($copy) && !filesOfflineOverlapsStore($conn) && !@unlink($copy)) error_log("files: could not delete the offline copy of {$key}");
+        require_once __DIR__ . '/files_offline.php';
+        FilesOfflineService::forgetKey($conn, $key);
+    }
+
+    /** Restored files may need offline copies: their folders' offline ticks say so until the job has run. */
+    private static function offlineFoldersChanged(PDO $conn, array $folderIds): void
+    {
+        require_once __DIR__ . '/files_offline.php';
+        FilesOfflineService::foldersChanged($conn, $folderIds);
     }
 
     /**

@@ -92,7 +92,8 @@
             var detail = r.status === 'failed' ? r.error_text : r.warning_text;
             var verified = r.verify_status
                 ? '<span class="bk-pill ' + esc(r.verify_status) + '">' + esc(t('status_' + r.verify_status)) + '</span> ' + esc(when(r.verified_at))
-                  + (r.verify_detail && r.verify_status === 'failed' ? '<div class="bk-detail">' + esc(r.verify_detail) + '</div>' : '')
+                  // A passed check shows its detail only when it carries a warning (a second line).
+                  + (r.verify_detail && (r.verify_status === 'failed' || r.verify_detail.indexOf('\n') !== -1) ?'<div class="bk-detail">' + esc(r.verify_detail) + '</div>' : '')
                 : '';
             return '<tr>'
                 + '<td>' + esc(when(r.started_at)) + (r.started_by_name ? '<div class="bk-detail">' + esc(r.started_by_name) + '</div>' : '') + '</td>'
@@ -104,7 +105,7 @@
                 + '<td>' + verified + '</td>'
                 + '<td class="bk-row-actions">' + (r.status === 'ok' && r.kind !== 'restore' && r.verify_status !== 'running'
                     ? '<button class="btn" type="button" data-verify="' + esc(r.id) + '" data-set="' + esc(r.set_name) + '">' + esc(t('verify')) + '</button>'
-                      + '<button class="btn" type="button" data-restore="' + esc(r.id) + '" data-set="' + esc(r.set_name) + '">' + esc(t('restore')) + '</button>' : '')
+                      + (state.settings.can_restore ? '<button class="btn" type="button" data-restore="' + esc(r.id) + '" data-set="' + esc(r.set_name) + '">' + esc(t('restore')) + '</button>' : '') : '')
                 + '</td></tr>';
         }).join('');
     }

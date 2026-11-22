@@ -14,6 +14,10 @@ I18n::initFromSession();
 Tz::init();
 
 $current_page = 'backups';
+// Not only administrators: whoever holds Storage and backups (never part of "Manage everything
+// in Files"), with Files access - the Intune pages' pattern (GH #263).
+require_once '../../includes/capabilities.php';
+$system_page_grant = ['module' => 'files', 'cap' => capKey(Cap::FILES_STORAGE_BACKUPS)];   // the key: data holds strings (capabilities.php)
 require_once __DIR__ . '/../includes/page_gate.php';
 $path_prefix = '../../';
 $translationNamespaces = ['common', 'system'];
@@ -83,7 +87,7 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
         .btn-danger { background: var(--danger, #c62828); border-color: var(--danger, #c62828); color: #fff; }
         #bkLastRestore { display: block; margin-bottom: 12px; }
     </style>
-    <link rel="stylesheet" href="../../assets/css/mobile.css?v=200">
+    <link rel="stylesheet" href="../../assets/css/mobile.css?v=196">
 </head>
 <body data-mobile-module="system" data-mobile-page="backups">
     <?php include '../includes/header.php'; ?>
@@ -177,7 +181,7 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
                 <div class="bk-card">
                     <h3><?php echo $h('system.backups.history_heading'); ?></h3>
                     <div class="bk-actions" style="margin-bottom: 14px;">
-                        <button class="btn btn-primary" id="bkNowBtn" type="button"><?php echo $h('system.backups.now'); ?></button>
+                        <button class="btn btn-primary" id="bkNowBtn" type="button" title="<?php echo $h('system.backups.now_hint'); ?>"><?php echo $h('system.backups.now'); ?></button>
                         <span class="bk-msg" id="bkNowMsg"></span>
                     </div>
                     <div id="bkLastRestore" class="bk-hidden"></div>
@@ -233,7 +237,7 @@ $h = fn(string $k, array $p = []) => htmlspecialchars(t($k, $p));
     <script>window.BK_API = '<?php echo $path_prefix; ?>api/system/backups.php';</script>
     <script src="../../assets/js/tz.js?v=5"></script>
     <script src="../../assets/js/i18n.js?v=4"></script>
-    <script src="../../assets/js/system-backups.js?v=2"></script>
+    <script src="../../assets/js/system-backups.js?v=3"></script>
     <script src="../../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

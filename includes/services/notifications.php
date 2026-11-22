@@ -38,6 +38,7 @@
 
 require_once __DIR__ . '/../service_context.php';
 require_once __DIR__ . '/../entity_links.php';   // entityLink() — the one record→URL map
+require_once __DIR__ . '/../capabilities.php';   // types(): a type sent only to holders of a capability names it
 
 class NotificationsService
 {
@@ -244,6 +245,15 @@ class NotificationsService
             // Consumables (5.8.0): an item fell to its reorder point - to the analysts chosen in
             // Assets -> Settings -> Consumables, once per dip (ConsumablesService::checkLow()).
             'consumable.low_stock'       => ['default' => true,  'entity' => 'consumable'],
+            // Backups (#286, wiki Storage-Series-Follow-Ups N2) - to administrators and holders of
+            // Storage and backups (includes/backup/notify.php), never the person who did it.
+            // CHANGED: the target, the passphrase or the schedule. FAILED: a backup or a Verify;
+            // a backup that works tells nobody. cap: Preferences offers them only to people who
+            // can get them (administrators hold every capability).
+            'backup.changed'             => ['default' => true,  'entity' => 'backup', 'cap' => capKey(Cap::FILES_STORAGE_BACKUPS)],
+            'backup.failed'              => ['default' => true,  'entity' => 'backup', 'cap' => capKey(Cap::FILES_STORAGE_BACKUPS)],
+            // RESTORE: a restore over this install started, and how it ended (System -> Backups -> Restore).
+            'backup.restore'             => ['default' => true,  'entity' => 'backup', 'cap' => capKey(Cap::FILES_STORAGE_BACKUPS)],
         ];
     }
 
@@ -300,6 +310,11 @@ class NotificationsService
             if (!empty($meta['admin_only'])) {
                 $isAdmin ??= analystIsAdmin($conn, $analystId);
                 if (!$isAdmin) continue;
+            }
+            // Nor one sent only to holders of a capability (administrators hold every one).
+            if (!empty($meta['cap'])) {
+                require_once __DIR__ . '/../rbac.php';
+                if (!analystHasCapability($conn, $analystId, Cap::from((string)$meta['cap']))) continue;
             }
             $out[$key] = array_key_exists($key, $overrides)
                 ? (bool)$overrides[$key]

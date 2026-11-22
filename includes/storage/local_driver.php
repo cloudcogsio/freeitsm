@@ -96,8 +96,15 @@ final class LocalDriver implements StorageDriver, StorageLister
 
     public function listObjects(string $prefix): array
     {
-        if (!is_dir($this->root)) return [];
         $keys = [];
+        $this->eachObject($prefix, function (string $key, int $size, int $mtime) use (&$keys) { $keys[$key] = ['size' => $size, 'mtime' => $mtime]; });
+        ksort($keys, SORT_STRING);
+        return $keys;
+    }
+
+    public function eachObject(string $prefix, callable $fn): void
+    {
+        if (!is_dir($this->root)) return;
         try {
             // Only folders on the way to the prefix are walked, not the whole store.
             $rootLen = strlen($this->root) + 1;
@@ -111,13 +118,11 @@ final class LocalDriver implements StorageDriver, StorageLister
             foreach ($it as $f) {
                 if (!$f->isFile()) continue;
                 $key = substr(str_replace(DIRECTORY_SEPARATOR, '/', $f->getPathname()), strlen($this->root) + 1);
-                if ($prefix === '' || str_starts_with($key, $prefix)) $keys[$key] = ['size' => (int)$f->getSize(), 'mtime' => (int)$f->getMTime()];
+                if ($prefix === '' || str_starts_with($key, $prefix)) $fn($key, (int)$f->getSize(), (int)$f->getMTime());
             }
         } catch (UnexpectedValueException $e) {
             throw new StorageUnavailable('The storage folder could not be read.');
         }
-        ksort($keys, SORT_STRING);
-        return $keys;
     }
 
     public function label(): string

@@ -718,6 +718,8 @@ return [
     ['storage_migration_items', 'ix_storage_migration_state', 'key', '(`store`,`state`)'],
     ['files_purge_pending', 'uq_files_purge_pending_path', 'unique', '(`storage_path`)'],
     ['files_offline', 'uq_files_offline_target', 'unique', '(`target_type`,`target_id`)'],
+    ['files_offline_copies', 'uq_files_offline_copies_path', 'unique', '(`storage_path`)'],
+    ['files_offline_folders', 'uq_files_offline_folders_folder', 'unique', '(`folder_id`)'],
     ['backup_runs', 'ix_backup_runs_started', 'key', '(`started_at`)'],
     ['jml_templates', 'idx_jml_templates_kind', 'key', '(`kind`,`is_active`)'],
     ['jml_template_steps', 'idx_jml_template_steps_template', 'key', '(`template_id`,`display_order`)'],

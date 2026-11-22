@@ -56,10 +56,16 @@ final class BackupRollback
     private array $warnings = [];
     private ?array $snapshot = null;
 
+    /** True once a restore has begun replacing the database (sessions end afterwards). */
+    private bool $replaced = false;
+
+    /** How long to wait for requests still running on this database when maintenance mode went on. */
+    public int $connWaitSeconds = 120;
+
     /**
      * @param StorageDriver $files   the Files store as it is NOW (files are restored into it)
-     * @param callable|null $mailer  fn(string $subject, string $body): void - told when it fails
-     *                               (default: every active administrator, by email)
+     * @param callable|null $mailer  fn(string $subject, string $body): void - told how it ended (tests)
+     *                               (default: a bell and an email to the people concerned, backupNotify())
      */
     public function __construct(PDO $conn, StorageDriver&StorageLister $target, string $set, string $passphrase, int $by,
                                 string $appRoot, string $keyPath, StorageDriver $files, ?callable $mailer = null)
@@ -95,53 +101,55 @@ final class BackupRollback
         try {
             if ((int)$this->conn->query('SELECT @@SESSION.wait_timeout')->fetchColumn() < 86400) $this->conn->exec('SET SESSION wait_timeout = 86400');
             if (backupSetting($this->conn, 'files_storage_previous') !== '') {
-                throw new RuntimeException('Files is moving to another storage location. Restore when the move has finished.');
+                throw new RuntimeException(backupT('err_storage_moving'));
             }
-            $this->beat(['state' => 'starting'], "Opening backup {$this->set}...");
+            $this->beat(['state' => 'starting'], backupT('rb_opening', ['set' => $this->set]));
             $open = backupOpenSet($this->target, $this->set, $this->passphrase);
-            sodium_memzero($open['keys']['secret']);
             $m = $open['manifest'];
-            $this->beat([], 'Backup ' . $this->set . ': FreeITSM ' . ($m['app_version'] ?? '?') . ', files ' . count((array)$m['files']) . '.');
+            backupCloseSet($open);
+            $this->beat([], backupT('log_opened', ['set' => $this->set, 'version' => $m['app_version'] ?? '?', 'files' => (int)($m['file_count'] ?? 0)]));
 
-            $this->beat(['state' => 'waiting'], 'Waiting for background jobs to finish...');
+            $this->beat(['state' => 'waiting'], backupT('rb_waiting'));
             $locked = $this->waitForJobs();
+            $this->waitForConnections();
 
-            $this->beat(['state' => 'safety'], 'Taking a safety backup of the current state...');
+            $this->beat(['state' => 'safety'], backupT('rb_safety'));
             $runner = new BackupRunner($this->conn, $this->target, $this->appRoot, $this->mailer, $this->keyPath);
             $runner->onFile = fn() => $this->beat();
             $r = $runner->run('safety', $this->by);
-            if ($r['status'] !== 'ok') throw new RuntimeException('The safety backup failed, so nothing was restored: ' . $r['error']);
+            if ($r['status'] !== 'ok') throw new RuntimeException(backupT('rb_safety_failed', ['error' => (string)$r['error']]));
             $safety = (string)$r['set'];
-            $this->beat(['safety_set' => $safety], "Safety backup $safety taken.");
+            $this->beat(['safety_set' => $safety], backupT('rb_safety_done', ['set' => $safety]));
 
             $this->snapshot = $this->takeSnapshot();
             $filesRoot = filesStorageRoot($this->conn);
             $touched = true;
             $this->restore($this->set, $filesRoot, true);
             $this->finish('done', null, $started, $safety);
+            $this->notify(backupT('n_restore_done_title'), backupT('n_restore_done', ['set' => $this->set, 'who' => backupAnalystName($this->conn, $this->by), 'safety' => $safety]), $this->by);
             return $this->outcome('done', null, $safety);
         } catch (Throwable $e) {
-            $error = $e instanceof BackupWrongPassphrase ? 'The passphrase does not open this backup.' : $e->getMessage();
+            $error = $e instanceof BackupWrongPassphrase ? backupT('rb_wrong_passphrase') : $e->getMessage();
             if (!$touched) {
-                $this->beat([], 'Stopped: ' . $error);
+                $this->beat([], backupT('rb_stopped', ['error' => $error]));
                 $this->finish('failed', $error, $started, $safety);
+                $this->notify(backupT('n_restore_failed_title'), backupT('n_restore_unchanged', ['set' => $this->set, 'error' => $error]), $this->by);
                 return $this->outcome('failed', $error, $safety);
             }
             // The database or the files have been touched: put the safety backup back.
-            $this->beat(['state' => 'recovering', 'error' => $error], "Failed: $error");
-            $this->beat([], "Putting back safety backup $safety...");
+            $this->beat(['state' => 'recovering', 'error' => $error], backupT('rb_failed', ['error' => $error]));
+            $this->beat([], backupT('rb_recovering', ['set' => (string)$safety]));
             try {
                 $this->restore((string)$safety, (string)$filesRoot, false);
                 $this->finish('failed', $error, $started, $safety);
-                $this->notify("The restore of backup {$this->set} failed, and FreeITSM was put back as it was before it (safety backup $safety). The error: $error");
+                $this->notify(backupT('n_restore_failed_title'), backupT('n_restore_recovered', ['set' => $this->set, 'safety' => (string)$safety, 'error' => $error]), $this->by);
                 return $this->outcome('failed', $error, $safety);
             } catch (Throwable $e2) {
-                $broken = $error . ' Putting back the safety backup also failed: ' . $e2->getMessage();
-                $this->beat(['state' => 'broken', 'error' => $broken], 'Putting back the safety backup failed: ' . $e2->getMessage());
-                $this->notify("The restore of backup {$this->set} failed part way, and putting back safety backup $safety failed too. FreeITSM is in maintenance mode. "
-                            . "On the server: php scripts/backup_restore.php --set=$safety --force (it asks for the target and the passphrase), "
-                            . "then php scripts/backup_maintenance.php --off. A command-line restore pauses scheduled backups and gives the install a new backup id: "
-                            . "turn backups back on in System -> Backups, and remove older backups from the target yourself when no longer needed. $broken");
+                $broken = backupT('rb_broken_error', ['error' => $error, 'error2' => $e2->getMessage()]);
+                $this->beat(['state' => 'broken', 'error' => $broken], backupT('rb_recover_failed', ['error' => $e2->getMessage()]));
+                if ($this->replaced) backupSessionEpochBump();   // the database was replaced, at least in part
+                // Everyone, the administrator who started it too: FreeITSM stays down until someone acts.
+                $this->notify(backupT('n_restore_broken_title'), backupT('n_restore_broken', ['set' => $this->set, 'safety' => (string)$safety, 'error' => $broken]), null);
                 return $this->outcome('broken', $broken, $safety);
             }
         } finally {
@@ -152,23 +160,34 @@ final class BackupRollback
     /** Restores one set into the current stores, deletes what it does not list, checks the schema and re-applies this install's settings. */
     private function restore(string $set, string $filesRoot, bool $isTarget): void
     {
-        $this->beat(['state' => 'restoring'], "Restoring backup $set...");
+        $this->beat(['state' => 'restoring'], backupT('rb_restoring', ['set' => $set]));
         $r = new BackupRestore($this->target, $set, $this->passphrase, $this->conn, $this->appRoot, $this->keyPath, true,
                                fn(string $line) => $this->beat([], $line), $this->files);
         $r->removeExtrasFilesRoot = $filesRoot;
         $r->onFile = fn() => $this->beat();
         $r->afterDatabaseHook = function (PDO $db, string $keyHex) use ($isTarget) {
             $this->snapshot['key_hex'] = $keyHex;
-            $this->beat(['state' => 'files'], 'Restoring the files...');
+            $this->replaced = true;
+            $this->beat(['state' => 'files'], backupT('rb_files'));
             if ($isTarget && $this->failAfterDatabase) ($this->failAfterDatabase)();
         };
         $res = $r->run();
+        // The key file may have been replaced: secrets read from now on (a mailbox password, to email
+        // the outcome) must use the restored key, not the one this process cached before.
+        if (function_exists('getEncryptionKey')) getEncryptionKey(true);
         foreach ($res['warnings'] as $w) $this->warnings[] = $w;
         if (!$res['ok']) {
-            throw new RuntimeException(count($res['errors']) . ' file(s) could not be restored, for example ' . $res['errors'][0]);
+            throw new RuntimeException(backupT('rb_files_failed', ['n' => count($res['errors']), 'example' => $res['errors'][0]]));
         }
-        $this->beat(['state' => 'verifying'], 'Running Database Verification...');
-        if (!($this->verifySchema)()) $this->warnings[] = 'Database Verification reported a problem: run it from System -> Database.';
+        $this->beat(['state' => 'verifying'], backupT('rb_verifying'));
+        // A database that Database Verification cannot bring up to date is not a finished restore: the
+        // backup's is undone. Putting the safety backup back is the way out, so there it is a warning
+        // (Verification may fail for reasons of its own - exec() disabled, the CLI failing - and the
+        // safety backup is this install's own, current schema).
+        if (!($this->verifySchema)()) {
+            if ($isTarget) throw new RuntimeException(backupT('rb_verify_failed'));
+            $this->warnings[] = backupT('rb_verify_warning');
+        }
         $this->applySnapshot();
     }
 
@@ -207,13 +226,13 @@ final class BackupRollback
             $this->conn->exec("DELETE FROM job_schedules WHERE job_key = 'backup'");
             if ($snap['schedule'] !== null) $this->insertRow('job_schedules', $snap['schedule']);
         } catch (PDOException $e) {
-            $this->warnings[] = 'The backup schedule could not be put back: check it on System -> Backups.';
+            $this->warnings[] = backupT('rb_schedule_lost');
         }
         try {
             $this->conn->exec('DELETE FROM backup_runs');
             foreach ($snap['runs'] as $row) $this->insertRow('backup_runs', $row);
         } catch (PDOException $e) {
-            $this->warnings[] = 'The backup history could not be put back.';
+            $this->warnings[] = backupT('rb_history_lost');
         }
         FilesStorageCache::$settings = [];   // read again from the restored database (the drivers are this install's, unchanged)
     }
@@ -226,6 +245,28 @@ final class BackupRollback
     }
 
     /** Waits for every running background job, then holds the backup job's lock. @throws RuntimeException */
+    /**
+     * Maintenance mode stops new requests, but one that started just before (a save, an API call, a
+     * job's last statement) may still be writing. Waits until no other connection to this database is
+     * running a statement, so the safety backup and the restore see a database at rest.
+     *
+     * @throws RuntimeException  still busy after $connWaitSeconds (nothing has been changed)
+     */
+    private function waitForConnections(): void
+    {
+        $until = time() + $this->connWaitSeconds;
+        $q = $this->conn->prepare("SELECT COUNT(*) FROM information_schema.PROCESSLIST
+                                     WHERE DB = DATABASE() AND ID <> CONNECTION_ID() AND COMMAND NOT IN ('Sleep', 'Daemon', 'Binlog Dump')");
+        while (true) {
+            $q->execute();
+            $busy = (int)$q->fetchColumn();
+            if ($busy === 0) return;
+            if (time() >= $until) throw new RuntimeException(backupT('rb_connections_busy', ['n' => $busy]));
+            $this->beat([], backupT('rb_connections_wait', ['n' => $busy]));
+            sleep(1);
+        }
+    }
+
     private function waitForJobs(): bool
     {
         $until = time() + $this->jobWaitSeconds;
@@ -240,9 +281,9 @@ final class BackupRollback
             if (!$busy && JobRun::tryLock($this->conn, 'backup')) return true;
             if (!$busy) $busy[] = 'backup';
             if (time() >= $until) {
-                throw new RuntimeException('These background jobs are still running: ' . implode(', ', $busy) . '. Nothing was changed; try again when they have finished.');
+                throw new RuntimeException(backupT('rb_jobs_busy', ['jobs' => implode(', ', $busy)]));
             }
-            $this->beat([], 'Still running: ' . implode(', ', $busy));
+            $this->beat([], backupT('rb_still_running', ['jobs' => implode(', ', $busy)]));
             sleep(min(3, max(1, $until - time())));
         }
     }
@@ -256,9 +297,12 @@ final class BackupRollback
                        ->execute([$state === 'done' ? 'ok' : 'failed', $this->set, $started, $this->by, $error,
                                   $this->warnings ? implode("\n", array_slice($this->warnings, 0, 50)) : null]);
         } catch (Throwable $e) {
-            $this->warnings[] = 'The restore could not be recorded in the backup history.';
+            $this->warnings[] = backupT('rb_history_failed');
         }
-        $this->beat([], $state === 'done' ? "Backup {$this->set} restored." : 'Not restored: ' . $error);
+        $this->beat([], $state === 'done' ? backupT('rb_done', ['set' => $this->set]) : backupT('rb_not_restored', ['error' => (string)$error]));
+        // The database was replaced (by the backup, or by the safety backup): every session signed in
+        // before it ends - analyst ids may now belong to someone else.
+        if ($this->replaced) backupSessionEpochBump();
         backupMaintenanceEnd(['state' => $state, 'error' => $error, 'safety_set' => $safety, 'warnings' => $this->warnings]);
     }
 
@@ -279,14 +323,18 @@ final class BackupRollback
         }
     }
 
-    private function notify(string $message): void
+    /**
+     * How the restore ended, to the people concerned (includes/backup/notify.php): a bell and an
+     * email. $actorId (the administrator who started it, watching the progress page) is not told.
+     */
+    private function notify(string $title, string $message, ?int $actorId): void
     {
         try {
             if ($this->mailer) {
-                ($this->mailer)('FreeITSM restore failed', $message);
+                ($this->mailer)('FreeITSM: ' . $title, $message);
                 return;
             }
-            backupMailAdmins($this->conn, 'FreeITSM restore failed', '<p>' . htmlspecialchars($message) . '</p>');
+            backupNotify($this->conn, 'restore', $title, $message, $actorId);
         } catch (Throwable $e) {
             // the outcome is on the page and in the history
         }

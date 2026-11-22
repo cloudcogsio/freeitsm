@@ -41,6 +41,13 @@ interface StorageLister
      * @return array<string, array{size: int, mtime: int}>  key => details, sorted by key
      */
     public function listObjects(string $prefix): array;
+
+    /**
+     * Calls $fn(string $key, int $size, int $mtime) for every object starting with $prefix, in no
+     * particular order, without holding the whole listing in memory (a backup pool can hold
+     * hundreds of thousands of objects). A page that cannot be read throws StorageUnavailable.
+     */
+    public function eachObject(string $prefix, callable $fn): void;
 }
 
 interface StorageDriver

@@ -21,6 +21,25 @@
 
 require_once __DIR__ . '/backup/maintenance.php';
 
+/**
+ * After a restore (backupSessionEpochBump()), a session signed in before it ends here: analyst and
+ * portal ids now name whoever the restored database says. One is_file() per request otherwise.
+ */
+function backupSessionEpochGate(): void
+{
+    if (PHP_SAPI === 'cli' || !is_file(backupSessionEpochFile())) return;
+    if (session_status() === PHP_SESSION_NONE && isset($_COOKIE[session_name()]) && !headers_sent()) {
+        @session_start(['read_and_close' => true]);
+    }
+    $signedIn = !empty($_SESSION['analyst_id']) || !empty($_SESSION['ss_user_id'])
+             || !empty($_SESSION['mfa_pending_analyst_id']) || !empty($_SESSION['mfa_pending_ss_user_id']);
+    if (!$signedIn || (string)($_SESSION['session_epoch'] ?? '') === backupSessionEpoch()) return;
+    // Ended for good: the session's data and file go, so the request carries on signed out.
+    if (session_status() !== PHP_SESSION_ACTIVE && !headers_sent()) @session_start();
+    $_SESSION = [];
+    if (session_status() === PHP_SESSION_ACTIVE) @session_destroy();
+}
+
 function backupMaintenanceGate(): void
 {
     if (!is_file(backupMaintenanceFile())) return;
@@ -76,26 +95,26 @@ function backupMaintenancePage(array $st, bool $owner, Closure $t): void
 <title><?php echo $h($owner ? $t('mm_progress_title', ['set' => (string)($st['set'] ?? '')]) : $t('mm_title')); ?></title>
 <style>
     :root { color-scheme: light dark; }
-    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; color: #263238; }
+    /* The database is being replaced, so theme.css (and the theme setting) cannot be loaded: the
+       theme's tokens with their light defaults, and the dark ones below. */
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--app-bg, #f5f7fa); color: var(--text, #263238); }
     .mm { max-width: 720px; margin: 8vh auto; padding: 0 20px; }
-    .mm-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 28px; }
+    .mm-card { background: var(--surface, #fff); border: 1px solid var(--border, #e0e0e0); border-radius: 10px; padding: 28px; }
     h1 { font-size: var(--font-size-3xl, 20px); margin: 0 0 10px; }
     p { font-size: var(--font-size-lg, 14px); line-height: 1.5; margin: 0 0 12px; }
     .mm-state { font-weight: 600; margin: 16px 0 8px; }
-    .mm-log { background: #f1f3f5; border-radius: 6px; padding: 10px 12px; font: 12px/1.5 ui-monospace, Consolas, monospace; max-height: 320px; overflow: auto; white-space: pre-wrap; }
+    .mm-log { background: var(--surface-alt, #f1f3f5); border-radius: 6px; padding: 10px 12px; font-family: ui-monospace, Consolas, monospace; font-size: var(--font-size-sm, 12px); line-height: 1.5; max-height: 320px; overflow: auto; white-space: pre-wrap; }
     .mm-msg { border-radius: 6px; padding: 10px 12px; font-size: var(--font-size-lg, 14px); margin: 12px 0; }
-    .mm-msg.ok { background: #e8f5e9; color: #1b5e20; }
-    .mm-msg.err { background: #ffebee; color: #b71c1c; }
-    .mm-msg.warn { background: #fff8e1; color: #5d4037; }
+    .mm-msg.ok { background: var(--success-bg, #e8f5e9); color: var(--success-text, #1b5e20); }
+    .mm-msg.err { background: var(--danger-bg, #ffebee); color: var(--danger-text, #b71c1c); }
+    .mm-msg.warn { background: var(--warning-bg, #fff8e1); color: var(--warning-text, #5d4037); }
     .mm-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-    .mm-btn { padding: 8px 16px; border-radius: 5px; border: 1px solid #546e7a; background: #546e7a; color: #fff; font-size: var(--font-size-lg, 14px); cursor: pointer; text-decoration: none; }
-    .mm-btn.plain { background: #fff; color: #263238; border-color: #ccc; }
+    .mm-btn { padding: 8px 16px; border-radius: 5px; border: 1px solid var(--sys-accent, #546e7a); background: var(--sys-accent, #546e7a); color: var(--sys-on-accent, #fff); font-size: var(--font-size-lg, 14px); cursor: pointer; text-decoration: none; }
+    .mm-btn.plain { background: var(--surface, #fff); color: var(--text, #263238); border-color: var(--border, #ccc); }
     .mm-hidden { display: none; }
     @media (prefers-color-scheme: dark) {
-        body { background: #12171b; color: #e0e6ea; }
-        .mm-card { background: #1c2329; border-color: #2c363e; }
-        .mm-log { background: #12171b; }
-        .mm-btn.plain { background: #1c2329; color: #e0e6ea; border-color: #3a454e; }
+        :root { --app-bg: var(--mm-dark-bg, #12171b); --surface: var(--mm-dark-surface, #1c2329); --surface-alt: var(--mm-dark-bg, #12171b);
+                --text: var(--mm-dark-text, #e0e6ea); --border: var(--mm-dark-border, #2c363e); }
     }
 </style>
 </head>
@@ -112,6 +131,8 @@ function backupMaintenancePage(array $st, bool $owner, Closure $t): void
     <div class="mm-log" id="mmLog"></div>
     <div class="mm-actions">
         <button class="mm-btn plain mm-hidden" id="mmOff" type="button"><?php echo $h($t('mm_off')); ?></button>
+        <span class="mm-hidden" id="mmOffAsk"><?php echo $h($t('mm_off_confirm')); ?>
+            <button class="mm-btn" id="mmOffYes" type="button"><?php echo $h($t('mm_off_yes')); ?></button></span>
         <a class="mm-btn mm-hidden" id="mmBack" href="<?php echo $h($base); ?>system/backups/"><?php echo $h($t('mm_back')); ?></a>
     </div>
     <script>
@@ -141,8 +162,9 @@ function backupMaintenancePage(array $st, bool $owner, Closure $t): void
                 .then(function (d) { if (d) show(d); })
                 .catch(function () { /* the server may be busy: try again */ });
         }
-        $('mmOff').addEventListener('click', function () {
-            if (!window.confirm(S.mm_off_confirm)) return;
+        // Two steps on the page itself (no browser dialog): Resume shows what it means, Confirm does it.
+        $('mmOff').addEventListener('click', function () { $('mmOffAsk').classList.remove('mm-hidden'); $('mmOff').classList.add('mm-hidden'); });
+        $('mmOffYes').addEventListener('click', function () {
             fetch(URL_, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
                           body: JSON.stringify({ action: 'off' }) })
                 .then(function () { window.location.href = <?php echo json_encode($base . 'system/backups/', JSON_UNESCAPED_SLASHES); ?>; });
@@ -158,4 +180,5 @@ function backupMaintenancePage(array $st, bool $owner, Closure $t): void
 <?php
 }
 
+backupSessionEpochGate();
 backupMaintenanceGate();

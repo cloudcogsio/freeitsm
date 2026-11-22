@@ -26,6 +26,9 @@ require_once "$root/includes/backup/runner.php";
 require_once "$root/includes/backup/restore.php";
 require_once "$root/includes/backup/rollback.php";
 require_once "$root/includes/i18n.php";
+// Never email anyone (tests/README): what backups tell people (includes/backup/notify.php) is recorded instead.
+$zzBackupMails = [];
+BackupNotify::$mailer = function (string $to, string $subject, string $html) use (&$zzBackupMails): void { $zzBackupMails[] = [$to, $subject]; };
 
 $pass = 0; $fail = 0;
 function ok(string $label, bool $cond, string $detail = ''): void {
@@ -45,16 +48,30 @@ if (getenv('FREEITSM_TEST_DATABASE') !== $dbName) {
     exit($fail ? 1 : 0);
 }
 
+// The real restore job and the web requests here send through the install's own mailboxes, which
+// BackupNotify::$mailer cannot reach: refuse to run where one could really send.
+require_once "$root/includes/self_service_email.php";
+if (ssGetSendingMailbox($conn) !== null) {
+    echo "\nREFUSED: a mailbox on this database can send email, and this test starts restores that tell people. Use a database without one.\n";
+    echo "\n$pass passed, 1 failed\n";
+    exit(1);
+}
+
 $work = sys_get_temp_dir() . '/zz-rb-' . bin2hex(random_bytes(4));
 mkdir($work);
 $cleanup = [];
+// A restore changes the session epoch (a file beside the key): put it back as it was at the end.
+$epochFile = backupSessionEpochFile();
+$epochBefore = is_file($epochFile) ? file_get_contents($epochFile) : null;
+$cleanup[] = function () use ($epochFile, $epochBefore) { if ($epochBefore === null) @unlink($epochFile); else file_put_contents($epochFile, $epochBefore); };
 $base = rtrim(getenv('FREEITSM_TEST_URL') ?: 'http://localhost', '/') . '/';
 $sessDir = rtrim(getenv('FREEITSM_SESS_DIR') ?: (ini_get('session.save_path') ?: sys_get_temp_dir()), '/\\');
 $admin = (int)$conn->query('SELECT id FROM analysts ORDER BY id LIMIT 1')->fetchColumn();
 
 $mkSess = function (int $id, string $csrf) use ($sessDir, &$cleanup): string {
     $sid = bin2hex(random_bytes(16));   // hex: a valid session id whatever the sid settings
-    file_put_contents("$sessDir/sess_$sid", 'analyst_id|i:' . $id . ';csrf_token|s:' . strlen($csrf) . ':"' . $csrf . '";');
+    $epoch = backupSessionEpoch();   // signed in now: stamped as a real sign-in is
+    file_put_contents("$sessDir/sess_$sid", 'analyst_id|i:' . $id . ';csrf_token|s:' . strlen($csrf) . ':"' . $csrf . '";session_epoch|s:' . strlen($epoch) . ':"' . $epoch . '";');
     $cleanup[] = fn() => @unlink("$sessDir/sess_$sid");
     return $sid;
 };
@@ -204,8 +221,46 @@ try {
     ok('polling the progress keeps the session from being collected', filemtime("$sessDir/sess_$adminSid") > time() - 60, date('c', (int)filemtime("$sessDir/sess_$adminSid")));
     backupMaintenanceEnd(['state' => 'abandoned']);
 
+    section('Maintenance mode: a restore process that dies');
+    // A process that runs out of memory part way: its shutdown handler says so at once.
+    $die = function (string $state) use ($root): string {
+        $code = 'require ' . var_export("$root/config.php", true) . '; require ' . var_export("$root/includes/backup/maintenance.php", true) . ';'
+              . ' backupMaintenanceUpdate(["pid" => getmypid(), "state" => ' . var_export($state, true) . ', "safety_set" => "20990101T000000Z"]);'
+              . ' register_shutdown_function("backupMaintenanceProcessEnded"); ini_set("memory_limit", "16M"); $a = []; while (true) $a[] = str_repeat("x", 1048576);';
+        return (string)shell_exec(escapeshellarg(PHP_BINARY) . ' -r ' . escapeshellarg($code) . ' 2>&1');
+    };
+    backupMaintenanceStart($admin, '20990101T000000Z');
+    $die('safety');
+    ok('dies before the database is touched: maintenance mode goes off at once', !backupMaintenanceActive()
+       && (backupMaintenanceLast()['state'] ?? '') === 'failed' && str_contains((string)(backupMaintenanceLast()['error'] ?? ''), 'memory'), json_encode(backupMaintenanceLast()));
+    backupMaintenanceStart($admin, '20990101T000000Z');
+    $die('files');
+    $st = backupMaintenanceRead();
+    ok('dies part way: stays on, marked as stopped part way, naming the safety backup', ($st['state'] ?? '') === 'broken'
+       && str_contains((string)($st['error'] ?? ''), '20990101T000000Z') && backupMaintenanceStale($st), json_encode($st));
+    backupMaintenanceEnd(['state' => 'abandoned']);
+
     // ── A small install of its own: upload folders under a temporary app root, Files in a
     //    temporary folder, a folder target, and the backup settings (all put back at the end).
+    section('Memory: what a rollback deletes, on a large install');
+    // 300,000 files in the backup: the set of what it holds stays compact (an integer each).
+    $bigDir = "$work/big";
+    mkdir("$bigDir/root", 0777, true);
+    mkdir("$bigDir/files");
+    $fh = fopen("$bigDir/manifest", 'wb');
+    fwrite($fh, json_encode(['format' => BACKUP_MANIFEST_FORMAT]) . "\n");
+    for ($i = 0; $i < 300000; $i++) fwrite($fh, json_encode(['store' => 'files', 'path' => sprintf('2026/01/01/%032x.bin', $i), 'size' => 1, 'sha256' => str_repeat('0', 64), 'pool' => str_repeat('0', 64)]) . "\n");
+    fclose($fh);
+    $bigRestore = new BackupRestore(new LocalDriver("$bigDir/files"), '20000101T000000Z', 'x', $conn, "$bigDir/root", "$bigDir/key", false, fn() => null);
+    gc_collect_cycles();
+    $memBase = memory_get_usage();
+    memory_reset_peak_usage();
+    (new ReflectionMethod(BackupRestore::class, 'removeExtras'))->invoke($bigRestore, ['files_path' => "$bigDir/manifest"], new LocalDriver("$bigDir/files"), "$bigDir/files");
+    $memPeak = memory_get_peak_usage() - $memBase;
+    ok('removing what a 300,000-file backup does not hold stays under 36 MB (the map of 300,000 integers is about 18 MB)', $memPeak < 36 * 1048576, round($memPeak / 1048576, 1) . ' MB');
+    unset($bigRestore);
+    @unlink("$bigDir/manifest"); @rmdir("$bigDir/root"); @rmdir("$bigDir/files"); @rmdir($bigDir);
+
     section('Set-up');
     $firstRun = (int)$conn->query('SELECT COALESCE(MAX(id), 0) FROM backup_runs')->fetchColumn();
     $cleanup[] = fn() => $conn->prepare('DELETE FROM backup_runs WHERE id > ?')->execute([$firstRun]);
@@ -274,7 +329,7 @@ try {
     $counted = $runner();
     $counted->onFile = function () use (&$seen) { $seen++; };
     $counted->run('manual', $admin);
-    ok('the runner reports each file (the rollback\'s heartbeat)', $seen === 7, (string)$seen);   // 5 upload files + 2 Files objects
+    ok('the runner reports each file (the rollback\'s heartbeat)', $seen === 5, (string)$seen);   // 3 upload files (not .htaccess / web.config) + 2 Files objects
 
     section('Rolling back');
     // Everything that happens after B1 and must be undone, or kept.
@@ -299,8 +354,62 @@ try {
     $rb = new BackupRollback($conn, $target, $b1['set'], 'rollback test passphrase', $admin, $app, $keyPath, $files, fn() => null);
     $rb->verifySchema = function () use (&$verified) { $verified++; return true; };
     $rb->jobWaitSeconds = 5;
+    $epochBeforeRb = backupSessionEpoch();
+    $oldCsrf = bin2hex(random_bytes(16));
+    $oldSid = $mkSess($admin, $oldCsrf);
+    $modeBefore = (string)$conn->query('SELECT @@SESSION.sql_mode')->fetchColumn();
     $res = $rb->run();
     ok('rollback: done', $res['state'] === 'done', json_encode($res));
+    ok('rollback: the connection\'s session settings are as before (sql_mode)', (string)$conn->query('SELECT @@SESSION.sql_mode')->fetchColumn() === $modeBefore);
+    ok('rollback: a new session epoch', backupSessionEpoch() !== $epochBeforeRb && backupSessionEpoch() !== '');
+    [$code] = $http('api/system/backups.php', 'PHPSESSID=' . $oldSid);
+    ok('...so a session signed in before the restore is signed out', $code === 401, (string)$code);
+    $newSid = $mkSess($admin, $oldCsrf);
+    [$code] = $http('api/system/backups.php', 'PHPSESSID=' . $newSid);
+    ok('...and one signed in after it works', $code === 200, (string)$code);
+
+    // MFA after a restore: the password step stamps the half-signed-in session, so the code step
+    // still finds it; a half-signed-in session from before the restore is ended.
+    require_once "$root/includes/totp.php";
+    $mfaSecret = generateTotpSecret();
+    $mfaUser = 'zzrbmfa' . bin2hex(random_bytes(3));
+    $conn->prepare("INSERT INTO analysts (username, password_hash, full_name, email, is_active, is_admin, totp_enabled, totp_secret, created_datetime)
+                    VALUES (?, ?, 'ZZ rollback MFA', 'zz-rb-mfa@example.invalid', 1, 0, 1, ?, UTC_TIMESTAMP())")
+         ->execute([$mfaUser, password_hash('zz mfa password 1', PASSWORD_DEFAULT), encryptValue($mfaSecret)]);
+    $mfaId = (int)$conn->lastInsertId();
+    $conn->prepare("INSERT INTO users (email, username, display_name, password_hash, totp_enabled, totp_secret) VALUES (?, ?, 'ZZ rollback portal MFA', ?, 1, ?)")
+         ->execute(['zz-rb-portal@example.invalid', 'zzrbportal' . bin2hex(random_bytes(3)), password_hash('zz portal password 1', PASSWORD_DEFAULT), encryptValue($mfaSecret)]);
+    $portalId = (int)$conn->lastInsertId();
+    $cleanup[] = function () use ($conn, $mfaId, $portalId) {
+        $conn->prepare('DELETE FROM analysts WHERE id = ?')->execute([$mfaId]);
+        $conn->prepare('DELETE FROM users WHERE id = ?')->execute([$portalId]);
+    };
+    $jar = "$work/cookies-" . bin2hex(random_bytes(3));
+    $flow = function (string $path, $body, bool $json) use ($base, &$jar): array {
+        $ch = curl_init($base . $path);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 60, CURLOPT_COOKIEJAR => $jar, CURLOPT_COOKIEFILE => $jar,
+                                CURLOPT_FOLLOWLOCATION => false, CURLOPT_POST => true,
+                                CURLOPT_POSTFIELDS => $json ? json_encode($body) : http_build_query($body),
+                                CURLOPT_HTTPHEADER => [$json ? 'Content-Type: application/json' : 'Content-Type: application/x-www-form-urlencoded']]);
+        $b = (string)curl_exec($ch);
+        $c = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        return [$c, json_decode($b, true), $b];
+    };
+    $flow('auth/login.php', ['username' => $mfaUser, 'password' => 'zz mfa password 1'], false);
+    [$c, $j] = $flow('api/myaccount/verify_login_otp.php', ['code' => getTotpCode($mfaSecret)], true);
+    ok('after a restore, an analyst with MFA completes sign-in', !empty($j['success']), json_encode($j));
+    $jar = "$work/cookies-" . bin2hex(random_bytes(3));
+    [$c, $j] = $flow('api/self-service/login.php', ['identifier' => 'zz-rb-portal@example.invalid', 'password' => 'zz portal password 1'], true);
+    $mfaAsked = !empty($j['mfa_required']);
+    [$c, $j] = $flow('api/self-service/verify_login_otp.php', ['code' => getTotpCode($mfaSecret)], true);
+    ok('...and so does a portal user with MFA', $mfaAsked && !empty($j['success']), json_encode($j));
+    // A half-signed-in session from before the restore (an older epoch).
+    $staleSid = bin2hex(random_bytes(16));
+    file_put_contents("$sessDir/sess_$staleSid", 'mfa_pending_analyst_id|i:' . $mfaId . ';session_epoch|s:3:"old";');
+    $cleanup[] = fn() => @unlink("$sessDir/sess_$staleSid");
+    [$c, $j] = $http('api/myaccount/verify_login_otp.php', 'PHPSESSID=' . $staleSid, ['code' => getTotpCode($mfaSecret)]);
+    ok('...but a half-signed-in session from before the restore cannot finish', empty($j['success']) && ($j['error'] ?? '') === 'No MFA challenge pending', json_encode($j));
     ok('rollback: maintenance mode is off, the outcome kept', !backupMaintenanceActive() && (backupMaintenanceLast()['state'] ?? '') === 'done');
     ok('rollback: a row added since is gone', (int)$conn->query("SELECT COUNT(*) FROM files_folders WHERE name = 'ZZ rollback later row'")->fetchColumn() === 0);
     ok('rollback: the schema check ran', $verified === 1);
@@ -343,12 +452,51 @@ try {
     $last = $conn->query('SELECT kind, status, error_text FROM backup_runs ORDER BY id DESC LIMIT 1')->fetch(PDO::FETCH_ASSOC);
     ok('failed: recorded in the history', $last['kind'] === 'restore' && $last['status'] === 'failed' && str_contains((string)$last['error_text'], 'ZZ simulated failure'), json_encode($last));
 
+    section('A restore whose Database Verification fails is undone');
+    backupMaintenanceStart($admin, $b1['set']);
+    $calls = 0;
+    $rb = new BackupRollback($conn, $target, $b1['set'], 'rollback test passphrase', $admin, $app, $keyPath, $files, fn() => null);
+    $rb->verifySchema = function () use (&$calls) { return ++$calls > 1; };   // fails for the backup, passes for the safety backup
+    $rb->jobWaitSeconds = 5;
+    $res = $rb->run();
+    ok('a failed Database Verification is a failure: the safety backup is put back', $res['state'] === 'failed'
+       && $res['error'] === backupT('rb_verify_failed') && $calls === 2 && !backupMaintenanceActive(), json_encode($res));
+    // Database Verification that cannot run at all (exec() disabled, say): the safety backup still goes back.
+    backupMaintenanceStart($admin, $b1['set']);
+    $rb = new BackupRollback($conn, $target, $b1['set'], 'rollback test passphrase', $admin, $app, $keyPath, $files, fn() => null);
+    $rb->verifySchema = fn() => false;
+    $rb->jobWaitSeconds = 5;
+    $res = $rb->run();
+    ok('...and when it fails every time, the safety backup is still put back (a warning, not stuck in maintenance)', $res['state'] === 'failed'
+       && in_array(backupT('rb_verify_warning'), $res['warnings'], true) && !backupMaintenanceActive(), json_encode($res));
+
+    section('Requests still running when maintenance mode starts');
+    $busy = proc_open([PHP_BINARY, '-r', 'require ' . var_export("$root/config.php", true) . '; require ' . var_export("$root/includes/functions.php", true)
+                       . '; connectToDatabase()->query("SELECT SLEEP(15)");'], [0 => ['pipe', 'r'], 1 => ['file', $null, 'w'], 2 => ['file', $null, 'w']], $bp);
+    sleep(2);
+    backupMaintenanceStart($admin, $b1['set']);
+    $rb = new BackupRollback($conn, $target, $b1['set'], 'rollback test passphrase', $admin, $app, $keyPath, $files, fn() => null);
+    $rb->verifySchema = fn() => true;
+    $rb->jobWaitSeconds = 5;
+    $rb->connWaitSeconds = 2;
+    $res = $rb->run();
+    ok('a request still writing: waits, then gives up without changing anything', $res['state'] === 'failed' && $res['safety_set'] === null
+       && str_contains((string)$res['error'], 'still running on the database') && !backupMaintenanceActive(), json_encode($res));
+    proc_close($busy);
+
     section('A failure before anything changed');
     backupMaintenanceStart($admin, $b1['set']);
     $rb = new BackupRollback($conn, $target, $b1['set'], 'not the passphrase at all', $admin, $app, $keyPath, $files, fn() => null);
     $rb->verifySchema = fn() => true;
     $res = $rb->run();
     ok('a wrong passphrase: failed, no safety backup taken, maintenance off', $res['state'] === 'failed' && $res['safety_set'] === null && !backupMaintenanceActive(), json_encode($res));
+    $told = [];
+    backupMaintenanceStart($admin, $b1['set']);
+    $rb = new BackupRollback($conn, $target, $b1['set'], 'not the passphrase at all', $admin, $app, $keyPath, $files,
+                             function (string $subject, string $body) use (&$told) { $told[] = $subject; });
+    $rb->verifySchema = fn() => true;
+    $rb->run();
+    ok('...and the people concerned are told it failed', $told === ['FreeITSM: Restore failed'], json_encode($told));
     section('When putting the safety backup back fails too');
     backupMaintenanceStart($admin, $b1['set']);
     $mailed = [];
@@ -405,6 +553,29 @@ try {
     [$code, $j] = $api(['action' => 'restore_start', 'run_id' => $realRun, 'passphrase' => 'rollback test passphrase', 'confirm' => 'RESTORE']);
     ok('start: refused while Files is moving storage', $code === 400 && ($j['error'] ?? '') === t('system.backups.err_storage_moving'), json_encode($j));
     backupSaveSetting($conn, 'files_storage_previous', null);
+    // Restore stays with administrators: Storage and backups opens the page, not Restore.
+    $conn->prepare("INSERT INTO analysts (username, password_hash, full_name, email, is_active, is_admin, can_access_all_modules, created_datetime)
+                    VALUES (?, 'x', 'ZZ rollback holder', 'zz-rb-holder@example.invalid', 1, 0, 1, UTC_TIMESTAMP())")->execute(['zzrbh' . bin2hex(random_bytes(3))]);
+    $holder = (int)$conn->lastInsertId();
+    $conn->prepare("INSERT INTO rbac_roles (name, is_active) VALUES ('ZZ rollback holder role', 1)")->execute();
+    $holderRole = (int)$conn->lastInsertId();
+    $conn->prepare('INSERT INTO rbac_role_capabilities (role_id, capability_key) VALUES (?, ?)')->execute([$holderRole, capKey(Cap::FILES_STORAGE_BACKUPS)]);
+    $conn->prepare('INSERT INTO rbac_analyst_roles (analyst_id, role_id) VALUES (?, ?)')->execute([$holder, $holderRole]);
+    $cleanup[] = function () use ($conn, $holder, $holderRole) {
+        $conn->prepare('DELETE FROM rbac_analyst_roles WHERE role_id = ?')->execute([$holderRole]);
+        $conn->prepare('DELETE FROM rbac_role_capabilities WHERE role_id = ?')->execute([$holderRole]);
+        $conn->prepare('DELETE FROM rbac_roles WHERE id = ?')->execute([$holderRole]);
+        $conn->prepare('DELETE FROM analysts WHERE id = ?')->execute([$holder]);
+    };
+    $hsid = $mkSess($holder, $csrf);
+    [$code, $j] = $http('api/system/backups.php', 'PHPSESSID=' . $hsid);
+    ok('a holder of Storage and backups opens Backups, without Restore', $code === 200 && ($j['settings']['can_restore'] ?? null) === false, json_encode($j['settings'] ?? $j));
+    [$code, $j] = $http('api/system/backups.php', 'PHPSESSID=' . $sid);
+    ok('...an administrator has Restore', $code === 200 && ($j['settings']['can_restore'] ?? null) === true);
+    [$code, $j] = $http('api/system/backups.php', 'PHPSESSID=' . $hsid, ['action' => 'restore_check', 'run_id' => $realRun, 'passphrase' => 'rollback test passphrase'], $csrf);
+    ok('...and the holder cannot check a restore', $code === 403 && ($j['error'] ?? '') === t('system.backups.err_restore_admin'), json_encode($j));
+    [$code, $j] = $http('api/system/backups.php', 'PHPSESSID=' . $hsid, ['action' => 'restore_start', 'run_id' => $realRun, 'passphrase' => 'rollback test passphrase', 'confirm' => 'RESTORE'], $csrf);
+    ok('...nor start one', $code === 403 && !backupMaintenanceActive(), json_encode($j));
 
     // Hold a job lock so the restore waits where it can be looked at.
     $lock->query("SELECT GET_LOCK(" . $lock->quote(JobRun::lockName($conn, 'directory_sync')) . ", 0)");
@@ -436,6 +607,7 @@ try {
     }
     ok('progress: it finishes, restored', ($final['state'] ?? '') === 'done', json_encode($final ?? $j));
     ok('the row added since the backup is gone', (int)$conn->query("SELECT COUNT(*) FROM files_folders WHERE name = 'ZZ rollback e2e row'")->fetchColumn() === 0);
+    $sid = $mkSess($admin, $csrf);   // the restore ended every session signed in before it
     [$code, $j] = $http('api/system/backups.php', 'PHPSESSID=' . $sid);
     ok('the page shows the last restore', $code === 200 && ($j['settings']['last_restore']['state'] ?? '') === 'done' && ($j['settings']['last_restore']['set'] ?? '') === $real['set']
        && !str_contains(json_encode($j), 'token_hash'), json_encode($j['settings']['last_restore'] ?? null));
@@ -445,13 +617,19 @@ try {
     ok('pages are back', $code !== 503, (string)$code);
     $out = $cli('cron/backup_rollback.php', '--set=' . $real['set'] . ' --by=' . $admin . ' < /dev/null');
     ok('the job will not run unless a restore is waiting for it', str_contains($out, 'Not started from System') && str_ends_with($out, 'EXIT=2'), $out);
+    // A restore waiting for this job, which got no passphrase (a spawn that lost its input): nothing
+    // changed, so maintenance mode is switched off at once, not left on until it counts as stopped.
+    backupMaintenanceStart($admin, $real['set']);
+    $out = $cli('cron/backup_rollback.php', '--set=' . $real['set'] . ' --by=' . $admin . ' < /dev/null');
+    ok('a job started without the passphrase switches maintenance mode off', str_ends_with($out, 'EXIT=2') && !backupMaintenanceActive()
+       && (backupMaintenanceLast()['state'] ?? '') === 'failed', $out . ' ' . json_encode(backupMaintenanceLast()));
 
     section('Only the current passphrase starts a restore');
     BackupsService::changePassphrase($conn, 'rollback test passphrase', 'a newer rollback passphrase', 'a newer rollback passphrase', $admin);
     $e = null;
-    try { BackupsService::restoreCheck($conn, $realRun, 'rollback test passphrase'); } catch (BackupsInputError $x) { $e = $x->getMessage(); }
+    try { BackupsService::restoreCheck($conn, $realRun, 'rollback test passphrase', $admin); } catch (BackupsInputError $x) { $e = $x->getMessage(); }
     ok('an older passphrase that still opens an older backup is refused (it could not open the safety backup)', $e === 'err_restore_old_passphrase', (string)$e);
-    ok('the current passphrase is accepted', BackupsService::restoreCheck($conn, $realRun, 'a newer rollback passphrase')['set'] === $real['set']);
+    ok('the current passphrase is accepted', BackupsService::restoreCheck($conn, $realRun, 'a newer rollback passphrase', $admin)['set'] === $real['set']);
 } catch (Throwable $e) {
     ok('no unexpected error', false, get_class($e) . ': ' . $e->getMessage() . ' @' . basename($e->getFile()) . ':' . $e->getLine());
 } finally {

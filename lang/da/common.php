@@ -692,6 +692,11 @@ return [
             'consumable' => [
                 'low_stock' => 'Lageret er ved at slippe op - tid til at genbestille',
             ],
+            'backup' => [
+                'changed' => 'En indstilling for sikkerhedskopier er ændret',
+                'failed' => 'En sikkerhedskopi eller en kontrol af den mislykkedes',
+                'restore' => 'En gendannelse er startet eller afsluttet',
+            ],
             'hyperv' => [
                 'collector' => 'En Hyper-V-collector kræver din opmærksomhed',
             ],
@@ -753,6 +758,11 @@ return [
             ],
             'consumable' => [
                 'low_stock' => 'En forbrugsvare falder til sit genbestillingspunkt (hvem der får besked, vælges under Aktiver -> Indstillinger -> Forbrugsvarer)',
+            ],
+            'backup' => [
+                'changed' => 'Hvor sikkerhedskopier sendes hen, adgangsudtrykket eller tidsplanen for sikkerhedskopier ændres (administratorer og personer med Lager og sikkerhedskopier)',
+                'failed' => 'En sikkerhedskopi eller en kontrol af en sikkerhedskopi (Bekræft) mislykkes (administratorer og personer med Lager og sikkerhedskopier)',
+                'restore' => 'En sikkerhedskopi gendannes over denne installation: når det starter, og når det afsluttes eller mislykkes (administratorer og personer med Lager og sikkerhedskopier)',
             ],
             'hyperv' => [
                 'collector' => 'En Hyper-V-collector holder op med at rapportere, eller en clusters lager kan ikke læses (personer, der administrerer Hyper-V-forbindelser)',

@@ -39,9 +39,11 @@ function backupListSets(StorageDriver&StorageLister $t): array
 }
 
 /**
- * Opens a complete set with the passphrase.
+ * Opens a complete set with the passphrase. The manifest's header comes back as 'manifest'; its
+ * file entries stay in a decrypted temporary file ('files_path'), read one at a time with
+ * backupSetFiles(). Call backupCloseSet() when done: it removes that file and wipes the keys.
  *
- * @return array{keys: array, datakey: string, manifest: array}
+ * @return array{keys: array, datakey: string, manifest: array, files_path: string}
  * @throws BackupWrongPassphrase|BackupCorrupt|StorageUnavailable|RuntimeException
  */
 function backupOpenSet(StorageDriver&StorageLister $t, string $set, string $passphrase): array
@@ -49,8 +51,20 @@ function backupOpenSet(StorageDriver&StorageLister $t, string $set, string $pass
     if (!preg_match('/^\d{8}T\d{6}Z$/', $set)) throw new InvalidArgumentException('That is not a backup name.');
     if ($t->size("sets/$set/done.json") === null) throw new RuntimeException("Backup $set is not complete (or does not exist).");
     $datakeyBin  = backupReadString($t, "sets/$set/datakey.bin");
-    $manifestBin = backupReadString($t, "sets/$set/manifest.bin");
     $auth        = trim(backupReadString($t, "sets/$set/auth.txt"));
+    $manifestEnc = sys_get_temp_dir() . '/bkman-' . bin2hex(random_bytes(6));
+    try {
+        $t->readTo("sets/$set/manifest.bin", $manifestEnc);
+        $manifestSha = (string)hash_file('sha256', $manifestEnc);
+        return backupOpenSetWith($t, $set, $passphrase, $datakeyBin, $auth, $manifestEnc, $manifestSha);
+    } finally {
+        @unlink($manifestEnc);
+    }
+}
+
+function backupOpenSetWith(StorageDriver&StorageLister $t, string $set, string $passphrase, string $datakeyBin, string $auth,
+                           string $manifestEnc, string $manifestSha): array
+{
 
     // The keyring at the target (current passphrase), the set's own copy (the keyring it
     // was made with), then any older keyrings kept beside a newer one.
@@ -69,29 +83,92 @@ function backupOpenSet(StorageDriver&StorageLister $t, string $set, string $pass
         }
         $unlocked = true;
         try {
-            $dataKey = backupOpenKey($datakeyBin, $keys['public'], $keys['secret']);
+            $dataKey = backupOpenKeyAny($datakeyBin, $keys);
         } catch (BackupCorrupt $e) {
-            sodium_memzero($keys['secret']);
+            backupForgetKeys($keys);
             continue;   // this passphrase opens a keyring, but not the one this set was made with
         }
-        if (!hash_equals(backupSetAuth($keys['pool_name_key'], $set, $datakeyBin, $manifestBin), $auth)) {
+        if (!hash_equals(backupSetAuth($keys['pool_name_key'], $set, $datakeyBin, $manifestSha), $auth)) {
+            backupForgetKeys($keys);
             throw new BackupCorrupt("Backup $set is not authentic: it was not made by an install holding this backup's keys.");
         }
-        $manifest = json_decode(backupDecryptString($manifestBin, $dataKey), true);
-        if (!is_array($manifest) || (int)($manifest['format'] ?? 0) !== 1) throw new BackupCorrupt('The backup manifest is not readable.');
-        return ['keys' => $keys, 'datakey' => $dataKey, 'manifest' => $manifest];
+        $plain = sys_get_temp_dir() . '/bkfiles-' . bin2hex(random_bytes(6));
+        try {
+            // Decrypted file paths are private: created 0600 before anything is written into it.
+            if (@file_put_contents($plain, '') === false || !@chmod($plain, 0600)) throw new RuntimeException(backupT('err_tmp'));
+            backupDecryptFile($manifestEnc, $plain, $dataKey);
+            $fh = fopen($plain, 'rb');
+            $manifest = $fh ? json_decode((string)fgets($fh), true) : null;
+            if ($fh) fclose($fh);
+        } catch (Throwable $e) {
+            $manifest = null;
+        }
+        if (!is_array($manifest) || (int)($manifest['format'] ?? 0) !== BACKUP_MANIFEST_FORMAT) {
+            @unlink($plain);
+            backupForgetKeys($keys);
+            throw new BackupCorrupt('The backup manifest is not readable.');
+        }
+        return ['keys' => $keys, 'datakey' => $dataKey, 'manifest' => $manifest, 'files_path' => $plain];
     }
     if ($unlocked) throw new BackupCorrupt("Backup $set could not be opened with any keyring this passphrase unlocks.");
     throw new BackupWrongPassphrase('The backup passphrase is not correct.');
 }
 
-/** Restore writes upload files only into the folders FreeITSM keeps them in. */
+/**
+ * Restore writes upload files only into the folders FreeITSM keeps them in: a store's default
+ * folder (FILE_STORES) or another persistence folder - as a backup names them, 'dir:<rel>'.
+ */
 function backupRestoreDirAllowed(string $rel): bool
 {
+    foreach (FILE_STORES as $s) {
+        if ($s['folder'] === $rel) return true;
+    }
     foreach (storagePersistenceDirectories() as $d) {
         if (empty($d['critical']) && (string)$d['rel'] === $rel) return true;
     }
     return false;
+}
+
+/**
+ * Where restore writes a backed-up file ('dir:<rel>' and its path), or null when the entry is
+ * not one restore may write. A store's file goes back to wherever that store lives now
+ * (backupStoreDir()); <rel> is the store's default folder, or a persistence folder no store covers.
+ */
+function backupRestorePath(string $appRoot, string $rel, string $path): ?string
+{
+    if (!backupRestoreDirAllowed($rel) || $path === '' || $path[0] === '/' || str_contains($path, '\\')
+        || str_contains($path, "\0") || in_array('..', explode('/', $path), true)) {
+        return null;
+    }
+    return backupDefaultPath($appRoot, $rel) . '/' . $path;
+}
+
+/**
+ * The file entries of an open set (backupOpenSet()), one at a time.
+ *
+ * @return iterable<array{store: string, path: string, size?: int, sha256?: string, pool?: string, missing?: string}>
+ */
+function backupSetFiles(array $open): iterable
+{
+    $fh = fopen($open['files_path'], 'rb');
+    if ($fh === false) throw new RuntimeException('The backup manifest could not be read.');
+    try {
+        fgets($fh);   // the header
+        while (($line = fgets($fh)) !== false) {
+            $f = json_decode($line, true);
+            if (is_array($f)) yield $f;
+        }
+    } finally {
+        fclose($fh);
+    }
+}
+
+/** Done with an open set: its decrypted manifest is removed and its keys wiped. */
+function backupCloseSet(array &$open): void
+{
+    if (!empty($open['files_path'])) @unlink($open['files_path']);
+    if (isset($open['keys'])) backupForgetKeys($open['keys']);
+    if (isset($open['datakey']) && is_string($open['datakey'])) sodium_memzero($open['datakey']);
 }
 
 /** The whole object as a string (small objects only). */
@@ -118,55 +195,71 @@ function backupReadJson(StorageDriver $t, string $key): ?array
 /**
  * Decrypts every part of a set and checks every checksum, writing nothing.
  *
- * @return array{ok: bool, checked: int, errors: string[]}
+ * @return array{ok: bool, checked: int, errors: string[], warnings: string[]}
  * @throws BackupWrongPassphrase  (anything wrong with the backup itself is an error in the result)
  */
 function backupVerifySet(StorageDriver&StorageLister $t, string $set, string $passphrase): array
 {
     $errors = [];
+    $warnings = [];
     $checked = 0;
     try {
         $open = backupOpenSet($t, $set, $passphrase);
     } catch (BackupWrongPassphrase $e) {
         throw $e;
     } catch (Throwable $e) {
-        return ['ok' => false, 'checked' => 0, 'errors' => [$e->getMessage()]];
+        return ['ok' => false, 'checked' => 0, 'errors' => [$e->getMessage()], 'warnings' => []];
     }
     $m = $open['manifest'];
-    $tmp = sys_get_temp_dir() . '/bkverify-' . bin2hex(random_bytes(6));
+    // A private folder: the database dump is decrypted into it to be read through.
+    $tmpDir = sys_get_temp_dir() . '/bkverify-' . bin2hex(random_bytes(6));
+    if (!@mkdir($tmpDir, 0700)) { backupCloseSet($open); return ['ok' => false, 'checked' => 0, 'errors' => [backupT('err_tmp')], 'warnings' => []]; }
+    $tmp = $tmpDir . '/object';
     try {
         foreach (['db.bin' => $m['db'] ?? null, 'key.bin' => $m['key'] ?? null] as $obj => $want) {
             try {
                 $t->readTo("sets/$set/$obj", $tmp);
-                $sha = backupDecryptFile($tmp, null, $open['datakey']);
-                if (!is_array($want) || $sha !== ($want['sha256'] ?? '')) $errors[] = "$obj: the checksum does not match.";
+                $plain = $obj === 'db.bin' ? $tmp . '.dump' : null;   // the dump is read through: is it complete?
+                $sha = backupDecryptFile($tmp, $plain, $open['datakey']);
+                if (!is_array($want) || $sha !== ($want['sha256'] ?? '')) {
+                    $errors[] = "$obj: the checksum does not match.";
+                } elseif ($plain !== null) {
+                    if (!backupCheckDump($plain)['ended']) $errors[] = "$obj: " . BACKUP_DUMP_INCOMPLETE;
+                }
             } catch (Throwable $e) {
                 $errors[] = "$obj: " . $e->getMessage();
+            } finally {
+                if ($obj === 'db.bin') @unlink($tmp . '.dump');
             }
             $checked++;
         }
-        $done = [];
-        foreach ((array)($m['files'] ?? []) as $f) {
+        $done = [];   // binary pool name => true, or why it failed
+        $failed = 0;
+        foreach (backupSetFiles($open) as $f) {
             if (!isset($f['pool'])) continue;            // recorded as missing when the backup ran
-            $label = $f['store'] . ': ' . $f['path'];
-            if (!isset($done[$f['pool']])) {
+            $b = (string)hex2bin((string)$f['pool']);
+            if (!isset($done[$b])) {
                 try {
-                    $fk = backupOpenKey(backupReadString($t, 'pool/' . $f['pool'] . '.key'), $open['keys']['public'], $open['keys']['secret']);
+                    $fk = backupOpenKeyAny(backupReadString($t, 'pool/' . $f['pool'] . '.key'), $open['keys']);
                     $t->readTo('pool/' . $f['pool'], $tmp);
                     $sha = backupDecryptFile($tmp, null, $fk);
-                    $done[$f['pool']] = $sha === $f['sha256'] ? true : 'the checksum does not match.';
+                    $done[$b] = $sha === $f['sha256'] ? true : 'the checksum does not match.';
                 } catch (Throwable $e) {
-                    $done[$f['pool']] = $e->getMessage();
+                    $done[$b] = $e->getMessage();
                 }
                 $checked++;
             }
-            if ($done[$f['pool']] !== true) $errors[] = "$label: " . $done[$f['pool']];
+            if ($done[$b] !== true) {
+                $failed++;
+                if (count($errors) < 200) $errors[] = $f['store'] . ': ' . $f['path'] . ': ' . $done[$b];   // the first 200 are enough to act on
+            }
         }
+        if ($failed > count($errors)) $errors[] = ($failed - count($errors)) . ' more file(s) failed the same check.';
     } finally {
-        @unlink($tmp);
-        sodium_memzero($open['keys']['secret']);
+        BackupRunner::rmTree($tmpDir);
+        backupCloseSet($open);
     }
-    return ['ok' => !$errors, 'checked' => $checked, 'errors' => $errors];
+    return ['ok' => !$errors, 'checked' => $checked, 'errors' => $errors, 'warnings' => $warnings];
 }
 
 /** The restore will not run without --force (an install in use, or a key it would replace). */
@@ -237,51 +330,58 @@ final class BackupRestore
     {
         $open = backupOpenSet($this->t, $this->set, $this->passphrase);
         $m = $open['manifest'];
-        ($this->log)("Backup {$this->set}: FreeITSM " . ($m['app_version'] ?? '?') . ', files ' . count((array)$m['files']) . '.');
+        ($this->log)(backupT('log_opened', ['set' => $this->set, 'version' => $m['app_version'] ?? '?', 'files' => (int)($m['file_count'] ?? 0)]));
 
         $this->tmp = sys_get_temp_dir() . '/freeitsm-restore-' . bin2hex(random_bytes(6));
-        if (!@mkdir($this->tmp, 0700)) throw new RuntimeException('The server\'s temporary folder is not writable.');
+        if (!@mkdir($this->tmp, 0700)) { backupCloseSet($open); throw new RuntimeException(backupT('err_tmp')); }
         try {
             // Everything that can refuse, before anything is written.
             $this->t->readTo("sets/{$this->set}/key.bin", $this->tmp . '/key.enc');
             $keyBytes = backupDecryptString((string)file_get_contents($this->tmp . '/key.enc'), $open['datakey']);
-            if (hash('sha256', $keyBytes) !== ($m['key']['sha256'] ?? '')) throw new BackupCorrupt('The backed-up encryption key does not match its checksum.');
+            if (hash('sha256', $keyBytes) !== ($m['key']['sha256'] ?? '')) throw new BackupCorrupt(backupT('err_key_checksum'));
             $inUse = $this->databaseInUse();
             if ($inUse && !$this->force) {
-                throw new BackupRestoreRefused('This database is in use (it has analysts who have signed in). A restore replaces everything in it: run again with --force if that is what you want.');
+                throw new BackupRestoreRefused(backupT('err_db_in_use'));
             }
             $existing = is_file($this->keyPath) ? trim((string)@file_get_contents($this->keyPath)) : null;
             $keyDiffers = $existing !== null && $existing !== trim($keyBytes);
             if ($keyDiffers && !$this->force && ($inUse || $this->hasEncryptedSettings())) {
-                throw new BackupRestoreRefused('A different encryption key is already at ' . $this->keyPath . ' and this install may need it. Run again with --force to replace it.');
+                throw new BackupRestoreRefused(backupT('err_key_differs', ['path' => $this->keyPath]));
             }
 
             // The database.
             $this->t->readTo("sets/{$this->set}/db.bin", $this->tmp . '/db.enc');
             $sha = backupDecryptFile($this->tmp . '/db.enc', $this->tmp . '/db.dump', $open['datakey']);
             @unlink($this->tmp . '/db.enc');
-            if ($sha !== ($m['db']['sha256'] ?? '')) throw new BackupCorrupt('The database dump does not match its checksum.');
-            ($this->log)('Restoring the database...');
+            if ($sha !== ($m['db']['sha256'] ?? '')) throw new BackupCorrupt(backupT('err_dump_checksum'));
+            // Complete (its end record is there), before anything is dropped.
+            if (!backupCheckDump($this->tmp . '/db.dump')['ended']) throw new BackupCorrupt(BACKUP_DUMP_INCOMPLETE);
+            ($this->log)(backupT('log_db'));
             $this->dropEverything();
+            // The dump sets this connection's session (sql_mode, checks, time zone); a rollback carries on
+            // using the connection afterwards, so it is put back as it was.
+            $session = $this->db->query('SELECT @@SESSION.sql_mode, @@SESSION.time_zone')->fetch(PDO::FETCH_NUM);
             $n = backupReplayDump($this->db, $this->tmp . '/db.dump', $this->onFile ? fn() => ($this->onFile)() : null);
             @unlink($this->tmp . '/db.dump');
-            ($this->log)("Database restored ($n statements).");
+            $this->db->prepare('SET SESSION sql_mode = ?, SESSION time_zone = ?')->execute([(string)$session[0], (string)$session[1]]);
+            $this->db->exec('SET FOREIGN_KEY_CHECKS = 1, UNIQUE_CHECKS = 1');
+            ($this->log)(backupT('log_db_done', ['n' => $n]));
             if ($this->afterDatabaseHook) ($this->afterDatabaseHook)($this->db, trim($keyBytes));
             else $this->afterDatabase();
 
             // The key.
             if ($existing === null || $keyDiffers) {
                 $this->writeFile($this->keyPath, 0600, $keyBytes);
-                ($this->log)('Encryption key restored to ' . $this->keyPath . '.');
+                ($this->log)(backupT('log_key', ['path' => $this->keyPath]));
             }
 
             // Every stored file.
             $files = $this->filesStore ?? $this->restoredFilesStore(trim($keyBytes));
-            $this->restoreFiles($m, $open['keys'], $files);
+            $this->restoreFiles($open, $files);
             $this->rewriteRfpPaths();
-            if ($this->removeExtrasFilesRoot !== null) $this->removeExtras($m, $files, $this->removeExtrasFilesRoot);
+            if ($this->removeExtrasFilesRoot !== null) $this->removeExtras($open, $files, $this->removeExtrasFilesRoot);
         } finally {
-            sodium_memzero($open['keys']['secret']);
+            backupCloseSet($open);
             BackupRunner::rmTree($this->tmp);
         }
         $this->result['ok'] = !$this->result['errors'];
@@ -335,7 +435,7 @@ final class BackupRestore
         } catch (PDOException $e) {
             // an older backup without the scheduler table: Database Verification creates it
         }
-        ($this->log)('Scheduled backups are paused on this install: turn them back on in System -> Backups.');
+        ($this->log)(backupT('log_paused'));
     }
 
     /** The Files store as the restored settings describe it (its secret read with the restored key). */
@@ -359,30 +459,28 @@ final class BackupRestore
         return new LocalDriver($root !== '' ? $root : $this->appRoot . '/uploads/files');
     }
 
-    private function restoreFiles(array $m, array $keys, StorageDriver $files): void
+    private function restoreFiles(array $open, StorageDriver $files): void
     {
-        $total = count((array)$m['files']);
+        $total = (int)($open['manifest']['file_count'] ?? 0);
         $i = 0;
-        foreach ((array)$m['files'] as $f) {
+        foreach (backupSetFiles($open) as $f) {
             $i++;
             if ($this->onFile) ($this->onFile)();
             $label = $f['store'] . ': ' . $f['path'];
             if (!isset($f['pool'])) {
-                $this->result['warnings'][] = "$label was deleted while the backup ran, so it is not in the backup.";
+                $this->result['warnings'][] = backupT('warn_not_in_backup', ['file' => $label]);
                 continue;
             }
             try {
                 if ($f['store'] === 'files') {
                     if ($files->size($f['path']) === (int)$f['size']) { $this->result['skipped_files']++; continue; }
-                    $files->putFile($f['path'], $this->fetch($f, $keys), true);
+                    $files->putFile($f['path'], $this->fetch($f, $open['keys']), true);
                 } elseif (str_starts_with($f['store'], 'dir:')) {
-                    $rel = substr($f['store'], 4);
-                    if (!backupRestoreDirAllowed($rel) || str_contains($f['path'], '..') || $f['path'] === '' || $f['path'][0] === '/' || str_contains($f['path'], "\0")) {
-                        throw new RuntimeException('an unsafe path in the manifest');
-                    }
-                    $dest = $this->appRoot . '/' . $rel . '/' . $f['path'];
+                    if (backupIsProtectionFile((string)$f['path'])) { $this->result['skipped_files']++; continue; }   // never overwrite the install's own
+                    $dest = backupRestorePath($this->appRoot, substr($f['store'], 4), (string)$f['path']);
+                    if ($dest === null || str_contains($f['path'], '..')) throw new RuntimeException('an unsafe path in the manifest');
                     if (is_file($dest) && hash_file('sha256', $dest) === $f['sha256']) { $this->result['skipped_files']++; continue; }
-                    $this->writeFile($dest, 0640, null, $this->fetch($f, $keys));
+                    $this->writeFile($dest, 0640, null, $this->fetch($f, $open['keys']));
                 } else {
                     throw new RuntimeException('an unknown store');
                 }
@@ -390,33 +488,38 @@ final class BackupRestore
             } catch (Throwable $e) {
                 $this->result['errors'][] = "$label: " . $e->getMessage();
             }
-            if ($i % 500 === 0) ($this->log)("Files: $i of $total");
+            if ($i % 500 === 0) ($this->log)(backupT('log_files', ['i' => $i, 'total' => $total]));
         }
-        ($this->log)("Files restored: {$this->result['restored_files']}, already there: {$this->result['skipped_files']}, failed: " . count($this->result['errors']) . '.');
+        ($this->log)(backupT('log_files_done', ['restored' => $this->result['restored_files'], 'skipped' => $this->result['skipped_files'], 'failed' => count($this->result['errors'])]));
     }
 
     /**
      * A true rollback: deletes what the backup does not list. Only where a backup looks
      * (BackupRunner::uploadFolderFiles(), and Files keys - yyyy/mm/dd/<hex>.bin - in the Files
-     * store), never a file the app ships beside the uploads (.htaccess, web.config, any dot
-     * file), and nothing in the Files store that is not a Files key (_incoming/, anything else).
+     * store), never a file the app ships beside the uploads (.htaccess, web.config:
+     * backupIsProtectionFile()), and nothing in the Files store that is not a Files key (_incoming/, anything else).
      */
-    private function removeExtras(array $m, StorageDriver $files, string $filesRoot): void
+    private function removeExtras(array $open, StorageDriver $files, string $filesRoot): void
     {
+        // The backup's own names (the walk below names files the same way), as a compact set: an integer
+        // (64 bits of a hash) per file, not arrays of paths - a large install must not run out of memory
+        // here, after the database has already been replaced. A collision can only keep a file.
+        $key = fn(string $store, string $path): int => unpack('J', hash('sha256', $store . "\0" . $path, true))[1];
         $listed = [];
-        foreach ((array)$m['files'] as $f) $listed[(string)$f['store']][(string)$f['path']] = true;
+        foreach (backupSetFiles($open) as $f) $listed[$key((string)$f['store'], (string)$f['path'])] = true;
         $removed = 0;
         foreach (BackupRunner::uploadFolderFiles($this->appRoot, $filesRoot) as $f) {
-            if (isset($listed[$f['store']][$f['path']])) continue;
-            $name = basename($f['path']);
-            if ($name === '' || $name[0] === '.' || strcasecmp($name, 'web.config') === 0) continue;
-            $p = $this->appRoot . '/' . substr($f['store'], 4) . '/' . $f['path'];
+            if (isset($listed[$key($f['store'], $f['path'])]) || backupIsProtectionFile($f['path'])) continue;
+            $p = $f['base'] . '/' . $f['path'];
             if (@unlink($p)) $removed++;
             else $this->result['errors'][] = $f['store'] . ': ' . $f['path'] . ' could not be removed.';
         }
         if ($files instanceof StorageLister) {
-            foreach ($files->listKeys('') as $k) {
-                if (!filesStorageKeyIsValid($k) || isset($listed['files'][$k])) continue;
+            $drop = [];   // what the backup does not hold: usually few; deleted after the (streamed) listing
+            $files->eachObject('', function (string $k) use (&$drop, $listed, $key) {
+                if (filesStorageKeyIsValid($k) && !isset($listed[$key('files', $k)])) $drop[] = $k;
+            });
+            foreach ($drop as $k) {
                 try {
                     $files->delete($k);
                     $removed++;
@@ -434,7 +537,7 @@ final class BackupRestore
     /** One pooled file, decrypted to a temp file whose checksum has been checked. */
     private function fetch(array $f, array $keys): string
     {
-        $fk = backupOpenKey(backupReadString($this->t, 'pool/' . $f['pool'] . '.key'), $keys['public'], $keys['secret']);
+        $fk = backupOpenKeyAny(backupReadString($this->t, 'pool/' . $f['pool'] . '.key'), $keys);
         $enc = $this->tmp . '/pool.enc';
         $out = $this->tmp . '/pool.plain';
         $this->t->readTo('pool/' . $f['pool'], $enc);
@@ -486,7 +589,7 @@ final class BackupRestore
         $upd = $this->db->prepare('UPDATE rfp_documents SET file_path = ? WHERE id = ?');
         foreach ($rows as $r) {
             $p = str_replace('\\', '/', (string)$r['file_path']);
-            $upd->execute([$this->appRoot . '/' . substr($p, strpos($p, '/contracts/rfp-builder/uploads/') + 1), $r['id']]);
+            $upd->execute([backupDefaultPath($this->appRoot, substr($p, strpos($p, '/contracts/rfp-builder/uploads/') + 1)), $r['id']]);   // the RFP store, wherever it is
         }
     }
 }

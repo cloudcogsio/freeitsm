@@ -193,21 +193,33 @@
             '<path d="M5 11.5c0-3.5 2-5.5 5.5-5.5M8.5 3.5l2.5 2.5-2.5 2.5" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
     }
     // ── Offline copies ("Make available offline", S3-compatible storage only) ──
-    /** What an entry's offline badge says: kept itself, kept by a folder above, left out, or still being copied. */
+    /**
+     * What an entry's offline badge says: left out, still being copied, could not be copied
+     * (tried again later), or available - kept itself or by a folder above. A folder is
+     * available once everything it keeps offline is (offline_status from list.php).
+     */
     function offlineLabel(e) {
         if (e.offline === 'excluded') return L('ex.offline_excluded', 'Not kept offline (left out of a folder kept offline)');
-        if (e.type === 'item' && !e.offline_ready) return L('ex.offline_pending', 'Being made available offline');
+        if (e.offline_status === 'pending') return L('ex.offline_pending', 'Being made available offline');
+        if (e.offline_status === 'failed') return L('ex.offline_failed', 'Not available offline yet: the copy failed and is tried again later');
+        if (e.offline_status === 'unknown') return L('ex.offline_unknown', 'Kept offline - whether the copy is ready could not be read');
         return e.offline === 'self' ? L('ex.offline_self', 'Available offline') : L('ex.offline_folder', 'Available offline (from a folder)');
     }
-    /** An icon with the offline tick over its bottom-right corner (hollow while the copy is being made). */
+    /**
+     * An icon with the offline tick over its bottom-right corner: solid when available,
+     * hollow while copying, amber when the copy failed, grey when it could not be read.
+     * Colours are theme tokens (dark mode, palettes).
+     */
     function offlineIcon(base, e, px) {
-        var a = Math.max(10, Math.round(px * 0.38)), ready = e.type !== 'item' || e.offline_ready;
-        var fg = ready ? '#fff' : '#16a34a', bg = ready ? '#16a34a' : '#fff';
+        var a = Math.max(10, Math.round(px * 0.38)), s = e.offline_status, ready = s === 'ready' || !s;
+        var tone = s === 'failed' ? 'var(--warning-text, #92400e)' : s === 'unknown' ? 'var(--text-muted, #666666)' : 'var(--success-accent, #16a34a)';
+        var plain = 'var(--surface, #ffffff)';
+        var fg = ready ? plain : tone, bg = ready ? tone : plain;
         return '<span class="fi-sc" style="width:' + px + 'px;height:' + px + 'px">' + base +
             '<svg class="fi-off" width="' + a + '" height="' + a + '" viewBox="0 0 16 16" role="img" aria-label="' + esc(offlineLabel(e)) + '">' +
             '<title>' + esc(offlineLabel(e)) + '</title>' +
-            '<circle cx="8" cy="8" r="7" fill="' + bg + '" stroke="' + fg + '" stroke-width="1.5"/>' +
-            '<path d="M4.8 8.2l2.1 2.1 4.3-4.6" fill="none" stroke="' + fg + '" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+            '<circle cx="8" cy="8" r="7" stroke-width="1.5" style="fill:' + bg + ';stroke:' + fg + '"/>' +
+            '<path d="M4.8 8.2l2.1 2.1 4.3-4.6" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="stroke:' + fg + '"/></svg></span>';
     }
     /**
      * Runs an offline action on each selected file or folder in turn, then redraws.
@@ -228,17 +240,32 @@
         });
     }
     /**
-     * The entry menu's offline item, or null when it does not apply here. Kept by a folder
-     * above: "Don't keep offline" (left out here, back to S3 only). The folder's own mark is
-     * removed on the folder itself, as OneDrive does.
+     * The entry menu's offline items: none when they do not apply here. Each file or folder
+     * gets the one action that fits it - not kept: "Make available offline"; marked itself:
+     * "Remove offline copy"; kept by a folder above: "Don't keep offline" (left out here,
+     * back to S3 only - the folder's own mark is removed on the folder itself);
+     * left out: "Keep offline again". With several selected, each action that fits
+     * one of them is offered, and runs on those it fits. Only for things the person may
+     * change: Modify there, or the Files storage permission (can.offline_any).
      */
     function offlineMenu(ex, e, many) {
-        if (!ex.data || !ex.data.offline_enabled) return null;
-        if (many) return { label: L('ex.offline_on', 'Make available offline'), action: function () { setOffline(ex, ex.selected(), 'on'); } };
-        if (e.offline === 'self') return { label: L('ex.offline_off', 'Remove offline copy'), action: function () { setOffline(ex, [e], 'off'); } };
-        if (e.offline === 'excluded') return { label: L('ex.offline_include', 'Keep offline again'), action: function () { setOffline(ex, [e], 'include'); } };
-        if (e.offline === 'folder') return { label: L('ex.offline_exclude', "Don't keep offline"), action: function () { setOffline(ex, [e], 'exclude'); } };
-        return { label: L('ex.offline_on', 'Make available offline'), action: function () { setOffline(ex, [e], 'on'); } };
+        if (!ex.data || !ex.data.offline_enabled) return [];
+        var any = !!(ex.data.can && ex.data.can.offline_any);
+        var groups = { on: [], off: [], exclude: [], include: [] };
+        (many ? ex.selected() : [e]).forEach(function (s) {
+            if (s.type !== 'folder' && s.type !== 'item') return;
+            if (!any && !(s.level >= LV.MODIFY)) return;
+            groups[s.offline === 'self' ? 'off' : s.offline === 'folder' ? 'exclude' : s.offline === 'excluded' ? 'include' : 'on'].push(s);
+        });
+        var labels = {
+            on: L('ex.offline_on', 'Make available offline'),
+            off: L('ex.offline_off', 'Remove offline copy'),
+            exclude: L('ex.offline_exclude', "Don't keep offline"),
+            include: L('ex.offline_include', 'Keep offline again')
+        };
+        return ['on', 'off', 'exclude', 'include'].filter(function (k) { return groups[k].length; }).map(function (k) {
+            return { label: labels[k], action: function () { setOffline(ex, groups[k], k); } };
+        });
     }
 
     /** "Create shortcut >" for a file or folder: beside it, or on my desktop. */
@@ -528,8 +555,8 @@
         var d = this.data, out = [];
         if (!d) return out;
         var lvl = d.folder ? d.folder.level : 0;
-        d.folders.forEach(function (f) { out.push({ key: 'f:' + f.id, type: 'folder', id: f.id, name: f.name, modified: f.modified, level: f.level, path: f.path, offline: f.offline || null, offline_from: f.offline_from || null, offline_ready: true }); });
-        d.items.forEach(function (i) { out.push({ key: 'i:' + i.id, type: 'item', id: i.id, name: i.name, modified: i.modified, size: i.size, level: lvl, by: i.modified_by, versions: i.versions, offline: i.offline || null, offline_from: i.offline_from || null, offline_ready: !!i.offline_ready }); });
+        d.folders.forEach(function (f) { out.push({ key: 'f:' + f.id, type: 'folder', id: f.id, name: f.name, modified: f.modified, level: f.level, path: f.path, offline: f.offline || null, offline_status: f.offline_status || null }); });
+        d.items.forEach(function (i) { out.push({ key: 'i:' + i.id, type: 'item', id: i.id, name: i.name, modified: i.modified, size: i.size, level: lvl, by: i.modified_by, versions: i.versions, offline: i.offline || null, offline_status: i.offline_status || null }); });
         // Shortcuts: `level` is THIS folder's (it decides rename/delete); the
         // target's own permissions decide what opening it does.
         (d.shortcuts || []).forEach(function (s) {
@@ -845,7 +872,8 @@
             e.type === 'folder' ? { label: L('ex.permissions', 'Permissions'), icon: IC.perms, action: function () { openPermissions(e.id); }, disabled: many } : null,
             { label: L('ex.properties', 'Properties'), icon: IC.props, action: function () { openProperties(e.type, e.id); }, disabled: many }
         ];
-        WM.menu(ev.clientX, ev.clientY, items);
+        // offlineMenu() gives a list (one item per action that fits the selection): spread it in.
+        WM.menu(ev.clientX, ev.clientY, items.reduce(function (all, x) { return all.concat(Array.isArray(x) ? x : [x]); }, []));
     };
     Explorer.prototype.paneMenu = function (ev) {
         var self = this, c = this.can(), d = this.data;
@@ -1657,7 +1685,7 @@
             /** The Offline row: only for something kept offline (marked itself or by a folder). */
             var offlineRow = function (p) {
                 var o = p.offline || {};
-                return o.state ? [L('props.offline', 'Offline'), offlineLabel({ type: p.type, offline: o.state, offline_ready: o.ready !== false })] : null;
+                return o.state ? [L('props.offline', 'Offline'), offlineLabel({ type: p.type, offline: o.state, offline_status: o.status || null })] : null;
             };
             var general;
             if (p.type === 'folder') {

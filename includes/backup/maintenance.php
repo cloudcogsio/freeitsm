@@ -208,3 +208,81 @@ function backupMaintenanceWriteFile(string $f, array $st): void
         throw new RuntimeException('The maintenance file could not be written in ' . dirname($f) . '.');
     }
 }
+
+/**
+ * For the rollback job's register_shutdown_function(): when its process ends without the
+ * rollback finishing (a fatal error such as running out of memory), say so at once rather
+ * than leave maintenance mode on until the restore counts as stopped (BACKUP_MAINTENANCE_STALE).
+ * Before the database was touched (starting, waiting, safety) nothing changed, so maintenance
+ * mode goes off; after, the restore is "broken" and the progress page and
+ * scripts/backup_maintenance.php say what to do. Does nothing for another process's restore,
+ * or one that has already ended.
+ */
+function backupMaintenanceProcessEnded(): void
+{
+    $st = backupMaintenanceRead();
+    if ($st === null || (int)($st['pid'] ?? 0) !== getmypid() || !in_array($st['state'] ?? '', BACKUP_MAINTENANCE_WORKING, true)) return;
+    $err = error_get_last();
+    $fatal = $err && in_array($err['type'], [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR], true);
+    $why = backupMaintenanceT('mm_process_died', ['error' => $fatal ? $err['message'] : '-']);
+    try {
+        if (in_array($st['state'], ['starting', 'waiting', 'safety'], true)) {
+            backupMaintenanceUpdate([], $why);
+            backupMaintenanceEnd(['state' => 'failed', 'error' => $why . ' ' . backupMaintenanceT('mm_died_untouched')]);
+        } else {
+            $safety = (string)($st['safety_set'] ?? '');
+            backupMaintenanceUpdate(['state' => 'broken', 'error' => $why . ($safety !== '' ? ' ' . backupMaintenanceT('mm_died_touched', ['safety' => $safety]) : '')], $why);
+        }
+    } catch (Throwable $e) {
+        // the file could not be written: it counts as stopped once its heartbeat is old and this process is gone
+    }
+}
+
+/**
+ * Sessions after a restore. A restore replaces the analysts and portal users: a session signed in
+ * before it would carry on as whoever now has that id. Each sign-in is stamped with the current
+ * session epoch (sessionPromoteToAuthenticated()); a restore changes the epoch, a file beside the
+ * key (the database cannot hold it), and the gate ends every session stamped with another.
+ */
+function backupSessionEpochFile(): string
+{
+    $key = backupMaintenanceKeyPath();
+    return dirname($key) . DIRECTORY_SEPARATOR . pathinfo($key, PATHINFO_FILENAME) . '.session-epoch';
+}
+
+/** The current session epoch, '' before any restore. */
+function backupSessionEpoch(): string
+{
+    $f = backupSessionEpochFile();
+    return is_file($f) ? trim((string)@file_get_contents($f)) : '';
+}
+
+/**
+ * A new epoch: every session signed in before now ends at its next request. The web server must be
+ * able to read the file, also when the command-line restore runs as root: it then gets the owner
+ * of the encryption key (the folder's owner before there is a key), which the web server reads too.
+ */
+function backupSessionEpochBump(): void
+{
+    $f = backupSessionEpochFile();
+    try {
+        backupMaintenanceWriteFile($f, ['epoch' => bin2hex(random_bytes(16))]);
+    } catch (Throwable $e) {
+        error_log('[backups] the session epoch could not be written: ' . $e->getMessage());
+        return;
+    }
+    if (function_exists('posix_geteuid') && posix_geteuid() === 0) {
+        $key = backupMaintenanceKeyPath();
+        $ref = @stat(is_file($key) ? $key : dirname($f));
+        if ($ref !== false && (!@chown($f, $ref['uid']) || !@chgrp($f, $ref['gid']))) {
+            error_log('[backups] the session epoch file could not be given to the web server\'s user: ' . $f);
+        }
+    }
+}
+
+/** A backups string (lang system.php, backups.*), without the database: the gate and the job use it. */
+function backupMaintenanceT(string $key, array $params = []): string
+{
+    require_once __DIR__ . '/../i18n.php';
+    return I18n::t('system.backups.' . $key, $params);
+}

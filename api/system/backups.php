@@ -1,6 +1,8 @@
 <?php
 /**
- * API: System -> Backups (#286). Administrators only.
+ * API: System -> Backups (#286). Administrators, and analysts with Files access who hold
+ * Storage and backups (Cap::FILES_STORAGE_BACKUPS - never part of "Manage everything in
+ * Files"), as system/backups/ lets them open the page.
  *
  * GET  - the settings (no secrets) and the latest runs
  * POST - {action: test | save_target | set_passphrase | change_passphrase | save_schedule | backup_now | verify
@@ -13,8 +15,8 @@
  */
 session_start(['read_and_close' => true]);
 require_once '../../config.php';
-require_once '../../includes/admin_api_guard.php';   // signed in AND an administrator
 require_once '../../includes/functions.php';
+require_once '../../includes/rbac.php';
 require_once '../../includes/i18n.php';
 require_once '../../includes/services/backups.php';
 
@@ -22,10 +24,12 @@ header('Content-Type: application/json');
 I18n::initFromSession();
 
 $conn = connectToDatabase();
+requireCapabilityJson(Cap::FILES_STORAGE_BACKUPS, $conn);   // signed in (401) and the permission (403); administrators hold it
 $analystId = (int)$_SESSION['analyst_id'];
+if (!analystIsAdmin($conn, $analystId)) requireModuleAccessJson('files');
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    echo json_encode(['success' => true, 'settings' => BackupsService::describe($conn), 'runs' => BackupsService::runs($conn)]);
+    echo json_encode(['success' => true, 'settings' => BackupsService::describe($conn, analystIsAdmin($conn, $analystId)), 'runs' => BackupsService::runs($conn)]);
     exit;
 }
 
@@ -33,6 +37,14 @@ csrfRequireWriteMethod();
 $in = json_decode((string)file_get_contents('php://input'), true);
 if (!is_array($in)) $in = [];
 $action = (string)($in['action'] ?? '');
+
+// Restore replaces the whole database - analysts, roles and permissions included - so it
+// stays with administrators; Storage and backups sets backups up, it does not restore them.
+if (in_array($action, ['restore_check', 'restore_start'], true) && !analystIsAdmin($conn, $analystId)) {
+    http_response_code(403);
+    echo json_encode(['success' => false, 'error' => t('system.backups.err_restore_admin')]);
+    exit;
+}
 
 try {
     switch ($action) {
@@ -69,7 +81,7 @@ try {
             echo json_encode(['success' => true, 'verify' => ['ok' => $r['ok'], 'checked' => $r['checked'], 'errors' => array_slice($r['errors'], 0, 20)]]);
             break;
         case 'restore_check':
-            echo json_encode(['success' => true, 'restore' => BackupsService::restoreCheck($conn, (int)($in['run_id'] ?? 0), (string)($in['passphrase'] ?? ''))]);
+            echo json_encode(['success' => true, 'restore' => BackupsService::restoreCheck($conn, (int)($in['run_id'] ?? 0), (string)($in['passphrase'] ?? ''), $analystId)]);
             break;
         case 'restore_start':
             // Maintenance mode goes on now; this browser keeps the token that lets it follow the progress.
@@ -85,7 +97,7 @@ try {
             echo json_encode(['success' => false, 'error' => t('system.backups.err_action')]);
     }
 } catch (BackupsInputError $e) {
-    http_response_code($e->getMessage() === 'err_running' ? 409 : 400);
+    http_response_code($e->getMessage() === 'err_running' || $e->getMessage() === 'err_verify_running' ? 409 : ($e->getMessage() === 'err_throttled' ? 429 : 400));
     echo json_encode(['success' => false, 'error' => t('system.backups.' . $e->getMessage())]);
 } catch (Throwable $e) {
     error_log('[backups] ' . $action . ': ' . $e->getMessage());
