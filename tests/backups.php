@@ -1128,7 +1128,11 @@ try {
     $cleanup[] = fn() => $conn->prepare('DELETE FROM analysts WHERE id = ?')->execute([$nonAdmin]);
     $mkSess = function (int $id, string $csrf) use ($sessDir, &$cleanup): string {
         $sid = 'zzbk' . bin2hex(random_bytes(8));
-        file_put_contents("$sessDir/sess_$sid", 'analyst_id|i:' . $id . ';csrf_token|s:' . strlen($csrf) . ':"' . $csrf . '";');
+        // Stamped with the session epoch as a real sign-in is: after any restore, an unstamped
+        // session is ended by the maintenance gate (backupSessionEpochGate).
+        $epoch = function_exists('backupSessionEpoch') ? backupSessionEpoch() : '';
+        file_put_contents("$sessDir/sess_$sid", 'analyst_id|i:' . $id . ';csrf_token|s:' . strlen($csrf) . ':"' . $csrf . '";'
+                                               . ($epoch !== '' ? 'session_epoch|s:' . strlen($epoch) . ':"' . $epoch . '";' : ''));
         @chmod("$sessDir/sess_$sid", 0666);
         $cleanup[] = fn() => @unlink("$sessDir/sess_$sid");
         return $sid;

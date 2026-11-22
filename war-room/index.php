@@ -59,6 +59,9 @@ if ($focusId > 0) {
 }
 
 $myName    = $_SESSION['analyst_name'] ?? '';
+// Database Verification not run since an upgrade (5.9.0): administrators are told,
+// and the chat runs without the newer features rather than failing.
+$schemaBehind = warRoomSchemaBehind($conn);
 $canManage = analystHasCapability($conn, $analystId, Cap::WAR_ROOM_MANAGE);
 
 // Per-analyst preferences. Both are personal habits rather than administrator
@@ -70,8 +73,6 @@ $dp = $conn->prepare(
 );
 $dp->execute([':a' => $analystId]);
 foreach ($dp->fetchAll(PDO::FETCH_ASSOC) as $r) $prefs[$r['preference_key']] = (string) $r['preference_value'];
-
-$desktopAlerts = ($prefs['warroom_desktop_alerts'] ?? '') === '1';
 
 // Translation (5.9.0): offered only when an administrator has switched it on and an
 // AI provider is set up; then each person chooses, on unless they turn it off.
@@ -102,9 +103,10 @@ foreach ($channels as $ch) {
     <title><?php echo htmlspecialchars(pageTitle('war-room')); ?></title>
     <link rel="stylesheet" href="../assets/css/theme.css?v=29">
     <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
-    <link rel="stylesheet" href="../assets/css/war-room.css?v=11">
+    <link rel="stylesheet" href="../assets/css/war-room.css?v=15">
     <link rel="stylesheet" href="../assets/css/float-window.css?v=1"><!-- the shared file viewer (5.9.0) -->
-    <link rel="stylesheet" href="../assets/css/mobile.css?v=196">
+    <link rel="stylesheet" href="../assets/css/files-picker.css?v=1">
+    <link rel="stylesheet" href="../assets/css/mobile.css?v=201">
     <style>
         /* Pin the shared accent to the module's amber so buttons and focus
            rings are on-brand, the same way every other module does it. */
@@ -153,31 +155,10 @@ foreach ($channels as $ch) {
                  rather than competing with the message you are typing. -->
             <div class="wr-presence" id="wrPresence"></div>
 
-            <!-- Per-analyst, not per-install: whether a popup is welcome or
-                 infuriating is a personal answer, not an administrator's. -->
-            <label class="wr-desktop-opt">
-                <input type="checkbox" id="wrDesktopAlerts"<?php echo $desktopAlerts ? ' checked' : ''; ?>>
-                <span><?php echo htmlspecialchars(t('war-room.mention.desktop')); ?></span>
-            </label>
-
-            <?php if ($translateAvailable): ?>
-            <label class="wr-desktop-opt" title="<?php echo htmlspecialchars(t('war-room.translate.hint')); ?>">
-                <input type="checkbox" id="wrTranslateMine"<?php echo $translateOn ? ' checked' : ''; ?>>
-                <span><?php echo htmlspecialchars(t('war-room.translate.toggle')); ?></span>
-            </label>
-            <?php endif; ?>
-
-            <div class="wr-pref">
-                <label class="wr-pref-label" for="wrMentionStyle"><?php echo htmlspecialchars(t('war-room.mention.style_label')); ?></label>
-                <select id="wrMentionStyle">
-                    <?php foreach (['short', 'full', 'strip'] as $opt): ?>
-                        <option value="<?php echo $opt; ?>"<?php echo $mentionStyle === $opt ? ' selected' : ''; ?>>
-                            <?php echo htmlspecialchars(t('war-room.mention.style_' . $opt)); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <div class="wr-pref-hint"><?php echo htmlspecialchars(t('war-room.mention.style_hint')); ?></div>
-            </div>
+            <!-- Your own choices - desktop notification, your language, how a picked name
+                 is written - live in Preferences -> War room (5.9.0): this panel had no
+                 room to explain them. Still per analyst, never an administrator's. -->
+            <a class="wr-prefs-link" href="<?php echo BASE_URL; ?>system/preferences/#war-room">&#9881; <?php echo htmlspecialchars(t('war-room.prefs.link')); ?></a>
         </aside>
 
         <main class="wr-main">
@@ -195,6 +176,12 @@ foreach ($channels as $ch) {
             </div>
 
             <p class="wr-intro"><?php echo htmlspecialchars(t('war-room.intro')); ?></p>
+            <?php if ($schemaBehind && (sessionIsAdmin() || $canManage)): ?>
+            <div class="wr-schema-note" role="status">
+                <?php echo htmlspecialchars(t('war-room.schema_behind')); ?>
+                <a href="<?php echo BASE_URL; ?>system/db-verify/"><?php echo htmlspecialchars(t('war-room.schema_behind_link')); ?></a>
+            </div>
+            <?php endif; ?>
 
             <div class="wr-messages" id="wrMessages">
                 <div class="wr-empty" id="wrEmpty"><?php echo htmlspecialchars(t('war-room.empty')); ?></div>
@@ -253,13 +240,16 @@ foreach ($channels as $ch) {
         window.WR_LINK_BASE = <?php echo json_encode(BASE_URL . 'war-room/'); ?>;
         window.WR_TRANSLATE = <?php echo json_encode(['available' => $translateAvailable, 'on' => $translateOn, 'lang' => I18n::getLocale()]); ?>;
         window.WR_SEEN_BY   = <?php echo warRoomSeenByEnabled($conn) ? 'true' : 'false'; ?>;
+        window.WR_FILES     = <?php echo analystCanAccessModule($conn, $analystId, 'files') ? 'true' : 'false'; ?>;
     </script>
     <!-- Attachments open in the viewer Files and Tickets use (5.9.0). Its own
          libraries (pdf.js and the rest) ship with FreeITSM and load on first use. -->
     <script src="../assets/js/float-window.js?v=2"></script>
     <script src="../assets/js/files-icons.js?v=4"></script>
     <script src="../assets/js/files-viewer.js?v=10"></script>
-    <script src="../assets/js/war-room.js?v=13"></script>
+    <!-- + -> Files (5.9.0): the Files picker, as Tickets uses it. -->
+    <script src="../assets/js/files-picker.js?v=3"></script>
+    <script src="../assets/js/war-room.js?v=16"></script>
     <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>

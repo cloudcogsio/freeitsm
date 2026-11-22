@@ -62,6 +62,7 @@
     var offline   = false;
     var channels  = [];
     var pending   = [];      // files chosen but not yet sent
+    var pendingLinks = [];   // files picked from Files, not yet sent (5.9.0): [{id, name}]
     var quoting   = null;    // the message the next one quotes (5.9.0), or null
     var focusId   = window.WR_FOCUS || 0;   // a permanent link's message, until it is shown
     var holdRead  = 0;       // a channel marked unread: not marked read again until it is left (5.9.0)
@@ -340,6 +341,7 @@
             });
             row.appendChild(wrap);
         }
+        if (m.files && m.files.length) row.appendChild(renderFileCards(m.files));
         if (m.reactions && m.reactions.length) row.appendChild(renderReactions(m));
         // Threads (5.9.0): under a first message, how many replies and when the last
         // came; on a reply also sent to the conversation, the way into its thread.
@@ -513,7 +515,7 @@
                 renderChannels();
                 applyChannelHeader();
                 renderPresence(d.present);
-                renderPinBar(d.pins || 0);
+                renderPinBar(d.pins || 0, d.pin_top || null);
             })
             .catch(function () {
                 // ⚠️ Say so. The one thing this module must never do is let
@@ -535,7 +537,17 @@
     /** Draws a removable chip for each file chosen but not yet sent. */
     function renderPending() {
         clear(els.wrPending);
-        els.wrPending.hidden = !pending.length;
+        els.wrPending.hidden = !pending.length && !pendingLinks.length;
+        pendingLinks.forEach(function (f, i) {
+            var chip = el('span', 'wr-chip wr-chip-files');
+            chip.appendChild(el('span', null, '\uD83D\uDCC1 ' + f.name));
+            var x = el('button', 'wr-chip-x', '\u00D7');
+            x.type = 'button';
+            x.setAttribute('aria-label', t('war-room.quote.cancel'));
+            x.addEventListener('click', function () { pendingLinks.splice(i, 1); renderPending(); });
+            chip.appendChild(x);
+            els.wrPending.appendChild(chip);
+        });
         pending.forEach(function (f, i) {
             var chip = el('span', 'wr-chip');
             chip.appendChild(el('span', null, f.name));
@@ -728,21 +740,6 @@
 
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
     });
-
-    /* ── mention style preference ─────────────────────────────────────────────── */
-
-    var styleSel = document.getElementById('wrMentionStyle');
-    if (styleSel) {
-        styleSel.addEventListener('change', function () {
-            mentionStyle = styleSel.value;
-            fetch(window.WR_PREF_URL, {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ key: 'warroom_mention_style', value: mentionStyle })
-            });
-        });
-    }
 
     /* ── doing things with a message (5.9.0) ──────────────────────────────────
        wiki War-Room-Message-Actions-Design. Right-click, the ⋯ button, or a long
@@ -1224,27 +1221,6 @@
         next(want);
     }
 
-    var trToggle = document.getElementById('wrTranslateMine');
-    // TRAP: saves go one after another. Two quick clicks sent side by side could land
-    // in the wrong order and leave the preference opposite to the box (caught testing).
-    var trSaving = Promise.resolve();
-    if (trToggle) {
-        trToggle.addEventListener('change', function () {
-            TR.on = trToggle.checked;
-            var value = TR.on ? '1' : '0';
-            trSaving = trSaving.then(function () {
-                return fetch(window.WR_PREF_URL, {
-                    method: 'POST', credentials: 'same-origin',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'warroom_translate', value: value })
-                }).catch(function () { /* the box still shows the choice for this visit */ });
-            });
-            // Redraw what is on the page in the chosen language, then fill any gaps.
-            refreshRows(Object.keys(messageById).map(function (k) { return messageById[k]; }));
-            scheduleTranslate();
-        });
-    }
-
     /* ── threads (5.9.0, piece 3) ── */
 
     /** True when a message is drawn in the conversation or in the open thread. */
@@ -1340,6 +1316,87 @@
             setTimeout(function () { ta.focus(); }, 0);
         }
         poll();
+    }
+
+    /* ── + : Computer or Files, and the Files cards (5.9.0, piece 6) ── */
+
+    /**
+     * Files cards: a live link to a file in Files - its type icon, name and size, and
+     * "from Files". Opens the LATEST version in the shared viewer with the reader's own
+     * Files permissions (view-only and watermarks included). Without access the name
+     * still shows, so people know what to ask for; a deleted or binned file says so.
+     */
+    function renderFileCards(files) {
+        var wrap = el('div', 'wr-filecards');
+        files.forEach(function (f) {
+            var card = el('button', 'wr-filecard' + (f.access ? '' : ' is-locked') + (f.gone ? ' is-gone' : ''));
+            card.type = 'button';
+            var icon = el('span', 'wr-filecard-icon');
+            // FilesIcons draws from the file TYPE (a fixed table) - no text from the name goes in.
+            if (window.FilesIcons) icon.innerHTML = window.FilesIcons.file(f.name, 32);
+            card.appendChild(icon);
+            var txt = el('span', 'wr-filecard-text');
+            txt.appendChild(el('span', 'wr-filecard-name', f.name));
+            var sub = f.gone ? t('war-room.filecard.gone')
+                    : (!f.access ? t('war-room.filecard.no_access')
+                    : (f.size != null ? bytes(f.size) + ' \u00B7 ' : '') + t('war-room.filecard.from'));
+            txt.appendChild(el('span', 'wr-filecard-sub', sub));
+            card.appendChild(txt);
+            if (!f.access || f.gone) card.disabled = true;
+            card.addEventListener('click', function () {
+                if (!f.access || f.gone) return;
+                var open = window.FilesViewer && window.FilesViewer.openItem;
+                if (open) window.FilesViewer.openItem(f.item_id).catch(function () { window.open((window.WR_LINK_BASE || '').replace(/war-room\/$/, '') + 'files/?item=' + f.item_id, '_blank'); });
+                else window.open((window.WR_LINK_BASE || '').replace(/war-room\/$/, '') + 'files/?item=' + f.item_id, '_blank');
+            });
+            wrap.appendChild(card);
+        });
+        return wrap;
+    }
+
+    // + : with Files available it offers Computer or Files; otherwise it is the file
+    // chooser it always was.
+    if (window.WR_FILES && window.FilesPicker && els.wrAttachLabel) {
+        var attachMenu = null;
+        /** Closes the Computer / Files choice. */
+        var closeAttach = function () { if (attachMenu) { attachMenu.remove(); attachMenu = null; } };
+        els.wrAttachLabel.addEventListener('click', function (e) {
+            if (e.target === els.wrFiles) return;   // the hidden input's own click (Computer)
+            e.preventDefault();
+            if (attachMenu) { closeAttach(); return; }
+            attachMenu = el('div', 'wr-menu wr-attach-menu');
+            attachMenu.setAttribute('role', 'menu');
+            /** One choice in the + menu. */
+            var add = function (label, fn) {
+                var b = el('button', 'wr-menu-item', label);
+                b.type = 'button';
+                b.setAttribute('role', 'menuitem');
+                b.addEventListener('click', function () { closeAttach(); fn(); });
+                attachMenu.appendChild(b);
+            };
+            add('\uD83D\uDCBB ' + t('war-room.attach.computer'), function () { els.wrFiles.click(); });
+            add('\uD83D\uDCC1 ' + t('war-room.attach.files'), function () {
+                window.FilesPicker.open({
+                    mode: 'link',
+                    title: t('war-room.attach.files_title'),
+                    onPick: function (itemId, how, name) {
+                        if (pendingLinks.length >= 5) { toast(t('war-room.attach.too_many', { count: 5 })); return; }
+                        if (!pendingLinks.some(function (x) { return x.id === Number(itemId); })) pendingLinks.push({ id: Number(itemId), name: String(name || '') });
+                        renderPending();
+                        els.wrBody.focus();
+                    }
+                });
+            });
+            var r = els.wrAttachLabel.getBoundingClientRect();
+            placeBox(attachMenu, r.left, r.top - 4, false);
+            attachMenu.style.top = Math.max(8, r.top - attachMenu.offsetHeight - 6) + 'px';
+            var first = attachMenu.querySelector('button');
+            if (first) first.focus();
+        });
+        document.addEventListener('mousedown', function (e) {
+            if (attachMenu && !attachMenu.contains(e.target) && !els.wrAttachLabel.contains(e.target)) closeAttach();
+        });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAttach(); });
     }
 
     /* ── forward and Seen by (5.9.0, piece 4) ── */
@@ -1485,17 +1542,53 @@
         }).catch(function () { toast(t('war-room.menu.failed')); });
     }
 
-    // The pinned bar, above the conversation: "Pinned (3)", opening the list.
-    var pinBar = el('button', 'wr-pinbar');
-    pinBar.type = 'button';
+    // The pinned bar, above the conversation (5.9.0). It previews the NEWEST pin - in a
+    // war room a pin usually means "read this first", so the bar says what it is rather
+    // than just "Pinned (3)". The preview goes to that message; "Pinned (3)" opens the list,
+    // shown only when there is more than one.
+    var pinBar = el('div', 'wr-pinbar');
     pinBar.hidden = true;
-    pinBar.addEventListener('click', openPins);
+    var pinMsg = el('button', 'wr-pinbar-msg');
+    pinMsg.type = 'button';
+    pinMsg.title = t('war-room.pins.jump');
+    var pinIcon = el('span', 'wr-pinbar-icon', '\uD83D\uDCCC');
+    var pinWho = el('span', 'wr-pinbar-who');
+    var pinText = el('span', 'wr-pinbar-text');
+    pinMsg.appendChild(pinIcon); pinMsg.appendChild(pinWho); pinMsg.appendChild(pinText);
+    var pinAll = el('button', 'wr-pinbar-all');
+    pinAll.type = 'button';
+    pinAll.title = t('war-room.pins.title');
+    pinBar.appendChild(pinMsg); pinBar.appendChild(pinAll);
+    var pinTopId = 0;
+    pinMsg.addEventListener('click', function () { if (pinTopId) highlightMessage(pinTopId, false); });
+    pinAll.addEventListener('click', openPins);
     els.wrMessages.parentNode.insertBefore(pinBar, els.wrMessages);
 
-    /** Shows the pinned bar with its count, or hides it when nothing is pinned. */
-    function renderPinBar(n) {
+    /**
+     * Shows the pinned bar - the newest pin's author and first line, in the reader's
+     * language when translated - or hides it when nothing is pinned.
+     * @param {number} n    pinned messages in this conversation
+     * @param {?Object} top {id, author, text, lang, tr} of the newest pin, from the poll
+     */
+    function renderPinBar(n, top) {
         pinBar.hidden = !n;
-        pinBar.textContent = '\uD83D\uDCCC ' + t('war-room.pins.bar', { count: n });
+        if (!n) { pinTopId = 0; return; }
+        if (!top) {   // an older server: the count alone, as before
+            pinTopId = 0;
+            pinWho.textContent = ''; pinText.textContent = '';
+            pinAll.textContent = t('war-room.pins.bar', { count: n });
+            pinAll.hidden = false;
+            return;
+        }
+        // The drawn message when it is on the page (it may have been translated this visit).
+        var src = messageById[top.id] || { id: top.id, body: top.text, lang: top.lang, tr: top.tr, deleted: false };
+        var shown = String(translationOf(src) || src.body || '').replace(/\s+/g, ' ').trim();
+        pinTopId = top.id;
+        pinWho.textContent = top.author + ':';
+        pinText.textContent = shown;
+        pinMsg.setAttribute('aria-label', t('war-room.pins.jump') + ' - ' + top.author + ': ' + shown);
+        pinAll.hidden = n < 2;
+        pinAll.textContent = t('war-room.pins.bar', { count: n }) + ' \u25B8';
     }
 
     /** A clickable row for the pinned and saved lists: where, who, when, the start of the text. */
@@ -1663,7 +1756,8 @@
      */
     function send() {
         var body = els.wrBody.value;
-        if (!body.trim() && !pending.length) return;
+        if (!body.trim() && !pending.length && !pendingLinks.length) return;
+        var linkIds = pendingLinks.map(function (f) { return f.id; });
 
         els.wrSend.disabled = true;
         /** Re-enables the Send button when the request settles. */
@@ -1675,6 +1769,7 @@
             fd.append('channel_id', activeId);
             fd.append('body', body);
             if (quoting) fd.append('quote_of_id', quoting.id);
+            linkIds.forEach(function (id) { fd.append('files_items[]', id); });
             pending.forEach(function (f) { fd.append('files[]', f); });
             request = fetch(api + 'send.php', { method: 'POST', credentials: 'same-origin', body: fd });
         } else {
@@ -1682,7 +1777,7 @@
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ channel_id: activeId, body: body, quote_of_id: quoting ? quoting.id : 0 })
+                body: JSON.stringify({ channel_id: activeId, body: body, quote_of_id: quoting ? quoting.id : 0, files_items: linkIds })
             });
         }
 
@@ -1691,6 +1786,7 @@
                 if (!d || !d.success) throw new Error(d && d.error || 'send failed');
                 els.wrBody.value = '';
                 pending = [];
+                pendingLinks = [];
                 renderPending();
                 clearQuote();
                 // A file we refused is reported by name. Posting the message and
@@ -2088,42 +2184,6 @@
         actions.appendChild(cancel);
         body.appendChild(actions);
     });
-
-    /* ── desktop notifications (per-analyst, off by default) ─────────────────── */
-
-    var alertsBox = document.getElementById('wrDesktopAlerts');
-    if (alertsBox) {
-        alertsBox.addEventListener('change', function () {
-            var on = alertsBox.checked;
-            /** Saves the analyst's desktop-alerts preference (warroom_desktop_alerts) through WR_PREF_URL. */
-            var save = function (value) {
-                fetch(window.WR_PREF_URL, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: 'warroom_desktop_alerts', value: value ? '1' : '0' })
-                });
-            };
-            if (!on) { save(false); return; }
-
-            // Permission is asked for HERE, on a deliberate click, not on page
-            // load: a browser refuses a prompt that was not user-initiated, and
-            // an unprompted permission popup is what teaches people to click Block.
-            if (!('Notification' in window)) { alertsBox.checked = false; return; }
-            if (Notification.permission === 'granted') { save(true); return; }
-            if (Notification.permission === 'denied') {
-                alertsBox.checked = false;
-                alert(t('war-room.mention.desktop_blocked'));
-                return;
-            }
-            Notification.requestPermission().then(function (p) {
-                var ok = (p === 'granted');
-                alertsBox.checked = ok;
-                save(ok);
-                if (!ok) alert(t('war-room.mention.desktop_blocked'));
-            });
-        });
-    }
 
     /* ── go ────────────────────────────────────────────────────────────────── */
 
