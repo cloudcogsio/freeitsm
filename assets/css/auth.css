@@ -140,7 +140,10 @@
 
 /* ---------------------------------------------------------------- Phones */
 /* The pages pad their card 40px all round, which leaves the fields a narrow
-   column on a phone. */
+   column on a phone. The analyst sign-in pages and the portal sign-in have
+   their own phone padding (GH #412); this also covers the portal's forgot,
+   reset, register, verify-email and confirm-address pages and the SSO
+   confirm page, which have none - so it is not a duplicate to remove. */
 @media (max-width: 480px) {
     :root[data-ui="modern"][data-ui-page="auth"] :is(.login-container, .container, .change-container, .card) {
         padding: var(--space-6) var(--space-5);
