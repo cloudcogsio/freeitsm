@@ -718,6 +718,9 @@ return [
             'consumable' => [
                 'low_stock' => 'Running low - time to reorder',
             ],
+            'catalogue_request' => [
+                'awaiting' => 'A request is waiting for your approval',   // GH #160
+            ],
             // Backups (#286) - administrators and holders of Storage and backups.
             'backup' => [
                 'changed' => 'A backup setting changed',
@@ -790,6 +793,9 @@ return [
             ],
             'consumable' => [
                 'low_stock' => 'A consumable falls to its reorder point (who is told is chosen in Assets -> Settings -> Consumables)',
+            ],
+            'catalogue_request' => [
+                'awaiting' => 'A catalogue request reaches an approval step I decide (as its approver, or a member of the approving team)',   // GH #160
             ],
             'backup' => [
                 'changed' => 'Where backups go, the backup passphrase or the backup schedule changes (administrators, and people with Storage and backups)',

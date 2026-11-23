@@ -85,7 +85,6 @@ return [
         'field_phone' => 'telefon',
         'field_mobile' => 'mobil',
     ],
-    // GH #399: a settings page as tabs or as one page.
     'settings_view' => [
         'view' => 'Visning',
         'tabs' => 'Faner',
@@ -575,11 +574,9 @@ return [
         'loading' => 'Indlæser…',
         'load_failed' => 'Kunne ikke hente notifikationer.',
         'someone' => 'Nogen',
-        // GH #365: named after "by" when no person did it.
         'actor_workflow' => 'workflowet "{name}"',
         'actor_system' => 'FreeITSM',
         'actor_email' => 'e-mail',
-        // The bell's (i) panel - "why is this here?" (5.8.0).
         'explain' => [
             'info' => 'Hvorfor er den her?',
             'title' => 'Hvorfor den er her',
@@ -692,6 +689,9 @@ return [
             'consumable' => [
                 'low_stock' => 'Lageret er ved at slippe op - tid til at genbestille',
             ],
+            'catalogue_request' => [
+                'awaiting' => 'En forespørgsel venter på din godkendelse',
+            ],
             'backup' => [
                 'changed' => 'En indstilling for sikkerhedskopier er ændret',
                 'failed' => 'En sikkerhedskopi eller en kontrol af den mislykkedes',
@@ -757,6 +757,9 @@ return [
             ],
             'consumable' => [
                 'low_stock' => 'En forbrugsvare falder til sit genbestillingspunkt (hvem der får besked, vælges under Aktiver -> Indstillinger -> Forbrugsvarer)',
+            ],
+            'catalogue_request' => [
+                'awaiting' => 'En katalogforespørgsel når et godkendelsestrin, jeg afgør (som dets godkender eller som medlem af det godkendende team)',
             ],
             'backup' => [
                 'changed' => 'Hvor sikkerhedskopier sendes hen, adgangsudtrykket eller tidsplanen for sikkerhedskopier ændres (administratorer og personer med Lager og sikkerhedskopier)',
@@ -944,12 +947,11 @@ return [
         'hour' => 'Time',
         'minute' => 'Minut',
     ],
-    // GH #369: the database is behind the code (includes/db_verify_status.php, waffle-menu.php).
     'db_behind' => [
         'notice' => 'FreeITSM er opdateret til {version}. Kør Databasekontrol, så databasen passer, ellers virker nogle sider ikke.',
         'verify' => 'Kontrollér',
-        'hide'   => 'Skjul',
-        'error'  => 'Databasen skal opdateres til denne version af FreeITSM. Bed en administrator om at køre System → Databasekontrol.',
+        'hide' => 'Skjul',
+        'error' => 'Databasen skal opdateres til denne version af FreeITSM. Bed en administrator om at køre System → Databasekontrol.',
     ],
     'tenant_switcher' => [
         'title' => 'Skift virksomhed',
