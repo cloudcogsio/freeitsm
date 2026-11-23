@@ -21,6 +21,7 @@
  * never touches the filesystem.
  */
 require_once __DIR__ . '/../../includes/files/api_bootstrap.php';
+require_once __DIR__ . '/../../includes/files/thumbnails.php';
 require_once __DIR__ . '/../../includes/services/files_storage.php';
 require_once __DIR__ . '/../../includes/services/files_versions.php';
 require_once __DIR__ . '/../../includes/services/files_offline.php';
@@ -155,6 +156,12 @@ filesApiRun(function () use ($conn, $analystId) {
         $sha  = hash_file('sha256', $part);
         $mime = filesDetectMime($part, $up['file_name']);   // before the put, which may move the .part away
         $usedCfg = filesStorageConfig($conn);
+        // GH #424: a picture's thumbnail is made now, once, from the file still on this
+        // disk - nobody opening the folder later waits for it. Never stops the upload.
+        $thumb = null;
+        if (FilesThumbs::kind($up['file_name']) === 'image' && FilesThumbs::gd() && FilesThumbs::ready($conn) && FilesThumbs::enabled($conn)) {
+            try { $thumb = FilesThumbs::fromImageFile($part); } catch (Throwable $e) { $thumb = null; }
+        }
         $store = filesActiveStore($conn);
         // Into a folder kept offline: copy the part now (the put may move it away), and put
         // the copy in place once the upload is saved. Never fails the upload (the job fills it in).
@@ -205,6 +212,9 @@ filesApiRun(function () use ($conn, $analystId) {
         // Someone may have saved a new storage location while this file was being stored.
         FilesStorageService::queueIfMoved($conn, $usedCfg, $rel, $size, $sha);
         FilesOfflineService::commitUploadCopy($conn, $offlineTmp, $rel, $folderId);
+        if ($thumb !== null && !FilesThumbs::row($conn, $sha)) {
+            try { FilesThumbs::save($conn, $sha, $thumb, 'server'); } catch (Throwable $e) { error_log('files thumbnail at upload: ' . $e->getMessage()); }
+        }
 
         filesAudit($conn, $analystId, $isNew ? 'upload' : 'new_version',
                    ['folder_id' => $folderId, 'item_id' => $itemId, 'version_id' => $versionId, 'item_name' => $name],
