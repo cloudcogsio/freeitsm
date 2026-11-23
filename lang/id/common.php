@@ -85,7 +85,6 @@ return [
         'field_phone' => 'telepon',
         'field_mobile' => 'ponsel',
     ],
-    // GH #399: a settings page as tabs or as one page.
     'settings_view' => [
         'view' => 'Tampilan',
         'tabs' => 'Tab',
@@ -575,11 +574,9 @@ return [
         'loading' => 'Memuat…',
         'load_failed' => 'Tidak dapat memuat notifikasi.',
         'someone' => 'Seseorang',
-        // GH #365: named after "by" when no person did it.
         'actor_workflow' => 'alur kerja "{name}"',
         'actor_system' => 'FreeITSM',
         'actor_email' => 'email',
-        // The bell's (i) panel - "why is this here?" (5.8.0).
         'explain' => [
             'info' => 'Mengapa ini ada di sini?',
             'title' => 'Mengapa ini ada di sini',
@@ -692,6 +689,9 @@ return [
             'consumable' => [
                 'low_stock' => 'Stok menipis - saatnya memesan ulang',
             ],
+            'catalogue_request' => [
+                'awaiting' => 'Ada permintaan yang menunggu persetujuan Anda',
+            ],
             'storage' => [
                 'changed' => 'Tempat penyimpanan berkas telah berubah',
             ],
@@ -756,6 +756,9 @@ return [
             ],
             'consumable' => [
                 'low_stock' => 'Barang habis pakai turun ke titik pemesanan ulangnya (siapa yang diberi tahu dipilih di Aset -> Pengaturan -> Barang habis pakai)',
+            ],
+            'catalogue_request' => [
+                'awaiting' => 'Permintaan katalog mencapai langkah persetujuan yang saya putuskan (sebagai penyetuju, atau anggota tim penyetuju)',
             ],
             'storage' => [
                 'changed' => 'Tempat penyimpanan berkas berubah, atau pemindahan antar lokasi penyimpanan dimulai atau selesai (administrator)',
@@ -942,12 +945,11 @@ return [
         'hour' => 'Jam',
         'minute' => 'Menit',
     ],
-    // GH #369: the database is behind the code (includes/db_verify_status.php, waffle-menu.php).
     'db_behind' => [
         'notice' => 'FreeITSM telah diperbarui ke {version}. Jalankan Verifikasi Database agar database sesuai, atau beberapa halaman tidak akan berfungsi.',
         'verify' => 'Verifikasi',
-        'hide'   => 'Sembunyikan',
-        'error'  => 'Database perlu diperbarui untuk versi FreeITSM ini. Minta administrator menjalankan Sistem → Verifikasi Database.',
+        'hide' => 'Sembunyikan',
+        'error' => 'Database perlu diperbarui untuk versi FreeITSM ini. Minta administrator menjalankan Sistem → Verifikasi Database.',
     ],
     'tenant_switcher' => [
         'title' => 'Ganti perusahaan',

@@ -718,6 +718,9 @@ return [
             'consumable' => [
                 'low_stock' => 'Running low - time to reorder',
             ],
+            'catalogue_request' => [
+                'awaiting' => 'A request is waiting for your approval',   // GH #160
+            ],
             // Storage series N1 - administrators only.
             'storage' => [
                 'changed' => 'Where stored files are kept has changed',
@@ -789,6 +792,9 @@ return [
             ],
             'consumable' => [
                 'low_stock' => 'A consumable falls to its reorder point (who is told is chosen in Assets -> Settings -> Consumables)',
+            ],
+            'catalogue_request' => [
+                'awaiting' => 'A catalogue request reaches an approval step I decide (as its approver, or a member of the approving team)',   // GH #160
             ],
             'storage' => [
                 'changed' => 'Where stored files are kept changes, or a move between storage locations starts or ends (administrators)',
