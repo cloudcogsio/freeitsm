@@ -140,6 +140,8 @@ return [
     ['POST',   '#^/tasks/(\d+)/move$#',                    ['tasks', 'update'],               'apiTasksMove'],
     ['GET',    '#^/tasks/(\d+)/comments$#',                ['task_comments', 'read'],         'apiTaskCommentsList'],
     ['POST',   '#^/tasks/(\d+)/comments$#',                ['task_comments', 'create'],       'apiTaskCommentsCreate'],
+    // #181: the task's history, as on its History tab.
+    ['GET',    '#^/tasks/(\d+)/history$#',                 ['task_history', 'read'],          'apiTaskHistoryList'],
     // GH #190 phase 5: the forms a task occurrence needs, and submitting one for it.
     ['GET',    '#^/tasks/(\d+)/forms$#',                   ['task_forms', 'read'],            'apiTaskFormsList'],
     ['POST',   '#^/tasks/(\d+)/forms/(\d+)/submissions$#',  ['task_forms', 'create'],          'apiTaskFormSubmit'],
