@@ -591,6 +591,8 @@ return [
         'desktop_more' => 'And {n} more new notifications',
         'loading'     => 'Loading…',
         'load_failed' => 'Could not load notifications.',
+        'jump_end'    => 'Jump to the end',
+        'jump_top'    => 'Back to the top',
         'someone'     => 'Someone',
         // GH #365: named after "by" when no person did it.
         'actor_workflow' => 'the workflow "{name}"',
