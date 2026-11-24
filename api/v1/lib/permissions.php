@@ -264,6 +264,13 @@ function apiV1PermissionCatalog(): array {
                 'create' => 'Add a comment to a task',
             ],
         ],
+        // #181: what the task window's History tab shows.
+        'task_history' => [
+            'label'   => 'Task history',
+            'actions' => [
+                'read' => 'Read the history of a task: status changes, who completed it, date and assignee changes, company moves, checklist steps',
+            ],
+        ],
         // GH #273: the same shape as ticket checklists. Empty while checklists on tasks are switched off.
         'task_checklists' => [
             'label'   => 'Task checklists',

@@ -10955,7 +10955,24 @@ return array (
         ),
       ),
     ),
-    'TaskComment' => 
+    // #181: one entry of GET /tasks/{id}/history - TaskHistory::forTask(), as on the History tab.
+    'TaskHistoryEntry' => [
+        'type' => 'object',
+        'required' => ['at', 'kind', 'type', 'who', 'actor_kind', 'from', 'to', 'detail', 'job_run_id'],
+        'properties' => [
+            'at'         => ['type' => 'string', 'format' => 'date-time', 'nullable' => true, 'description' => 'When it happened (UTC).'],
+            'kind'       => ['type' => 'string', 'enum' => ['event', 'audit', 'step'],
+                             'description' => 'event: the task\'s own record (#181). audit: the older field log (company moves, checklist overrides, calendar sync). step: a checklist step changed.'],
+            'type'       => ['type' => 'string', 'description' => 'For an event, what happened (created, status_changed, completed, reopened, due_date_changed, start_date_changed, assigned, team_assigned, skipped, successor, checklist_attached, checklist_removed, evidence_exported, removed). For an audit entry, the field. For a step, the action.'],
+            'who'        => ['type' => 'string', 'nullable' => true, 'description' => 'Who did it, by name; null for the system.'],
+            'actor_kind' => ['type' => 'string', 'description' => 'analyst, api, portal, workflow or system (an audit entry can also carry its source, such as app).'],
+            'from'       => ['type' => 'string', 'nullable' => true, 'description' => 'The value before, where there is one.'],
+            'to'         => ['type' => 'string', 'nullable' => true, 'description' => 'The value after, where there is one.'],
+            'detail'     => ['type' => 'object', 'additionalProperties' => true, 'description' => 'Anything else kept with the entry; empty when there is nothing.'],
+            'job_run_id' => ['type' => 'integer', 'nullable' => true, 'description' => 'The background job run that did it, for an event made by the system.'],
+        ],
+    ],
+    'TaskComment' =>
     array (
       'type' => 'object',
       'required' => 
@@ -16547,15 +16564,16 @@ return array (
                     'nullable' => true,
                   ),
                 ),
-                'task_comments' => 
+                'task_comments' =>
                 array (
                   'type' => 'array',
-                  'items' => 
+                  'items' =>
                   array (
                     'type' => 'string',
                     'nullable' => true,
                   ),
                 ),
+                'task_history' => ['type' => 'array', 'items' => ['type' => 'string', 'nullable' => true]],   // #181
                 'cmdb_classes' => 
                 array (
                   'type' => 'array',
@@ -17063,14 +17081,16 @@ return array (
     array (
       '$ref' => '#/components/schemas/TaskDetail',
     ),
-    'GET /tasks/{id}/comments' => 
+    'GET /tasks/{id}/comments' =>
     array (
       'type' => 'array',
-      'items' => 
+      'items' =>
       array (
         '$ref' => '#/components/schemas/TaskComment',
       ),
     ),
+    // #181
+    'GET /tasks/{id}/history' => ['type' => 'array', 'items' => ['$ref' => '#/components/schemas/TaskHistoryEntry']],
     'GET /ticket-types' => 
     array (
       'type' => 'array',

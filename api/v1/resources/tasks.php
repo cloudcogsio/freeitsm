@@ -28,7 +28,8 @@
  *
  * Tasks keep a history (#181: task_events, includes/services/task_history.php),
  * written by TasksService for every write made here; it is shown in the task
- * window's History tab and the evidence report, and is not served by this API.
+ * window's History tab and the evidence report, and served read-only by
+ * GET /tasks/{id}/history (permission task_history.read).
  * A key whose analyst has Read only access to Tasks is refused every write, by
  * the service (#181 Part G).
  */
@@ -541,6 +542,39 @@ function apiTaskCommentsCreate(PDO $conn, array $apiKey, array $params, array $b
         $commentId = TasksService::createComment($conn, ActorContext::fromApiKey($apiKey), (int)$params[0], (string)($body['text'] ?? ''));
         apiRespond(['id' => $commentId, 'task_id' => $params[0], 'text' => trim((string)($body['text'] ?? ''))], 201);
     } catch (ServiceError $e) { apiFailFromService($e); }
+}
+
+// ---------------------------------------------------------------------------
+// History (#181)
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /tasks/{id}/history - what the task window's History tab shows, newest first.
+ *
+ * Read through TaskHistory::forTask(), the same reader as the History tab
+ * (api/tasks/history.php) and nothing else, so the two can't drift apart: a new
+ * event type recorded there appears here with no change to this file. `kind`
+ * says which record an entry came from: event (task_events), audit (the older
+ * task_audit rows - company moves, checklist overrides, calendar sync) or step
+ * (a checklist step's change). Times are UTC, as on every other endpoint.
+ */
+function apiTaskHistoryList(PDO $conn, array $apiKey, array $params, array $body): void {
+    // Child read: addressed by task id, so it needs the task's company gate.
+    apiLoadTask($conn, $params[0], $apiKey);
+    apiRespond(array_map(function (array $h) {
+        return [
+            'at'         => apiIsoDate($h['at']),
+            'kind'       => $h['kind'],
+            'type'       => $h['type'],
+            'who'        => $h['who'] ?? null,
+            'actor_kind' => $h['actor_kind'],
+            'from'       => $h['from'] ?? null,
+            'to'         => $h['to'] ?? null,
+            // An object even when empty, so a client can always read keys from it.
+            'detail'     => (object)($h['detail'] ?? []),
+            'job_run_id' => $h['job_run_id'] ?? null,
+        ];
+    }, TaskHistory::forTask($conn, (int)$params[0])));
 }
 
 // ---------------------------------------------------------------------------
