@@ -429,6 +429,7 @@ $translationNamespaces = ['common', 'tasks'];
                     <h4><?php echo htmlspecialchars(t('tasks.help.evidence_history_heading')); ?></h4>
                     <p><?php echo t('tasks.help.evidence_history_body'); ?></p>
                     <p class="help-note"><?php echo t('tasks.help.evidence_history_note'); ?></p>
+                    <p><?php echo t('tasks.help.evidence_history_api'); ?></p>
                     <h4><?php echo htmlspecialchars(t('tasks.help.case_report_heading')); ?></h4>
                     <p><?php echo t('tasks.help.case_report_body'); ?></p>
 

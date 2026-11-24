@@ -5928,6 +5928,34 @@
                 },
                 {
                     "m": "GET",
+                    "p": "\/tasks\/{id}\/history",
+                    "perm": "task_history.read",
+                    "s": "Get the history",
+                    "d": "What the task window's History tab shows, newest first: when it was created, status changes, who completed it, reopening, start and due date changes, analyst and team assignment, skipped occurrences and successors of a repeating task, checklists attached or removed, evidence exports, company moves, checklist overrides, calendar sync and each checklist step's change. kind says which record an entry comes from (event, audit or step). Step entries carry the step's results and notes, so they are included only when the key also has task_checklists.read and Checklists is switched on. Up to the newest 500 entries of each kind. GH #181.",
+                    "params": [
+                        {
+                            "name": "id",
+                            "in": "path",
+                            "desc": "Task id",
+                            "req": true
+                        }
+                    ],
+                    "section": "Tasks",
+                    "slug": "get-tasks-id-history",
+                    "extras": {
+                        "examples": [
+                            {
+                                "title": "Get the history",
+                                "note": "The same entries as the task's History tab, newest first, with who did each and the value before and after.",
+                                "path": {
+                                    "id": 340
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "m": "GET",
                     "p": "\/tasks\/{id}\/forms",
                     "perm": "task_forms.read",
                     "s": "List the forms a task needs",

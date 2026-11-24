@@ -429,9 +429,13 @@ final class TaskHistory
      * (company moves, checklist overrides, calendar sync) and its checklist step changes, merged.
      *
      * @param int $taskId  the task
+     * @param bool $strict  false (the History tab): a source that cannot be read is left out. true (the REST
+     *     API): only a table Database Verification hasn't created yet is left out - any other error is thrown,
+     *     so a failed read is never answered as "no history".
+     * @param bool $steps  false leaves out the checklist step changes, for a reader who may not see checklists
      * @return array<int,array{at:string,kind:string,type:string,who:?string,actor_kind:string,from:?string,to:?string,detail:array}>
      */
-    public static function forTask(PDO $conn, int $taskId): array
+    public static function forTask(PDO $conn, int $taskId, bool $strict = false, bool $steps = true): array
     {
         $out = [];
         try {
@@ -445,7 +449,7 @@ final class TaskHistory
                           'detail' => $r['detail_json'] ? (json_decode($r['detail_json'], true) ?: []) : [],
                           'job_run_id' => $r['job_run_id'] !== null ? (int)$r['job_run_id'] : null];
             }
-        } catch (Throwable) { /* before Database Verification */ }
+        } catch (Throwable $e) { self::readFailed($e, $strict); /* before Database Verification */ }
         try {
             $s = $conn->prepare("SELECT au.*, a.full_name FROM task_audit au LEFT JOIN analysts a ON a.id = au.analyst_id
                                   WHERE au.task_id = ? ORDER BY au.id DESC LIMIT 500");
@@ -455,8 +459,8 @@ final class TaskHistory
                           'who' => $r['full_name'], 'actor_kind' => $r['analyst_id'] ? 'analyst' : ($r['source'] ?: 'system'),
                           'from' => $r['old_value'], 'to' => $r['new_value'], 'detail' => ['source' => $r['source']]];
             }
-        } catch (Throwable) { /* nothing */ }
-        try {
+        } catch (Throwable $e) { self::readFailed($e, $strict); }
+        if ($steps) try {
             $s = $conn->prepare("SELECT * FROM task_checklist_item_events WHERE task_id = ? ORDER BY id DESC LIMIT 500");
             $s->execute([$taskId]);
             foreach ($s->fetchAll(PDO::FETCH_ASSOC) as $r) {
@@ -468,9 +472,21 @@ final class TaskHistory
                                        'after' => json_decode((string)$r['after_json'], true) ?: [],
                                        'after_completion' => (bool)$r['after_completion']]];
             }
-        } catch (Throwable) { /* nothing */ }
+        } catch (Throwable $e) { self::readFailed($e, $strict); }
         usort($out, fn($a, $b) => strcmp((string)$b['at'], (string)$a['at']));
         return $out;
+    }
+
+    /**
+     * A history source could not be read. Not strict: leave it out, as the History tab always has.
+     * Strict: only a missing table (before Database Verification) is left out; anything else is thrown.
+     */
+    private static function readFailed(Throwable $e, bool $strict): void
+    {
+        if (!$strict) return;
+        require_once __DIR__ . '/../db_errors.php';
+        if ($e instanceof PDOException && dbErrorIsMissingTable($e)) return;
+        throw $e;
     }
 
     /** An analyst's display name, or null. */

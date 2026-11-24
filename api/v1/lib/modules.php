@@ -46,7 +46,7 @@ const API_V1_RESOURCE_MODULES = [
     'knowledge_folders' => ['knowledge'], 'knowledge_access' => ['knowledge'],
     'knowledge_images' => ['knowledge'], 'knowledge_imports' => ['knowledge'],
     // Tasks
-    'tasks' => ['tasks'], 'task_comments' => ['tasks'], 'task_forms' => ['tasks', 'forms'],
+    'tasks' => ['tasks'], 'task_comments' => ['tasks'], 'task_history' => ['tasks'],'task_forms' => ['tasks', 'forms'],
     'task_checklists' => ['tasks', 'checklists'],   // GH #273
     // CMDB
     'cmdb_classes' => ['cmdb'], 'cmdb_objects' => ['cmdb'], 'cmdb_relationships' => ['cmdb'],
