@@ -119,6 +119,26 @@
     color: var(--text-muted, #666); font-size: var(--font-size-xs, 11px); font-weight: 700; line-height: 15px;
 }
 .nb-empty { padding: 26px 14px; text-align: center; color: var(--text-muted, #666); font-size: var(--font-size-md, 13px); }
+/* Jump to the end / back to the top. The wrapper has no height and sticks to the
+   bottom of the scrolling panel, so the button floats over the last rows without
+   adding blank space under the list. */
+.nb-jump-wrap { position: sticky; bottom: 0; height: 0; }
+.nb-jump {
+    /* Centred, not in the corner: the right edge is where each row's (i) and x
+       sit, and a button parked over them would swallow the click meant for one. */
+    position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+    display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; padding: 0;
+    border: 1px solid var(--border, #e0e0e0); border-radius: 50%;
+    background: var(--surface, #fff); color: var(--accent, #0078d4);
+    box-shadow: 0 2px 8px var(--shadow, rgba(0,0,0,0.18)); cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease;
+}
+.nb-jump[hidden] { display: none; }
+.nb-jump:hover { border-color: var(--accent, #0078d4); background: var(--surface-hover, #f6f6f6); }
+.nb-jump:focus-visible { outline: 2px solid var(--accent, #0078d4); outline-offset: 1px; }
+.nb-jump svg { display: block; transition: transform 160ms ease; }
+.nb-jump.up svg { transform: rotate(180deg); }
 @media (max-width: 768px) {
     /* Same reasoning as the war-room panel: anything wider than the
        viewport makes iOS reflow the whole page to desktop. */

@@ -239,6 +239,7 @@ window.NotificationBell = {
             } catch (e) {
                 list.innerHTML = '<div class="nb-empty">' + esc(window.t('common.notifications.load_failed')) + '</div>';
             }
+            paintJump();
         }
 
         btn.addEventListener('click', function (e) {
@@ -246,8 +247,37 @@ window.NotificationBell = {
             panel.classList.contains('open') ? panel.classList.remove('open') : open();
         });
         document.addEventListener('click', function (e) {
+            // The confirm dialog (clear one, clear all) sits outside the panel, so
+            // without this its OK and Cancel counted as a click away and shut the
+            // list the dialog was asking about.
+            if (e.target.closest && e.target.closest('.fitsm-confirm-overlay')) return;
             if (!panel.contains(e.target) && !btn.contains(e.target)) panel.classList.remove('open');
         });
+
+        // ===== Jump to the end / back to the top =====
+        // A long list is a lot of scrolling inside a small panel. One round button
+        // in the bottom corner: an arrow down while there is more below, an arrow
+        // up once at the end. Hidden when the list fits.
+        const jump = document.getElementById('nbJump');
+        /** Shows the jump button only when the panel scrolls, pointing down until the end is reached and up after. */
+        function paintJump() {
+            if (!jump) return;
+            const scrolls = panel.scrollHeight - panel.clientHeight > 8;
+            jump.hidden = !scrolls;
+            if (!scrolls) return;
+            const atEnd = panel.scrollTop + panel.clientHeight >= panel.scrollHeight - 8;
+            jump.classList.toggle('up', atEnd);
+            const label = window.t(atEnd ? 'common.notifications.jump_top' : 'common.notifications.jump_end');
+            jump.title = label;
+            jump.setAttribute('aria-label', label);
+        }
+        if (jump) {
+            panel.addEventListener('scroll', paintJump, { passive: true });
+            jump.addEventListener('click', function (e) {
+                e.stopPropagation();
+                panel.scrollTo({ top: jump.classList.contains('up') ? 0 : panel.scrollHeight, behavior: 'smooth' });
+            });
+        }
 
         // Follow the link AND mark read. Not awaited: making somebody wait on a
         // bookkeeping write before their ticket opens would be the wrong trade.
@@ -310,7 +340,7 @@ window.NotificationBell = {
         async function toggleExplain(id, item) {
             const open = item.nextElementSibling && item.nextElementSibling.classList.contains('nb-explain') ? item.nextElementSibling : null;
             const btn = item.querySelector('.nb-info');
-            if (open) { open.remove(); if (btn) btn.setAttribute('aria-expanded', 'false'); return; }
+            if (open) { open.remove(); if (btn) btn.setAttribute('aria-expanded', 'false'); paintJump(); return; }
             const box = document.createElement('div');
             box.className = 'nb-explain';
             const X = (k, p) => window.t('common.notifications.explain.' + k, p);
@@ -369,6 +399,7 @@ window.NotificationBell = {
             const note = t => { const p = document.createElement('div'); p.className = 'nb-ex-note'; p.textContent = t; box.appendChild(p); };
             if (x.grouped) note(X('grouped', { n: x.event_count }));
             if (!x.recorded) note(X('old_row'));
+            paintJump();
         }
         // Awaited, unlike mark-read: this one removes something from the screen,
         // so a row must not vanish before the server has agreed that it is gone.
@@ -391,14 +422,21 @@ window.NotificationBell = {
                     body: JSON.stringify({ ids: [id] })
                 })).json();
                 if (!d.success) throw new Error(d.error || 'failed');
-                item.remove();
                 paintBadge(d.unread);
                 // Re-baseline, or the chime goes quiet: chimeIfNew only fires when
                 // the count rises above the stored figure, and clearing lowers it.
                 recordSeen(d.unread);
+                // Its explanation, if open, goes with it.
+                const ex = item.nextElementSibling;
+                if (ex && ex.classList.contains('nb-explain')) ex.remove();
+                item.remove();
+                // The panel stays open while there is more to work through; clearing
+                // the last one leaves nothing to look at, so it closes.
                 if (!list.querySelector('.nb-item')) {
                     list.innerHTML = '<div class="nb-empty">' + esc(window.t('common.notifications.empty')) + '</div>';
+                    panel.classList.remove('open');
                 }
+                paintJump();
             } catch (err) {
                 if (typeof window.showToast === 'function') {
                     window.showToast(window.t('common.notifications.clear_failed'), 'error');
