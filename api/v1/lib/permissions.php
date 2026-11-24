@@ -268,7 +268,7 @@ function apiV1PermissionCatalog(): array {
         'task_history' => [
             'label'   => 'Task history',
             'actions' => [
-                'read' => 'Read the history of a task: status changes, who completed it, date and assignee changes, company moves, checklist steps',
+                'read' => 'Read the history of a task: status changes, who completed it, date and assignee changes, company moves. Checklist step changes also need Task checklists: read',
             ],
         ],
         // GH #273: the same shape as ticket checklists. Empty while checklists on tasks are switched off.

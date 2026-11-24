@@ -10962,7 +10962,7 @@ return array (
         'properties' => [
             'at'         => ['type' => 'string', 'format' => 'date-time', 'nullable' => true, 'description' => 'When it happened (UTC).'],
             'kind'       => ['type' => 'string', 'enum' => ['event', 'audit', 'step'],
-                             'description' => 'event: the task\'s own record (#181). audit: the older field log (company moves, checklist overrides, calendar sync). step: a checklist step changed.'],
+                             'description' => 'event: the task\'s own record (#181). audit: the older field log (company moves, checklist overrides, calendar sync). step: a checklist step changed - only for a key that also has task_checklists.read, while Checklists is on.'],
             'type'       => ['type' => 'string', 'description' => 'For an event, what happened (created, status_changed, completed, reopened, due_date_changed, start_date_changed, assigned, team_assigned, skipped, successor, checklist_attached, checklist_removed, evidence_exported, removed). For an audit entry, the field. For a step, the action.'],
             'who'        => ['type' => 'string', 'nullable' => true, 'description' => 'Who did it, by name; null for the system.'],
             'actor_kind' => ['type' => 'string', 'description' => 'analyst, api, portal, workflow or system (an audit entry can also carry its source, such as app).'],

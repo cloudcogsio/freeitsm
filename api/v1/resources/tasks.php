@@ -557,10 +557,17 @@ function apiTaskCommentsCreate(PDO $conn, array $apiKey, array $params, array $b
  * says which record an entry came from: event (task_events), audit (the older
  * task_audit rows - company moves, checklist overrides, calendar sync) or step
  * (a checklist step's change). Times are UTC, as on every other endpoint.
+ *
+ * Step entries carry the step's results, values and exception notes, which
+ * GET /tasks/{id}/checklists guards with task_checklists.read and the Checklists
+ * module. So they are included only when the key could read them there too.
+ * Read strictly: a history table Database Verification hasn't created yet is no
+ * entries, but any other database error is a 500, never an empty list.
  */
 function apiTaskHistoryList(PDO $conn, array $apiKey, array $params, array $body): void {
     // Child read: addressed by task id, so it needs the task's company gate.
     apiLoadTask($conn, $params[0], $apiKey);
+    $steps = in_array('read', $apiKey['permissions']['task_checklists'] ?? [], true) && moduleIsEnabled($conn, 'checklists');
     apiRespond(array_map(function (array $h) {
         return [
             'at'         => apiIsoDate($h['at']),
@@ -574,7 +581,7 @@ function apiTaskHistoryList(PDO $conn, array $apiKey, array $params, array $body
             'detail'     => (object)($h['detail'] ?? []),
             'job_run_id' => $h['job_run_id'] ?? null,
         ];
-    }, TaskHistory::forTask($conn, (int)$params[0])));
+    }, TaskHistory::forTask($conn, (int)$params[0], true, $steps)));
 }
 
 // ---------------------------------------------------------------------------
