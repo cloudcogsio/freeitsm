@@ -260,6 +260,7 @@ function analystReferenceRegistry(): array {
         ['task_comments', 'analyst_id', 'history'],
         ['task_collaborators', 'added_by_id', 'history'],
         ['ticket_watchers', 'added_by_id', 'history'],
+        ['ticket_participants', 'added_by_id', 'history'],   // GH #432
         ['task_recurrences', 'created_by_id', 'history'],
         ['task_dependencies', 'created_by_id', 'history'],
         ['task_checklists', 'created_by_id', 'history'],
@@ -329,6 +330,8 @@ function analystReferenceRegistry(): array {
         ['project_contracts', 'created_by_analyst_id', 'history'],
         ['project_cmdb_objects', 'created_by_analyst_id', 'history'],
         ['project_knowledge_articles', 'created_by_analyst_id', 'history'],
+        ['network_diagram_articles', 'created_by_analyst_id', 'history'],   // GH #433
+        ['network_icon_library_icons', 'uploaded_by_analyst_id', 'history'],   // GH #433: a leaver's My images picture stays; an admin can remove it
         ['project_problems', 'created_by_analyst_id', 'history'],
         ['project_members', 'created_by_analyst_id', 'history'],
         ['project_raid', 'escalated_by_id', 'history'],

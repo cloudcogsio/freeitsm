@@ -64,11 +64,11 @@ $translationNamespaces = ['common', 'tickets'];
     <title><?php echo htmlspecialchars(pageTitle('tickets', t('tickets.nav.inbox'))); ?></title>
     <link rel="stylesheet" href="../assets/css/theme.css?v=29">
     <link rel="stylesheet" href="../checklists/ticket_checklist.css?v=4">
-    <link rel="stylesheet" href="../assets/css/inbox.css?v=97">
+    <link rel="stylesheet" href="../assets/css/inbox.css?v=98">
     <link rel="stylesheet" href="../assets/css/address-suggest.css?v=1">   <!-- GH #307 -->
     <link rel="stylesheet" href="../assets/css/save-to-files.css?v=1">
     <link rel="stylesheet" href="../assets/css/files-picker.css?v=1">
-    <link rel="stylesheet" href="../assets/css/float-window.css?v=2">
+    <link rel="stylesheet" href="../assets/css/float-window.css?v=3">
     <link rel="stylesheet" href="../assets/css/ticket-fields.css?v=1">
     <link rel="stylesheet" href="../assets/css/reading-pane.css?v=10">
     <link rel="stylesheet" href="../assets/css/ticket-workspace.css?v=4">
@@ -1204,9 +1204,9 @@ $jsTranslations['files'] = array_intersect_key($filesStrings, array_flip(['wm', 
     <!-- Note images open in the Files viewer, in a floating window (GH #226). -->
     <script src="../assets/js/float-window.js?v=3"></script>
     <script src="../assets/js/files-icons.js?v=4"></script>
-    <script src="../assets/js/files-viewer.js?v=11"></script>
+    <script src="../assets/js/files-viewer.js?v=12"></script>
     <script src="../assets/js/note-images.js?v=2"></script>
-    <script src="../assets/js/save-to-files.js?v=2"></script>
+    <script src="../assets/js/save-to-files.js?v=3"></script>
     <script src="../assets/js/files-picker.js?v=3"></script>
     <script src="../assets/js/address-suggest.js?v=1"></script>   <!-- GH #307: before inbox.js, which attaches it to To and Cc -->
     <script src="../assets/js/location-picker.js?v=1"></script>   <!-- GH #311: before inbox.js -->
@@ -1221,9 +1221,10 @@ $jsTranslations['files'] = array_intersect_key($filesStrings, array_flip(['wm', 
         } catch (Throwable $e) { $__linkStatus = null; }
     } ?>
     <script>window.TICKET_LINK_STATUS = <?php echo json_encode($__linkStatus, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;</script>
-    <script src="../assets/js/inbox.js?v=222"></script>
+    <script src="../assets/js/inbox.js?v=223"></script>
     <script src="../assets/js/ticket-folders-pane.js?v=2"></script>   <!-- discussion #292 -->
     <script src="../assets/js/ticket-watchers.js?v=2"></script>
+    <script src="../assets/js/ticket-participants.js?v=1"></script>
     <script src="../assets/js/ticket-forms.js?v=5"></script>
     <script src="../assets/js/tickets-table.js?v=7"></script>
     <script src="../assets/js/mobile.js?v=87"></script>
