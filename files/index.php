@@ -125,7 +125,7 @@ $recycleDays = FilesRecycleService::retentionDays($conn);   // null = never set:
     <script src="../assets/js/files-wm.js?v=6"></script>
     <script src="../assets/js/files-viewer.js?v=12"></script>
     <script src="../assets/js/files-thumbs.js?v=3"></script>
-    <script src="../assets/js/files-desktop.js?v=23"></script>
+    <script src="../assets/js/files-desktop.js?v=24"></script>
     <script src="../assets/js/mobile.js?v=87"></script>
 </body>
 </html>
